@@ -1,0 +1,101 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: light;
+    --sat: env(safe-area-inset-top, 0px);
+    --sab: env(safe-area-inset-bottom, 0px);
+    --sal: env(safe-area-inset-left, 0px);
+    --sar: env(safe-area-inset-right, 0px);
+
+    --background: 0 0% 98%;
+    --foreground: 222 47% 11%;
+    --border: 214 32% 91%;
+    --radius: 0.75rem;
+
+    --vantix-surface: 0 0% 98%;
+    --vantix-surface-raised: 0 0% 100%;
+    --vantix-surface-muted: 220 14% 94%;
+    --vantix-fg: 222 47% 11%;
+    --vantix-fg-muted: 215 16% 35%;
+    --vantix-fg-subtle: 215 16% 50%;
+    --vantix-overlay: 222 47% 11%;
+    --vantix-line: 222 47% 11%;
+  }
+
+  .dark {
+    color-scheme: dark;
+    --background: 0 0% 0%;
+    --foreground: 210 40% 98%;
+    --border: 0 0% 16%;
+
+    --vantix-surface: 0 0% 0%;
+    --vantix-surface-raised: 240 4% 6%;
+    --vantix-surface-muted: 240 3% 10%;
+    --vantix-fg: 210 40% 98%;
+    --vantix-fg-muted: 215 16% 70%;
+    --vantix-fg-subtle: 215 16% 55%;
+    --vantix-overlay: 0 0% 100%;
+    --vantix-line: 0 0% 100%;
+  }
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  min-height: -webkit-fill-available;
+}
+
+body {
+  min-height: 100vh;
+  min-height: 100dvh;
+  min-height: -webkit-fill-available;
+  @apply bg-vantix-surface text-vantix-fg antialiased;
+  font-family: Rubik, system-ui, sans-serif;
+  direction: rtl;
+  padding-top: var(--sat);
+  padding-bottom: var(--sab);
+  padding-left: var(--sal);
+  padding-right: var(--sar);
+  -webkit-tap-highlight-color: transparent;
+}
+
+#root {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+@layer components {
+  .vantix-page-bg {
+    @apply bg-gradient-to-br from-vantix-surface via-vantix-surface-raised to-vantix-surface;
+  }
+
+  .vantix-soft-card {
+    @apply rounded-3xl border border-vantix-cyan/25 bg-vantix-surface-raised shadow-lg shadow-black/5;
+  }
+
+  .dark .vantix-soft-card {
+    @apply border-vantix-cyan/30 shadow-md shadow-black/40;
+  }
+
+  .vantix-btn-primary {
+    @apply rounded-full bg-gradient-to-l from-vantix-cyan to-vantix-orange font-semibold text-black shadow-lg shadow-vantix-cyan/30 transition hover:brightness-110 active:scale-[0.98];
+  }
+
+  .vantix-btn-ghost {
+    @apply rounded-full border border-vantix-cyan/30 bg-vantix-surface-raised font-semibold text-vantix-fg transition hover:border-vantix-cyan/50 hover:bg-vantix-cyan/5;
+  }
+
+  .vantix-input {
+    @apply w-full rounded-2xl border border-vantix-line/15 bg-vantix-surface-raised px-4 py-3 text-sm text-vantix-fg outline-none transition focus:border-vantix-cyan/50 focus:ring-2 focus:ring-vantix-cyan/15;
+  }
+
+  .vantix-nav-shell {
+    @apply border border-vantix-line/10 bg-vantix-surface-raised/95 shadow-sm backdrop-blur-md;
+  }
+
+  .vantix-surface-panel {
+    @apply bg-vantix-surface-raised;
+  }
+}

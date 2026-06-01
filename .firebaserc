@@ -1,0 +1,19 @@
+{
+  "projects": {
+    "default": "maxdelivery-demo",
+    "demo": "maxdelivery-demo",
+    "prod": "maxdeliveries"
+  },
+  "targets": {
+    "maxdelivery-demo": {
+      "hosting": {
+        "demo": ["jackob-demo"]
+      }
+    },
+    "maxdeliveries": {
+      "hosting": {
+        "prod": ["vantix"]
+      }
+    }
+  }
+}
