@@ -34,6 +34,8 @@ export interface Order {
   status: 'new' | 'accepted' | 'delivery_created' | 'cancelled'
   createdAt: string
   created_by_uid?: string
+  /** אמצעי תשלום שבחר הלקוח (תצוגה בלבד – אין עיבוד תשלום באפליקציה) */
+  payment_method?: string
 }
 
 /** נתונים לשליחה בצ'קאאוט (בלי orderId) */

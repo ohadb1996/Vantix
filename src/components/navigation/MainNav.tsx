@@ -2,7 +2,6 @@ import { LogOut, ChevronRight, User, UtensilsCrossed, History } from 'lucide-rea
 import { Link, NavLink, useLocation } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { useAuth } from '../../context/AuthContext'
-import { useCurrentUserKind } from '../../hooks/useCurrentUserKind'
 import { useScrolled } from '../../hooks/useScrolled'
 import { Logo } from '../branding/Logo'
 import { ROUTES } from '../../constants/app'
@@ -18,7 +17,6 @@ const linkClasses =
 
 export const MainNav = () => {
   const { user, loading, logout } = useAuth()
-  const { isAdmin } = useCurrentUserKind()
   const location = useLocation()
   const scrolled = useScrolled()
   const isRestaurantMenu = /^\/restaurants\/[^/]+$/.test(location.pathname)
@@ -75,20 +73,6 @@ export const MainNav = () => {
             </NavLink>
           )
         })}
-        {isAdmin && (
-          <NavLink
-            to={ROUTES.ADMIN}
-            className={({ isActive }) =>
-              `${linkClasses} ${
-                isActive
-                  ? 'text-vantix-cyan after:absolute after:-bottom-2 after:left-1/2 after:h-1 after:w-1/2 after:-translate-x-1/2 after:rounded-full after:bg-vantix-cyan'
-                  : ''
-              }`
-            }
-          >
-            אדמין
-          </NavLink>
-        )}
       </div>
 
       <div className="flex min-w-0 shrink items-center gap-2 sm:gap-3 sm:px-0">

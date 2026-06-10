@@ -72,7 +72,7 @@ export const PartnersCarousel = () => {
         </p>
         <div className="mt-6 flex justify-center">
           <div className="animated-underline relative h-1 w-72 overflow-hidden rounded-full">
-            <div className="underline-line absolute left-0 top-0 h-full w-full rounded-full bg-gradient-to-r from-transparent via-vantix-orange to-transparent" />
+            <div className="underline-line absolute left-0 top-0 h-full w-full rounded-full bg-gradient-to-r from-transparent via-vantix-orange to-transparent dark:via-vantix-cyan" />
           </div>
         </div>
       </div>

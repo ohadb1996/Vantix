@@ -14,9 +14,6 @@ export const ROUTES = {
   PROFILE: '/profile',
   AUTH_LOGIN: '/auth/login',
   AUTH_REGISTER: '/auth/register',
-  ADMIN: '/admin',
-  ADMIN_USERS: '/admin/users',
-  ADMIN_USER_PROFILE: (uid: string) => `/admin/users/${uid}`,
 } as const
 
 export const CART_STORAGE_KEY = 'vantix_cart'

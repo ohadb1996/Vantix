@@ -1,11 +1,10 @@
 import { Link } from "react-router-dom";
-import { MapPin, Sparkles } from "lucide-react";
 import { motion } from "framer-motion";
 import { useDiscoveryData } from "../../modules/discovery/hooks/useDiscoveryData";
 import { useAuth } from "../../context/AuthContext";
 import { BusinessPartnersCTA } from "../../components/partners/BusinessPartnersCTA";
+import { SpotlightCta } from "../../components/partners/SpotlightCta";
 import { PartnersCarousel } from "../../components/partners/PartnersCarousel";
-import { Logo } from "../../components/branding/Logo";
 import { ROUTES } from "../../constants/app";
 
 const filtersSkeleton = new Array(6).fill(null);
@@ -48,12 +47,21 @@ export const HomePage = () => {
           >
             <div className="flex flex-col items-center" style={{ perspective: '1000px' }}>
               <motion.div
-                className="flex flex-col items-center gap-2 [&>div]:flex-col [&>div]:gap-2 [&_span]:text-2xl [&_span]:sm:text-3xl [&_span]:tracking-[0.2em]"
+                className="flex flex-col items-center"
                 style={{ transformStyle: 'preserve-3d' }}
                 animate={{ rotateY: 360 }}
                 transition={{ repeat: Infinity, duration: 6, ease: 'linear' }}
               >
-                <Logo size={112} withWordmark />
+                <img
+                  src="/assets/logo-white.jpeg"
+                  alt="VANTIX"
+                  className="w-56 rounded-2xl object-contain sm:w-72 dark:hidden"
+                />
+                <img
+                  src="/assets/logo-dark.png"
+                  alt="VANTIX"
+                  className="hidden w-56 object-contain sm:w-72 dark:block"
+                />
               </motion.div>
             </div>
 
@@ -77,17 +85,10 @@ export const HomePage = () => {
             </h1>
           </motion.div>
 
-          <div className="mt-6 flex w-full max-w-xl flex-col gap-3 rounded-2xl border border-vantix-cyan/20 bg-vantix-surface-raised p-3 shadow-vantix sm:mt-8 sm:flex-row sm:items-center sm:gap-4 sm:rounded-3xl sm:p-5">
-            <div className="flex flex-1 items-center gap-3 rounded-xl border border-vantix-cyan/25 bg-vantix-surface px-3 py-2.5 sm:rounded-2xl sm:px-4 sm:py-3">
-              <MapPin className="h-4 w-4 shrink-0 text-vantix-cyan sm:h-5 sm:w-5" />
-              <input
-                className="w-full min-w-0 bg-transparent text-sm font-medium text-vantix-fg placeholder:text-vantix-fg-subtle focus:outline-none"
-                placeholder="לאן לשלוח לך עכשיו?"
-              />
-            </div>
+          <div className="mt-6 mx-auto flex w-fit items-center justify-center rounded-2xl border border-vantix-cyan/20 bg-vantix-surface-raised p-2 shadow-vantix sm:mt-8 sm:rounded-3xl">
             <Link
               to={user ? ROUTES.RESTAURANTS : ROUTES.AUTH_LOGIN}
-              className="vantix-btn-primary flex min-h-[44px] items-center justify-center rounded-xl px-5 py-3 text-sm sm:min-h-0 sm:rounded-2xl sm:px-6"
+              className="vantix-btn-primary flex min-h-[44px] items-center justify-center rounded-xl bg-none bg-vantix-cyan px-5 py-3 text-sm shadow-vantix-cyan/40 sm:min-h-0 sm:rounded-2xl sm:px-6"
             >
               {user ? "מצא לי את המנה המושלמת" : "התחבר כדי לצפות במסעדות ולהזמין"}
             </Link>
@@ -112,32 +113,7 @@ export const HomePage = () => {
         <PartnersCarousel />
       </section>
 
-      {spotlight && (
-        <section
-          id="smart-handoff"
-          className="vantix-soft-card p-4 sm:p-6"
-        >
-          <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center sm:gap-6">
-            <div className="min-w-0 flex-1">
-              <p className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.28em] text-vantix-cyan sm:text-xs sm:tracking-[0.35em]">
-                <Sparkles className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> smart handoff
-              </p>
-              <h2 className="mt-2 font-display text-xl text-vantix-fg sm:text-2xl sm:text-3xl">
-                {spotlight.title}
-              </h2>
-              <p className="mt-2 max-w-2xl text-xs text-vantix-fg-muted sm:mt-3 sm:text-sm">
-                {spotlight.description}
-              </p>
-            </div>
-            <a
-              className="vantix-btn-primary w-full shrink-0 px-5 py-3 text-center text-sm sm:w-auto sm:px-6"
-              href={spotlight.href}
-            >
-              {spotlight.ctaLabel}
-            </a>
-          </div>
-        </section>
-      )}
+      {spotlight && <SpotlightCta campaign={spotlight} />}
       <BusinessPartnersCTA />
     </>
   );

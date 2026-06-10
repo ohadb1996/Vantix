@@ -47,7 +47,7 @@ export const RestaurantsPage = () => {
       >
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div className="space-y-2 sm:space-y-3">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-vantix-cyan/80 sm:text-xs sm:tracking-[0.32em]">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-white sm:text-xs sm:tracking-[0.32em]">
               signature dining
             </p>
             <h1 className="font-display text-2xl text-vantix-fg sm:text-4xl sm:text-5xl">

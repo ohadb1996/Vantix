@@ -5,12 +5,12 @@ import { placeOrder } from '../../services/orderService'
 import type { OrderCreate, OrderItem } from '../../types/order'
 import type { MenuItem } from '../../types/menu'
 import { isValidIsraeliPhone } from '../../utils/phone'
-import { ShoppingCart, Plus, Minus, Loader2, Check, ArrowRight, X } from 'lucide-react'
+import { ShoppingCart, Plus, Minus, Loader2, Check, ArrowRight, X, User, MapPin, CreditCard } from 'lucide-react'
 import { useMenu } from '../../hooks/useMenu'
 import { useCart, type CartSelectedOption } from '../../hooks/useCart'
 import { ROUTES } from '../../constants/app'
-
-const REQUIRED_MSG = 'שדה חובה'
+import { CheckoutSavedSelector } from '../../components/checkout/CheckoutSavedSelector'
+import { PAYMENT_METHOD_LABELS, type SavedAddress, type SavedContact, type SavedPayment } from '../../types/customerProfile'
 
 export const RestaurantMenuPage = () => {
   const { businessId } = useParams<{ businessId: string }>()
@@ -34,8 +34,42 @@ export const RestaurantMenuPage = () => {
     delivery_building_number: '',
     delivery_floor: '',
     delivery_apartment: '',
+    delivery_building_code: '',
     delivery_notes: '',
   })
+  const [selectedContactId, setSelectedContactId] = useState<string>()
+  const [selectedAddressId, setSelectedAddressId] = useState<string>()
+  const [selectedPaymentId, setSelectedPaymentId] = useState<string>()
+  const [paymentMethod, setPaymentMethod] = useState<string>('')
+
+  const applyContact = useCallback((c: SavedContact) => {
+    setSelectedContactId(c.id)
+    setForm((f) => ({
+      ...f,
+      customer_name: c.fullName,
+      customer_phone: c.phone,
+      customer_phone_secondary: c.phoneSecondary ?? '',
+    }))
+  }, [])
+
+  const applyAddress = useCallback((a: SavedAddress) => {
+    setSelectedAddressId(a.id)
+    setForm((f) => ({
+      ...f,
+      delivery_city: a.delivery_city,
+      delivery_street: a.delivery_street,
+      delivery_building_number: a.delivery_building_number,
+      delivery_floor: a.delivery_floor ?? '',
+      delivery_apartment: a.delivery_apartment ?? '',
+      delivery_building_code: a.delivery_building_code ?? '',
+      delivery_notes: a.delivery_notes ?? f.delivery_notes,
+    }))
+  }, [])
+
+  const applyPayment = useCallback((p: SavedPayment) => {
+    setSelectedPaymentId(p.id)
+    setPaymentMethod(p.label || PAYMENT_METHOD_LABELS[p.type])
+  }, [])
 
   const validate = useCallback((): boolean => {
     const err: Record<string, string> = {}
@@ -44,14 +78,13 @@ export const RestaurantMenuPage = () => {
     const city = form.delivery_city.trim()
     const street = form.delivery_street.trim()
     const building = form.delivery_building_number.trim()
-    if (!name) err.customer_name = REQUIRED_MSG
-    if (!phone) err.customer_phone = REQUIRED_MSG
-    else if (!isValidIsraeliPhone(phone)) err.customer_phone = 'נא להזין מספר טלפון ישראלי תקין (05x-xxx-xxxx)'
-    const phoneSecondary = form.customer_phone_secondary?.trim()
-    if (phoneSecondary && !isValidIsraeliPhone(phoneSecondary)) err.customer_phone_secondary = 'נא להזין מספר טלפון ישראלי תקין (05x-xxx-xxxx)'
-    if (!city) err.delivery_city = REQUIRED_MSG
-    if (!street) err.delivery_street = REQUIRED_MSG
-    if (!building) err.delivery_building_number = REQUIRED_MSG
+    if (!name || !phone) {
+      err._submit = 'נא לבחור או להוסיף פרטים אישיים (שם וטלפון) למעלה'
+    } else if (!isValidIsraeliPhone(phone)) {
+      err._submit = 'מספר הטלפון בפרטים שנבחרו אינו תקין – ערוך אותו למעלה'
+    } else if (!city || !street || !building) {
+      err._submit = 'נא לבחור או להוסיף כתובת למשלוח למעלה'
+    }
     setFormErrors(err)
     return Object.keys(err).length === 0
   }, [form])
@@ -83,7 +116,9 @@ export const RestaurantMenuPage = () => {
         delivery_building_number: form.delivery_building_number.trim(),
         delivery_floor: form.delivery_floor?.trim() || undefined,
         delivery_apartment: form.delivery_apartment?.trim() || undefined,
+        delivery_building_code: form.delivery_building_code?.trim() || undefined,
         delivery_notes: form.delivery_notes?.trim() || undefined,
+        ...(paymentMethod.trim() && { payment_method: paymentMethod.trim() }),
         items,
         status: 'new',
       }
@@ -244,7 +279,7 @@ export const RestaurantMenuPage = () => {
               <button
                 type="button"
                 onClick={() => { setShowCartPanel(false); setShowCheckout(true) }}
-                className="w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-l from-vantix-cyan to-vantix-orange text-white py-3.5 font-semibold hover:bg-gradient-to-l from-vantix-cyan to-vantix-orange/90 focus:outline-none focus:ring-2 focus:ring-vantix-cyan focus:ring-offset-2"
+                className="w-full flex items-center justify-center gap-2 rounded-xl bg-vantix-orange dark:bg-vantix-cyan text-white dark:text-black py-3.5 font-semibold hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-vantix-cyan focus:ring-offset-2"
               >
                 להזמנה
                 <ArrowRight className="h-4 w-4" />
@@ -348,7 +383,7 @@ export const RestaurantMenuPage = () => {
                             <button
                               type="button"
                               onClick={() => handleAddItem(item)}
-                              className="rounded-full bg-gradient-to-l from-vantix-cyan to-vantix-orange/20 p-2.5 text-vantix-cyan hover:bg-gradient-to-l from-vantix-cyan to-vantix-orange/30 focus:outline-none focus:ring-2 focus:ring-vantix-cyan/50"
+                              className="rounded-full bg-vantix-cyan p-2.5 text-white hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-vantix-cyan/50"
                               aria-label={`הוסף ${item.name} לעגלה`}
                             >
                               <Plus className="h-5 w-5" />
@@ -386,7 +421,7 @@ export const RestaurantMenuPage = () => {
                       <button
                         type="button"
                         onClick={() => handleAddItem(item)}
-                        className="rounded-full bg-gradient-to-l from-vantix-cyan to-vantix-orange/20 p-2.5 text-vantix-cyan hover:bg-gradient-to-l from-vantix-cyan to-vantix-orange/30"
+                        className="rounded-full bg-vantix-cyan p-2.5 text-white hover:brightness-110"
                         aria-label={`הוסף ${item.name} לעגלה`}
                       >
                         <Plus className="h-5 w-5" />
@@ -450,7 +485,7 @@ export const RestaurantMenuPage = () => {
                 <button
                   type="button"
                   onClick={() => setShowCheckout(true)}
-                  className="mt-3 w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-l from-vantix-cyan to-vantix-orange text-white py-3.5 font-semibold hover:bg-gradient-to-l from-vantix-cyan to-vantix-orange/90 focus:outline-none focus:ring-2 focus:ring-vantix-cyan focus:ring-offset-2"
+                  className="mt-3 w-full flex items-center justify-center gap-2 rounded-xl bg-vantix-orange dark:bg-vantix-cyan text-white dark:text-black py-3.5 font-semibold hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-vantix-cyan focus:ring-offset-2"
                 >
                   להזמנה
                   <ArrowRight className="h-4 w-4" />
@@ -481,118 +516,55 @@ export const RestaurantMenuPage = () => {
                 {formErrors._submit}
               </p>
             )}
-            <div className="space-y-4">
-              <div>
-                <label htmlFor="customer_name" className="block text-sm font-medium text-vantix-fg mb-1">שם מלא *</label>
-                <input
-                  id="customer_name"
-                  placeholder="שם מלא"
-                  value={form.customer_name}
-                  onChange={(e) => setForm((f) => ({ ...f, customer_name: e.target.value }))}
-                  className={`w-full rounded-xl border px-3 py-2.5 ${formErrors.customer_name ? 'border-red-400 bg-red-50' : 'border-gray-300'}`}
-                  aria-invalid={!!formErrors.customer_name}
-                  aria-describedby={formErrors.customer_name ? 'err-name' : undefined}
-                />
-                {formErrors.customer_name && <p id="err-name" className="text-red-600 text-sm mt-1">{formErrors.customer_name}</p>}
+
+            <CheckoutSavedSelector
+              selectedContactId={selectedContactId}
+              selectedAddressId={selectedAddressId}
+              selectedPaymentId={selectedPaymentId}
+              onSelectContact={applyContact}
+              onSelectAddress={applyAddress}
+              onSelectPayment={applyPayment}
+            />
+
+            {form.customer_name || form.delivery_city ? (
+              <div className="space-y-2.5 rounded-2xl border border-vantix-cyan/20 bg-vantix-surface p-4 text-sm">
+                {form.customer_name && (
+                  <div className="flex items-start gap-2">
+                    <User className="mt-0.5 h-4 w-4 shrink-0 text-vantix-cyan" />
+                    <span className="text-vantix-fg">
+                      {form.customer_name} · {form.customer_phone}
+                      {form.customer_phone_secondary ? ` · ${form.customer_phone_secondary}` : ''}
+                    </span>
+                  </div>
+                )}
+                {form.delivery_city && (
+                  <div className="flex items-start gap-2">
+                    <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-vantix-cyan" />
+                    <span className="text-vantix-fg">
+                      {[form.delivery_street, form.delivery_building_number].filter(Boolean).join(' ')}, {form.delivery_city}
+                      {form.delivery_apartment ? ` · דירה ${form.delivery_apartment}` : ''}
+                      {form.delivery_floor ? ` · קומה ${form.delivery_floor}` : ''}
+                      {form.delivery_building_code ? ` · קוד ${form.delivery_building_code}` : ''}
+                    </span>
+                  </div>
+                )}
+                {paymentMethod && (
+                  <div className="flex items-start gap-2">
+                    <CreditCard className="mt-0.5 h-4 w-4 shrink-0 text-vantix-cyan" />
+                    <span className="text-vantix-fg">{paymentMethod}</span>
+                  </div>
+                )}
+                {form.delivery_notes && (
+                  <p className="border-t border-vantix-cyan/15 pt-2 text-xs text-vantix-fg-muted">
+                    הערה לשליח: {form.delivery_notes}
+                  </p>
+                )}
               </div>
-              <div>
-                <label htmlFor="customer_phone" className="block text-sm font-medium text-vantix-fg mb-1">טלפון *</label>
-                <input
-                  id="customer_phone"
-                  placeholder="05x-xxx-xxxx"
-                  type="tel"
-                  inputMode="numeric"
-                  value={form.customer_phone}
-                  onChange={(e) => setForm((f) => ({ ...f, customer_phone: e.target.value }))}
-                  className={`w-full rounded-xl border px-3 py-2.5 ${formErrors.customer_phone ? 'border-red-400 bg-red-50' : 'border-gray-300'}`}
-                  aria-invalid={!!formErrors.customer_phone}
-                  aria-describedby={formErrors.customer_phone ? 'err-phone' : undefined}
-                />
-                {formErrors.customer_phone && <p id="err-phone" className="text-red-600 text-sm mt-1">{formErrors.customer_phone}</p>}
-              </div>
-              <div>
-                <label htmlFor="customer_phone_secondary" className="block text-sm font-medium text-vantix-fg-muted mb-1">טלפון משני (אופציונלי)</label>
-                <input
-                  id="customer_phone_secondary"
-                  placeholder="05x-xxx-xxxx"
-                  type="tel"
-                  inputMode="numeric"
-                  value={form.customer_phone_secondary}
-                  onChange={(e) => setForm((f) => ({ ...f, customer_phone_secondary: e.target.value }))}
-                  className={`w-full rounded-xl border px-3 py-2.5 ${formErrors.customer_phone_secondary ? 'border-red-400 bg-red-50' : 'border-gray-300'}`}
-                  aria-invalid={!!formErrors.customer_phone_secondary}
-                  aria-describedby={formErrors.customer_phone_secondary ? 'err-phone-secondary' : undefined}
-                />
-                {formErrors.customer_phone_secondary && <p id="err-phone-secondary" className="text-red-600 text-sm mt-1">{formErrors.customer_phone_secondary}</p>}
-              </div>
-              <div>
-                <label htmlFor="delivery_city" className="block text-sm font-medium text-vantix-fg mb-1">עיר *</label>
-                <input
-                  id="delivery_city"
-                  placeholder="עיר"
-                  value={form.delivery_city}
-                  onChange={(e) => setForm((f) => ({ ...f, delivery_city: e.target.value }))}
-                  className={`w-full rounded-xl border px-3 py-2.5 ${formErrors.delivery_city ? 'border-red-400 bg-red-50' : 'border-gray-300'}`}
-                  aria-invalid={!!formErrors.delivery_city}
-                />
-                {formErrors.delivery_city && <p className="text-red-600 text-sm mt-1">{formErrors.delivery_city}</p>}
-              </div>
-              <div>
-                <label htmlFor="delivery_street" className="block text-sm font-medium text-vantix-fg mb-1">רחוב *</label>
-                <input
-                  id="delivery_street"
-                  placeholder="רחוב"
-                  value={form.delivery_street}
-                  onChange={(e) => setForm((f) => ({ ...f, delivery_street: e.target.value }))}
-                  className={`w-full rounded-xl border px-3 py-2.5 ${formErrors.delivery_street ? 'border-red-400 bg-red-50' : 'border-gray-300'}`}
-                  aria-invalid={!!formErrors.delivery_street}
-                />
-                {formErrors.delivery_street && <p className="text-red-600 text-sm mt-1">{formErrors.delivery_street}</p>}
-              </div>
-              <div>
-                <label htmlFor="delivery_building_number" className="block text-sm font-medium text-vantix-fg mb-1">מספר בית *</label>
-                <input
-                  id="delivery_building_number"
-                  placeholder="מספר בית"
-                  value={form.delivery_building_number}
-                  onChange={(e) => setForm((f) => ({ ...f, delivery_building_number: e.target.value }))}
-                  className={`w-full rounded-xl border px-3 py-2.5 ${formErrors.delivery_building_number ? 'border-red-400 bg-red-50' : 'border-gray-300'}`}
-                  aria-invalid={!!formErrors.delivery_building_number}
-                />
-                {formErrors.delivery_building_number && <p className="text-red-600 text-sm mt-1">{formErrors.delivery_building_number}</p>}
-              </div>
-              <div>
-                <label htmlFor="delivery_floor" className="block text-sm font-medium text-vantix-fg-muted mb-1">קומה (אופציונלי)</label>
-                <input
-                  id="delivery_floor"
-                  placeholder="קומה"
-                  value={form.delivery_floor}
-                  onChange={(e) => setForm((f) => ({ ...f, delivery_floor: e.target.value }))}
-                  className="w-full rounded-xl border border-gray-300 px-3 py-2.5"
-                />
-              </div>
-              <div>
-                <label htmlFor="delivery_apartment" className="block text-sm font-medium text-vantix-fg-muted mb-1">דירה (אופציונלי)</label>
-                <input
-                  id="delivery_apartment"
-                  placeholder="דירה"
-                  value={form.delivery_apartment}
-                  onChange={(e) => setForm((f) => ({ ...f, delivery_apartment: e.target.value }))}
-                  className="w-full rounded-xl border border-gray-300 px-3 py-2.5"
-                />
-              </div>
-              <div>
-                <label htmlFor="delivery_notes" className="block text-sm font-medium text-vantix-fg-muted mb-1">הערות למשלוח</label>
-                <textarea
-                  id="delivery_notes"
-                  placeholder="הערות לבעל העסק או לשליח"
-                  value={form.delivery_notes}
-                  onChange={(e) => setForm((f) => ({ ...f, delivery_notes: e.target.value }))}
-                  rows={2}
-                  className="w-full rounded-xl border border-gray-300 px-3 py-2.5 resize-none"
-                />
-              </div>
-            </div>
+            ) : (
+              <p className="py-2 text-center text-sm text-vantix-fg-subtle">
+                בחר פרטים אישיים וכתובת מהחלק העליון, או הוסף חדשים בלחיצה על &quot;חדש&quot;.
+              </p>
+            )}
             <div className="mt-6 flex gap-3">
               <button
                 type="button"
@@ -606,7 +578,7 @@ export const RestaurantMenuPage = () => {
                 type="button"
                 onClick={handlePlaceOrder}
                 disabled={placing}
-                className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-gradient-to-l from-vantix-cyan to-vantix-orange text-white py-3 font-semibold hover:bg-gradient-to-l from-vantix-cyan to-vantix-orange/90 disabled:opacity-70"
+                className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-vantix-orange dark:bg-vantix-cyan text-white dark:text-black py-3 font-semibold hover:brightness-110 disabled:opacity-70"
               >
                 {placing ? <Loader2 className="h-5 w-5 animate-spin" /> : <Check className="h-5 w-5" />}
                 שליחת הזמנה
@@ -708,7 +680,7 @@ export const RestaurantMenuPage = () => {
             <button
               type="button"
               onClick={handleAddItemConfirm}
-              className="w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-l from-vantix-cyan to-vantix-orange text-white py-3.5 font-semibold hover:bg-gradient-to-l from-vantix-cyan to-vantix-orange/90 focus:outline-none focus:ring-2 focus:ring-vantix-cyan"
+              className="w-full flex items-center justify-center gap-2 rounded-xl bg-vantix-orange dark:bg-vantix-cyan text-white dark:text-black py-3.5 font-semibold hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-vantix-cyan"
             >
               <Plus className="h-5 w-5" />
               הוסף לעגלה

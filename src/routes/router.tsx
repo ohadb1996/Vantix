@@ -10,10 +10,7 @@ import { LivePage } from '../screens/live/LivePage'
 import { AuthLanding } from '../screens/auth/AuthLanding'
 import { LoginPage } from '../screens/auth/LoginPage'
 import { RegisterPage } from '../screens/auth/RegisterPage'
-import { AdminGuard } from '../components/admin/AdminGuard'
 import { AuthGuard } from '../components/auth/AuthGuard'
-import { AdminUsersPage } from '../screens/admin/AdminUsersPage'
-import { AdminUserProfilePage } from '../screens/admin/AdminUserProfilePage'
 
 export const router = createBrowserRouter([
   {
@@ -47,18 +44,6 @@ export const router = createBrowserRouter([
       {
         path: 'live',
         element: <LivePage />,
-      },
-      {
-        path: 'admin',
-        element: <AdminGuard><AdminUsersPage /></AdminGuard>,
-      },
-      {
-        path: 'admin/users',
-        element: <AdminGuard><AdminUsersPage /></AdminGuard>,
-      },
-      {
-        path: 'admin/users/:uid',
-        element: <AdminGuard><AdminUserProfilePage /></AdminGuard>,
       },
     ],
   },

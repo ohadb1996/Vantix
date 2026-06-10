@@ -171,7 +171,7 @@ export const SignUpForm = ({ onSuccess }: SignUpFormProps = {}) => {
       <button
         type="submit"
         disabled={isSubmitting}
-        className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-l from-vantix-cyan to-vantix-orange px-5 py-3 text-sm font-semibold text-white shadow-vantix transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+        className="inline-flex items-center justify-center gap-2 rounded-full bg-vantix-orange dark:bg-vantix-cyan px-5 py-3 text-sm font-semibold text-white dark:text-black shadow-vantix transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
       >
         {isSubmitting ? (
           <>

@@ -12,11 +12,12 @@ export default {
         background: 'hsl(var(--background))',
         foreground: 'hsl(var(--foreground))',
         vantix: {
+          /* "cyan" = צבע ההדגשה של המיתוג: כתום בלייט מוד, כחול בדארק מוד (נשלט ע"י CSS vars) */
           cyan: {
-            DEFAULT: '#22d3ee',
-            400: '#22d3ee',
-            500: '#06b6d4',
-            600: '#0891b2',
+            DEFAULT: 'rgb(var(--vantix-cyan) / <alpha-value>)',
+            400: 'rgb(var(--vantix-cyan-400) / <alpha-value>)',
+            500: 'rgb(var(--vantix-cyan-500) / <alpha-value>)',
+            600: 'rgb(var(--vantix-cyan-600) / <alpha-value>)',
           },
           orange: {
             DEFAULT: '#f97316',
@@ -62,9 +63,9 @@ export default {
         body: ['Rubik', 'system-ui', 'sans-serif'],
       },
       boxShadow: {
-        glow: '0 20px 60px rgba(34, 211, 238, 0.22)',
+        glow: '0 20px 60px rgb(var(--vantix-cyan) / 0.22)',
         'glow-orange': '0 22px 65px rgba(249, 115, 22, 0.18)',
-        vantix: '0 18px 50px rgba(34, 211, 238, 0.12)',
+        vantix: '0 18px 50px rgb(var(--vantix-cyan) / 0.12)',
       },
       keyframes: {
         marquee: {

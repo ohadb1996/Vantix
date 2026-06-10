@@ -10,11 +10,8 @@ import {
 import type { ConfirmationResult, RecaptchaVerifier } from 'firebase/auth'
 import {
   getRedirectResult,
-  GoogleAuthProvider,
   onAuthStateChanged,
   signInWithEmailAndPassword,
-  signInWithPopup,
-  signInWithRedirect,
   signOut,
   type User,
 } from 'firebase/auth'
@@ -25,10 +22,10 @@ import {
   linkPhoneToCurrentUser,
   sendPhoneVerificationCode,
 } from '../services/auth'
-import { emailExistsAsPartner } from '../services/adminService'
+import { signInWithGoogle } from '../services/googleAuth'
 
 const ACCOUNT_EXISTS_MSG =
-  'יש לך כבר משתמש ב-maxDelivery. התחבר עם אותו אימייל וסיסמה שיש לך שם.'
+  'לאימייל הזה כבר קיים חשבון עם אימייל וסיסמה. התחבר עם אותו אימייל וסיסמה.'
 
 type AuthContextValue = {
   user: User | null
@@ -74,12 +71,6 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
     getRedirectResult(auth)
       .then(async (result) => {
         if (result?.user) {
-          const email = result.user.email
-          if (email && (await emailExistsAsPartner(email))) {
-            await signOut(auth)
-            setAuthError(ACCOUNT_EXISTS_MSG)
-            return
-          }
           void ensureCustomerProfileOnSignIn(result.user).catch((err) => {
             console.warn('[Auth] ensureCustomerProfileOnSignIn after redirect failed:', err)
           })
@@ -107,27 +98,16 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
   }
 
   const loginWithGoogle = async () => {
-    const auth = getFirebaseAuth()
-    const provider = new GoogleAuthProvider()
     try {
-      const result = await signInWithPopup(auth, provider)
-      if (result.user) {
-        const email = result.user.email
-        if (email && (await emailExistsAsPartner(email))) {
-          await signOut(auth)
-          throw new Error(ACCOUNT_EXISTS_MSG)
-        }
-        await ensureCustomerProfileOnSignIn(result.user)
-      }
+      // signInWithGoogle מטפל אוטומטית בנייטיב (iOS/Android דרך הפלאגין המקומי) ובווב (popup + נפילה ל-redirect).
+      const googleUser = await signInWithGoogle()
+      // null => בוצע redirect (ווב); המשתמש ייקלט ב-getRedirectResult / onAuthStateChanged.
+      if (!googleUser) return
+      await ensureCustomerProfileOnSignIn(googleUser)
     } catch (err: unknown) {
-      if (err instanceof Error && err.message === ACCOUNT_EXISTS_MSG) throw err
       const code = err && typeof err === 'object' && 'code' in err ? (err as { code?: string }).code : ''
       if (code === 'auth/account-exists-with-different-credential') {
         throw new Error(ACCOUNT_EXISTS_MSG)
-      }
-      if (code === 'auth/popup-blocked') {
-        await signInWithRedirect(auth, provider)
-        return
       }
       throw err
     }

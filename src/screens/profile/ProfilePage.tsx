@@ -1,9 +1,14 @@
 import { Link, useNavigate } from 'react-router-dom'
-import { User, CreditCard, History, MessageCircle, ChevronLeft, Palette } from 'lucide-react'
+import { User, History, MessageCircle, ChevronLeft, Palette } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { ROUTES, SUPPORT_LINK } from '../../constants/app'
 import { ThemeToggle } from '../../components/ui/ThemeToggle'
 import { useTheme } from '../../context/ThemeContext'
+import {
+  AddressesSection,
+  ContactsSection,
+  PaymentsSection,
+} from '../../components/profile/SavedProfileSections'
 
 export const ProfilePage = () => {
   const navigate = useNavigate()
@@ -21,7 +26,7 @@ export const ProfilePage = () => {
         <button
           type="button"
           onClick={() => navigate(ROUTES.AUTH_LOGIN)}
-          className="rounded-xl bg-gradient-to-l from-vantix-cyan to-vantix-orange px-6 py-3 font-semibold text-white hover:bg-gradient-to-l from-vantix-cyan to-vantix-orange/90"
+          className="rounded-xl bg-vantix-orange dark:bg-vantix-cyan px-6 py-3 font-semibold text-white dark:text-black hover:brightness-110"
         >
           התחברות
         </button>
@@ -61,11 +66,11 @@ export const ProfilePage = () => {
         <ThemeToggle variant="compact" />
       </section>
 
-      {/* פרטים אישיים */}
+      {/* חשבון */}
       <section className={cardClass}>
         <h2 className="font-semibold text-vantix-fg mb-3 flex items-center gap-2">
           <User className="h-5 w-5 text-vantix-cyan" />
-          פרטים אישיים
+          החשבון שלי
         </h2>
         <dl className="space-y-2 text-sm">
           <div>
@@ -85,16 +90,14 @@ export const ProfilePage = () => {
         </dl>
       </section>
 
-      {/* פרטי תשלום */}
-      <section className={cardClass}>
-        <h2 className="font-semibold text-vantix-fg mb-3 flex items-center gap-2">
-          <CreditCard className="h-5 w-5 text-vantix-cyan" />
-          פרטי תשלום
-        </h2>
-        <p className="text-sm text-vantix-fg-muted">
-          פרטי התשלום נשמרים בהזמנה עצמה. בהיסטוריית ההזמנות תוכל לראות את פרטי התשלום של כל הזמנה.
-        </p>
-      </section>
+      {/* פרטים אישיים שמורים (שם + טלפון) */}
+      <ContactsSection />
+
+      {/* כתובות שמורות */}
+      <AddressesSection />
+
+      {/* אמצעי תשלום שמורים */}
+      <PaymentsSection />
 
       {/* ניווט: היסטוריית הזמנות */}
       <Link

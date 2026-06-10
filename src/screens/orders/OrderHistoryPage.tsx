@@ -35,7 +35,7 @@ export const OrderHistoryPage = () => {
         <button
           type="button"
           onClick={() => navigate('/auth/login' as any)}
-          className="rounded-xl bg-gradient-to-l from-vantix-cyan to-vantix-orange px-6 py-3 font-semibold text-white hover:bg-gradient-to-l from-vantix-cyan to-vantix-orange/90"
+          className="rounded-xl bg-vantix-orange dark:bg-vantix-cyan px-6 py-3 font-semibold text-white dark:text-black hover:brightness-110"
         >
           התחברות
         </button>
@@ -81,7 +81,7 @@ export const OrderHistoryPage = () => {
           <p className="text-sm text-vantix-fg-subtle">ההזמנות שתבצע יופיעו כאן</p>
           <Link
             to={ROUTES.RESTAURANTS}
-            className="rounded-xl bg-gradient-to-l from-vantix-cyan to-vantix-orange px-6 py-3 font-semibold text-white hover:bg-gradient-to-l from-vantix-cyan to-vantix-orange/90"
+            className="rounded-xl bg-vantix-orange dark:bg-vantix-cyan px-6 py-3 font-semibold text-white dark:text-black hover:brightness-110"
           >
             לגלות מסעדות
           </Link>

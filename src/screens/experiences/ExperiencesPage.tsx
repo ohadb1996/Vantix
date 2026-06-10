@@ -104,7 +104,7 @@ export const ExperiencesPage = () => {
                 <span className="font-semibold text-vantix-fg">
                   {experience.price}
                 </span>
-                <button className="rounded-full bg-gradient-to-l from-vantix-cyan to-vantix-orange px-4 py-2 text-sm font-semibold text-white transition hover:brightness-110">
+                <button className="rounded-full bg-vantix-orange dark:bg-vantix-cyan px-4 py-2 text-sm font-semibold text-white dark:text-black transition hover:brightness-110">
                   הזמן עכשיו
                 </button>
               </div>

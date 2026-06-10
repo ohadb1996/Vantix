@@ -3,6 +3,9 @@ import { useTheme } from '../../context/ThemeContext'
 
 export const BRAND_ASSETS = {
   icon: '/assets/myIcon.png',
+  /* אייקון פינתי תלוי-תמה: כתום (רקע לבן) בלייט, כחול (רקע כהה) בדארק */
+  iconLight: '/assets/orangevv.jpg',
+  iconDark: '/assets/bluev.jpeg',
   hero: '/assets/logo.jpg',
   wordmark: '/assets/logoText.png',
   wordmarkDark: '/assets/logoText-dark.png',
@@ -83,9 +86,14 @@ export const Logo = ({
     <div className={`flex items-center gap-3 ${className ?? ''}`}>
       <div className={`${iconSizeClasses[preset]} shrink-0 overflow-hidden rounded-2xl`}>
         <img
-          src={BRAND_ASSETS.icon}
+          src={BRAND_ASSETS.iconLight}
           alt={APP_DISPLAY_NAME}
-          className="h-full w-full object-cover"
+          className="h-full w-full object-cover dark:hidden"
+        />
+        <img
+          src={BRAND_ASSETS.iconDark}
+          alt={APP_DISPLAY_NAME}
+          className="hidden h-full w-full object-cover dark:block"
         />
       </div>
       {withWordmark ? (

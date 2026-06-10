@@ -1,7 +1,8 @@
 import { Outlet } from 'react-router-dom'
+import { motion } from 'framer-motion'
 import { MainNav } from '../../components/navigation/MainNav'
 import { FooterCTA } from '../../components/navigation/FooterCTA'
-import { Logo, BRAND_ASSETS } from '../../components/branding/Logo'
+import { BRAND_ASSETS } from '../../components/branding/Logo'
 import { APP_DISPLAY_NAME } from '../../constants/app'
 import { useTheme } from '../../context/ThemeContext'
 
@@ -10,7 +11,7 @@ export const AuthLanding = () => {
   const isDark = theme === 'dark'
 
   return (
-    <div className="relative flex min-h-screen flex-col overflow-hidden bg-vantix-surface text-vantix-fg">
+    <div className="relative flex min-h-screen flex-col bg-vantix-surface text-vantix-fg">
       {isDark ? (
         <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
           <img
@@ -23,17 +24,46 @@ export const AuthLanding = () => {
           <div className="absolute inset-0 bg-black/55" />
         </div>
       ) : (
-        <div className="pointer-events-none fixed inset-0 z-0 vantix-page-bg" aria-hidden />
+        <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
+          <img
+            src="/assets/logo-white.jpeg"
+            alt=""
+            aria-hidden
+            className="absolute inset-0 h-full w-full object-cover object-center select-none"
+            draggable={false}
+          />
+          <div className="absolute inset-0 bg-white/55" />
+        </div>
       )}
 
-      <div className="relative z-10 sticky top-0 px-3 py-1.5 sm:px-6 sm:py-2 lg:px-10 lg:py-3">
+      <div className="sticky top-0 z-30 px-3 py-1.5 sm:px-6 sm:py-2 lg:px-10 lg:py-3">
         <MainNav />
       </div>
 
       <div className="relative z-10 mx-auto flex w-full max-w-5xl flex-1 flex-col gap-10 px-6 pb-16 pt-8 sm:px-10">
         <main className="grid flex-1 gap-10 lg:grid-cols-[1.05fr_1fr] lg:items-center">
           <section className="space-y-6">
-            <Logo size="lg" variant="horizontal" onDark={isDark} />
+            <div className="flex" style={{ perspective: '1000px' }}>
+              <motion.div
+                className="flex"
+                style={{ transformStyle: 'preserve-3d' }}
+                animate={{ rotateY: 360 }}
+                transition={{ repeat: Infinity, duration: 6, ease: 'linear' }}
+              >
+                <img
+                  src="/assets/logo-white.jpeg"
+                  alt={APP_DISPLAY_NAME}
+                  className="w-44 rounded-2xl object-contain sm:w-56 dark:hidden"
+                  draggable={false}
+                />
+                <img
+                  src="/assets/logo-dark.png"
+                  alt={APP_DISPLAY_NAME}
+                  className="hidden w-44 object-contain sm:w-56 dark:block"
+                  draggable={false}
+                />
+              </motion.div>
+            </div>
             <p className="text-xs font-semibold uppercase tracking-[0.3em] text-vantix-cyan">
               {APP_DISPLAY_NAME} membership
             </p>

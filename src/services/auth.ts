@@ -7,7 +7,7 @@ import {
   type User,
   type UserCredential,
 } from 'firebase/auth'
-import { ref, set } from 'firebase/database'
+import { ref, set, update, get } from 'firebase/database'
 import { getFirebaseAuth, getRealtimeDb } from '../lib/firebase'
 import { normalizeIsraeliPhone } from '../utils/phone'
 
@@ -59,9 +59,27 @@ export async function ensureCustomerInRTDB(
   user: User,
   extra: { fullName?: string; marketingOptIn?: boolean; phone?: string } = {},
 ): Promise<void> {
+  // עדכון ממזג (update) ולא set – כדי לא למחוק רשימות שמורות (כתובות/קשר/תשלום).
+  await mergeCustomerProfile(user, extra)
+}
+
+/**
+ * ממזג נתוני לקוח ב-Customers/{uid} מבלי למחוק רשימות שמורות.
+ * createdAt נכתב רק אם עוד לא קיים (שמירת תאריך הצטרפות מקורי).
+ */
+async function mergeCustomerProfile(
+  user: User,
+  extra: { fullName?: string; marketingOptIn?: boolean; phone?: string } = {},
+): Promise<void> {
   const rtdb = getRealtimeDb()
-  const payload = customerRTDBPayload(user, extra)
-  await set(ref(rtdb, `Customers/${user.uid}`), { ...payload, lastLoginAt: new Date().toISOString() })
+  const now = new Date().toISOString()
+  const { createdAt, ...payload } = customerRTDBPayload(user, extra)
+  const existing = await get(ref(rtdb, `Customers/${user.uid}/createdAt`))
+  await update(ref(rtdb, `Customers/${user.uid}`), {
+    ...payload,
+    lastLoginAt: now,
+    ...(existing.exists() ? {} : { createdAt }),
+  })
 }
 
 /**
@@ -69,11 +87,8 @@ export async function ensureCustomerInRTDB(
  * כרגע עובדים עם RTDB בלבד – אין כתיבה ל-Firestore.
  */
 export async function ensureCustomerProfileOnSignIn(user: User): Promise<void> {
-  const rtdb = getRealtimeDb()
-  const uid = user.uid
-  const now = new Date().toISOString()
-  const customerPayload = customerRTDBPayload(user)
-  await set(ref(rtdb, `Customers/${uid}`), { ...customerPayload, lastLoginAt: now })
+  // עדכון ממזג (update) ולא set – כדי לשמר רשימות שמורות ואת createdAt המקורי.
+  await mergeCustomerProfile(user)
 }
 
 /** רישום לקוח – RTDB בלבד (Customers/{uid}). */

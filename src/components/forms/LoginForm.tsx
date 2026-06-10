@@ -2,7 +2,6 @@ import { type FormEvent, useState } from 'react'
 import { Eye, EyeOff, Loader2, LogIn } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
-import { PhoneAuthForm } from './PhoneAuthForm'
 
 const GoogleIcon = () => (
   <svg className="h-5 w-5" viewBox="0 0 24 24" aria-hidden="true">
@@ -43,7 +42,6 @@ export const LoginForm = ({ redirectTo }: LoginFormProps) => {
   const [form, setForm] = useState<FormState>(INITIAL_STATE)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isGoogleLoading, setIsGoogleLoading] = useState(false)
-  const [showPhoneAuth, setShowPhoneAuth] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const to = redirectTo || '/'
@@ -156,7 +154,7 @@ export const LoginForm = ({ redirectTo }: LoginFormProps) => {
       <button
         type="submit"
         disabled={isSubmitting || isGoogleLoading}
-        className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-l from-vantix-cyan to-vantix-orange px-5 py-3 text-sm font-semibold text-white shadow-vantix transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+        className="inline-flex items-center justify-center gap-2 rounded-full bg-vantix-orange dark:bg-vantix-cyan px-5 py-3 text-sm font-semibold text-white dark:text-black shadow-vantix transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
       >
         {isSubmitting ? (
           <>
@@ -187,29 +185,6 @@ export const LoginForm = ({ redirectTo }: LoginFormProps) => {
           </>
         )}
       </button>
-
-      <div className="relative my-2 text-center text-xs text-vantix-fg-subtle">
-        <span className="bg-vantix-surface-raised px-2">או</span>
-      </div>
-
-      {showPhoneAuth ? (
-        <PhoneAuthForm
-          mode="sign-in"
-          onSuccess={() => {
-            setError(null)
-            navigate(to)
-          }}
-        />
-      ) : (
-        <button
-          type="button"
-          onClick={() => setShowPhoneAuth(true)}
-          disabled={isSubmitting || isGoogleLoading}
-          className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-vantix-cyan/25 bg-vantix-surface-raised px-5 py-3 text-sm font-semibold text-vantix-fg transition hover:bg-gradient-to-l from-vantix-cyan to-vantix-orange/5 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          התחבר עם טלפון (SMS)
-        </button>
-      )}
     </form>
   )
 }

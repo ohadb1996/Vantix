@@ -135,7 +135,7 @@ export const PhoneAuthForm = ({
           type="button"
           onClick={handleConfirm}
           disabled={loading || code.length < 4}
-          className="w-full inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-l from-vantix-cyan to-vantix-orange px-5 py-3 text-sm font-semibold text-white shadow-vantix transition hover:brightness-110 disabled:opacity-60"
+          className="w-full inline-flex items-center justify-center gap-2 rounded-full bg-vantix-orange dark:bg-vantix-cyan px-5 py-3 text-sm font-semibold text-white dark:text-black shadow-vantix transition hover:brightness-110 disabled:opacity-60"
         >
           {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'אימות'}
         </button>
