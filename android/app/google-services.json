@@ -1,0 +1,113 @@
+{
+  "project_info": {
+    "project_number": "474750510207",
+    "firebase_url": "https://maxdeliveries-default-rtdb.europe-west1.firebasedatabase.app",
+    "project_id": "maxdeliveries",
+    "storage_bucket": "maxdeliveries.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:474750510207:android:9582026cfb32969c654b4a",
+        "android_client_info": {
+          "package_name": "com.maxdelivery.couriers"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "474750510207-frp9j4ee2coi5mdea0b8h5hf7v57lco8.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.maxdelivery.couriers",
+            "certificate_hash": "f62be81968172183b1b06074c11a5438189b3224"
+          }
+        },
+        {
+          "client_id": "474750510207-ojeg6hm7d4h16ceh03qp2ep6rnsqfqmh.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.maxdelivery.couriers",
+            "certificate_hash": "d2cbb6a09bf9582bd1392238a6cac8e2f008353a"
+          }
+        },
+        {
+          "client_id": "474750510207-qmngn9p1kapo6ar3q508go1a83ph8iq5.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.maxdelivery.couriers",
+            "certificate_hash": "e10172b789d8e77123d35e0bb7d7283e1513a344"
+          }
+        },
+        {
+          "client_id": "474750510207-u63ogbelhperb6udi3fd0c5cfdddvl2k.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBI0Fxvu2du6UPXg3wzl97Oh_lFj2uDxRg"
+        },
+        {
+          "current_key": "AIzaSyBJJjtTn0UH5VWnY3cbJ2zWfzVJ2jGN1Cw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "474750510207-u63ogbelhperb6udi3fd0c5cfdddvl2k.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "474750510207-jdode3fu0q4g16qss1unvr45l30k4ggh.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.maxdelivery.couriers"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:474750510207:android:66de96e9b684b63c654b4a",
+        "android_client_info": {
+          "package_name": "com.vantix.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "474750510207-u63ogbelhperb6udi3fd0c5cfdddvl2k.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBI0Fxvu2du6UPXg3wzl97Oh_lFj2uDxRg"
+        },
+        {
+          "current_key": "AIzaSyBJJjtTn0UH5VWnY3cbJ2zWfzVJ2jGN1Cw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "474750510207-u63ogbelhperb6udi3fd0c5cfdddvl2k.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "474750510207-jdode3fu0q4g16qss1unvr45l30k4ggh.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.maxdelivery.couriers"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

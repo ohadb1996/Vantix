@@ -29,6 +29,8 @@ type SelectorProps = {
   onSelectContact: (c: SavedContact) => void
   onSelectAddress: (a: SavedAddress) => void
   onSelectPayment: (p: SavedPayment) => void
+  /** הסתרת בלוק הכתובות (באיסוף עצמי אין צורך בכתובת) */
+  hideAddress?: boolean
 }
 
 function PickerCard({
@@ -119,6 +121,7 @@ export function CheckoutSavedSelector({
   onSelectContact,
   onSelectAddress,
   onSelectPayment,
+  hideAddress = false,
 }: SelectorProps) {
   const contacts = useSavedContacts()
   const addresses = useSavedAddresses()
@@ -135,7 +138,7 @@ export function CheckoutSavedSelector({
       applied.current.c = true
       onSelectContact(contacts.items.find((i) => i.isDefault) ?? contacts.items[0])
     }
-    if (!applied.current.a && !selectedAddressId && addresses.items.length) {
+    if (!hideAddress && !applied.current.a && !selectedAddressId && addresses.items.length) {
       applied.current.a = true
       onSelectAddress(addresses.items.find((i) => i.isDefault) ?? addresses.items[0])
     }
@@ -181,30 +184,32 @@ export function CheckoutSavedSelector({
         )}
       </div>
 
-      {/* כתובות */}
-      <div>
-        <BlockHeader
-          icon={<MapPin className="h-4 w-4 text-vantix-cyan" />}
-          label="כתובות"
-          onAdd={() => setAddressModal(null)}
-        />
-        {addresses.items.length === 0 ? (
-          <p className="text-xs text-vantix-fg-subtle">אין כתובות שמורות</p>
-        ) : (
-          <div className={scrollRow}>
-            {addresses.items.map((a) => (
-              <PickerCard
-                key={a.id}
-                title={addressTitle(a)}
-                summary={addressSummary(a)}
-                selected={selectedAddressId === a.id}
-                onSelect={() => onSelectAddress(a)}
-                onEdit={() => setAddressModal(a)}
-              />
-            ))}
-          </div>
-        )}
-      </div>
+      {/* כתובות – מוסתר באיסוף עצמי */}
+      {!hideAddress && (
+        <div>
+          <BlockHeader
+            icon={<MapPin className="h-4 w-4 text-vantix-cyan" />}
+            label="כתובות"
+            onAdd={() => setAddressModal(null)}
+          />
+          {addresses.items.length === 0 ? (
+            <p className="text-xs text-vantix-fg-subtle">אין כתובות שמורות</p>
+          ) : (
+            <div className={scrollRow}>
+              {addresses.items.map((a) => (
+                <PickerCard
+                  key={a.id}
+                  title={addressTitle(a)}
+                  summary={addressSummary(a)}
+                  selected={selectedAddressId === a.id}
+                  onSelect={() => onSelectAddress(a)}
+                  onEdit={() => setAddressModal(a)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* אמצעי תשלום */}
       <div>

@@ -110,6 +110,42 @@ export function useCart(businessId: string | undefined, menuItems: Record<string
     })
   }, [])
 
+  /**
+   * עריכת תתי-הפריטים (האופציות) של שורה קיימת בעגלה, מבלי להסיר אותה.
+   * מזהים את השורה לפי itemId + טביעת האצבע של האופציות הישנות.
+   * אם הבחירה החדשה זהה לשורה אחרת קיימת – ממזגים כמויות.
+   */
+  const updateLineOptions = useCallback(
+    (itemId: string, oldOptions: CartSelectedOption[] | undefined, newOptions: CartSelectedOption[] | undefined) => {
+      setCart((prev) => {
+        const oldFp = optionsFingerprint(oldOptions)
+        const idx = prev.findIndex(
+          (l) => l.item.id === itemId && optionsFingerprint(l.selectedOptions) === oldFp
+        )
+        if (idx < 0) return prev
+        const line = prev[idx]
+        const newFp = optionsFingerprint(newOptions)
+        if (newFp === oldFp) {
+          const next = [...prev]
+          next[idx] = { ...line, selectedOptions: newOptions }
+          return next
+        }
+        const mergeIdx = prev.findIndex(
+          (l, j) => j !== idx && l.item.id === itemId && optionsFingerprint(l.selectedOptions) === newFp
+        )
+        if (mergeIdx >= 0) {
+          return prev
+            .map((l, j) => (j === mergeIdx ? { ...l, quantity: l.quantity + line.quantity } : l))
+            .filter((_, j) => j !== idx)
+        }
+        const next = [...prev]
+        next[idx] = { ...line, selectedOptions: newOptions }
+        return next
+      })
+    },
+    []
+  )
+
   const clearCart = useCallback(() => setCart([]), [])
 
   const totalItems = cart.reduce((s, l) => s + l.quantity, 0)
@@ -126,6 +162,7 @@ export function useCart(businessId: string | undefined, menuItems: Record<string
     cart,
     addToCart,
     removeFromCart,
+    updateLineOptions,
     clearCart,
     totalItems,
     totalPrice,

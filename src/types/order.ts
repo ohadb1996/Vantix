@@ -23,9 +23,12 @@ export interface Order {
   customer_name: string
   customer_phone: string
   customer_phone_secondary?: string
-  delivery_city: string
-  delivery_street: string
-  delivery_building_number: string
+  /** אופן מימוש ההזמנה: משלוח עד הבית או איסוף עצמי מהעסק */
+  fulfillment_type?: 'delivery' | 'pickup'
+  /** שדות כתובת – נדרשים למשלוח, ריקים/חסרים באיסוף עצמי */
+  delivery_city?: string
+  delivery_street?: string
+  delivery_building_number?: string
   delivery_floor?: string
   delivery_apartment?: string
   delivery_building_code?: string

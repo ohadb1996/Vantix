@@ -16,6 +16,12 @@ export interface BusinessWithMenu {
   logoUrl?: string
   itemsCount: number
   categoriesCount: number
+  /** ⭐ מסומן ע"י האדמין כ"מסעדה מומלצת" (Businesses/{id}/is_recommended) */
+  isRecommended?: boolean
+  /** שמות המנות בתפריט – לשימוש בחיפוש כללי של מאכלים בין כל המסעדות */
+  menuItemNames?: string[]
+  /** כתובת העסק – להצגה בעת איסוף עצמי */
+  pickupAddress?: string
 }
 
 /**
@@ -36,14 +42,30 @@ export async function getBusinessesWithMenus(): Promise<BusinessWithMenu[]> {
       const categories = menu?.categories ? Object.keys(menu.categories).length : 0
       if (items === 0) continue
 
+      // שמות המנות – לחיפוש כללי של מאכלים בין המסעדות (מסננים מנות לא זמינות)
+      const menuItemNames: string[] = menu?.items
+        ? Object.values(menu.items as Record<string, { name?: string; available?: boolean }>)
+            .filter((it) => it?.available !== false)
+            .map((it) => it?.name || '')
+            .filter(Boolean)
+        : []
+
       let businessName = ''
       let logoUrl: string | undefined
+      let isRecommended = false
+      let pickupAddress: string | undefined
       try {
         const bizSnap = await get(ref(db(), `Businesses/${businessId}`))
         if (bizSnap.exists()) {
           const data = bizSnap.val()
           businessName = data?.business_name || ''
           logoUrl = data?.logo_url || undefined
+          isRecommended = data?.is_recommended === true
+          const streetLine = [data?.business_street, data?.business_building_number].filter(Boolean).join(' ')
+          pickupAddress =
+            data?.business_address ||
+            [streetLine, data?.business_city].filter(Boolean).join(', ') ||
+            undefined
         }
       } catch {
         businessName = `עסק ${businessId.slice(0, 6)}`
@@ -55,6 +77,9 @@ export async function getBusinessesWithMenus(): Promise<BusinessWithMenu[]> {
         logoUrl,
         itemsCount: items,
         categoriesCount: categories,
+        isRecommended,
+        menuItemNames,
+        pickupAddress,
       })
     }
 

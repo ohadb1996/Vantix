@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Vantix</string>
+    <string name="title_activity_main">Vantix</string>
+    <string name="package_name">com.vantix.app</string>
+    <string name="custom_url_scheme">com.vantix.app</string>
+</resources>

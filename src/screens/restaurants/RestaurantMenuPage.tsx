@@ -1,13 +1,14 @@
 import { useState, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { useParams, useNavigate } from 'react-router-dom'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { placeOrder } from '../../services/orderService'
 import type { OrderCreate, OrderItem } from '../../types/order'
 import type { MenuItem } from '../../types/menu'
 import { isValidIsraeliPhone } from '../../utils/phone'
-import { ShoppingCart, Plus, Minus, Loader2, Check, ArrowRight, X, User, MapPin, CreditCard } from 'lucide-react'
+import { ShoppingCart, Plus, Minus, Loader2, Check, ArrowRight, X, User, MapPin, CreditCard, Pencil, Search, Truck, Store } from 'lucide-react'
 import { useMenu } from '../../hooks/useMenu'
-import { useCart, type CartSelectedOption } from '../../hooks/useCart'
+import { useCart, type CartLine, type CartSelectedOption } from '../../hooks/useCart'
 import { ROUTES } from '../../constants/app'
 import { CheckoutSavedSelector } from '../../components/checkout/CheckoutSavedSelector'
 import { PAYMENT_METHOD_LABELS, type SavedAddress, type SavedContact, type SavedPayment } from '../../types/customerProfile'
@@ -15,15 +16,20 @@ import { PAYMENT_METHOD_LABELS, type SavedAddress, type SavedContact, type Saved
 export const RestaurantMenuPage = () => {
   const { businessId } = useParams<{ businessId: string }>()
   const navigate = useNavigate()
-  const { menu, businessName, businessLogoUrl, isLoading: loading } = useMenu(businessId)
-  const { cart, addToCart, removeFromCart, clearCart, totalItems, totalPrice } = useCart(businessId, menu?.items ?? null)
+  const { menu, businessName, businessLogoUrl, businessPickupAddress, isLoading: loading } = useMenu(businessId)
+  const { cart, addToCart, removeFromCart, updateLineOptions, clearCart, totalItems, totalPrice } = useCart(businessId, menu?.items ?? null)
 
   const [placing, setPlacing] = useState(false)
   const [orderDone, setOrderDone] = useState<string | null>(null)
   const [showCheckout, setShowCheckout] = useState(false)
   const [showCartPanel, setShowCartPanel] = useState(false)
+  // אופן מימוש ההזמנה: משלוח או איסוף עצמי
+  const [fulfillment, setFulfillment] = useState<'delivery' | 'pickup'>('delivery')
+  const [menuSearch, setMenuSearch] = useState('')
   const [addItemModal, setAddItemModal] = useState<MenuItem | null>(null)
   const [sectionSelections, setSectionSelections] = useState<Record<string, string | string[]>>({})
+  // כשעורכים שורה קיימת בעגלה – שומרים את האופציות הישנות כדי לזהות את השורה
+  const [editingOldOptions, setEditingOldOptions] = useState<CartSelectedOption[] | null>(null)
   const [formErrors, setFormErrors] = useState<Record<string, string>>({})
   const [form, setForm] = useState({
     customer_name: '',
@@ -82,12 +88,12 @@ export const RestaurantMenuPage = () => {
       err._submit = 'נא לבחור או להוסיף פרטים אישיים (שם וטלפון) למעלה'
     } else if (!isValidIsraeliPhone(phone)) {
       err._submit = 'מספר הטלפון בפרטים שנבחרו אינו תקין – ערוך אותו למעלה'
-    } else if (!city || !street || !building) {
+    } else if (fulfillment === 'delivery' && (!city || !street || !building)) {
       err._submit = 'נא לבחור או להוסיף כתובת למשלוח למעלה'
     }
     setFormErrors(err)
     return Object.keys(err).length === 0
-  }, [form])
+  }, [form, fulfillment])
 
   const handlePlaceOrder = async () => {
     if (!businessId || cart.length === 0) return
@@ -111,12 +117,18 @@ export const RestaurantMenuPage = () => {
         customer_name: form.customer_name.trim(),
         customer_phone: form.customer_phone.trim(),
         ...(form.customer_phone_secondary?.trim() && { customer_phone_secondary: form.customer_phone_secondary.trim() }),
-        delivery_city: form.delivery_city.trim(),
-        delivery_street: form.delivery_street.trim(),
-        delivery_building_number: form.delivery_building_number.trim(),
-        delivery_floor: form.delivery_floor?.trim() || undefined,
-        delivery_apartment: form.delivery_apartment?.trim() || undefined,
-        delivery_building_code: form.delivery_building_code?.trim() || undefined,
+        fulfillment_type: fulfillment,
+        // שדות כתובת נשלחים רק במשלוח עד הבית
+        ...(fulfillment === 'delivery'
+          ? {
+              delivery_city: form.delivery_city.trim(),
+              delivery_street: form.delivery_street.trim(),
+              delivery_building_number: form.delivery_building_number.trim(),
+              delivery_floor: form.delivery_floor?.trim() || undefined,
+              delivery_apartment: form.delivery_apartment?.trim() || undefined,
+              delivery_building_code: form.delivery_building_code?.trim() || undefined,
+            }
+          : {}),
         delivery_notes: form.delivery_notes?.trim() || undefined,
         ...(paymentMethod.trim() && { payment_method: paymentMethod.trim() }),
         items,
@@ -157,11 +169,46 @@ export const RestaurantMenuPage = () => {
     )
   }
 
+  const categoriesById = menu.categories
   const categoriesList = Object.values(menu.categories).sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
   const itemsList = Object.values(menu.items).filter((i) => i.available !== false).sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
 
+  // 🔎 חיפוש מנות בתוך התפריט: לפי שם/תיאור המנה או לפי שם הקטגוריה (תת-סקשן, למשל "עיקריות")
+  const menuQuery = menuSearch.trim().toLowerCase()
+  const isMenuSearching = menuQuery.length > 0
+  const itemMatchesSearch = (item: MenuItem): boolean => {
+    if (!menuQuery) return true
+    const catName = (categoriesById[item.categoryId]?.name ?? '').toLowerCase()
+    return (
+      item.name.toLowerCase().includes(menuQuery) ||
+      (item.description ?? '').toLowerCase().includes(menuQuery) ||
+      catName.includes(menuQuery)
+    )
+  }
+  const filteredItemsList = itemsList.filter(itemMatchesSearch)
+
+  const closeItemModal = () => {
+    setAddItemModal(null)
+    setSectionSelections({})
+    setEditingOldOptions(null)
+  }
+
+  const optionsToSelections = (item: MenuItem, opts: CartSelectedOption[] | undefined): Record<string, string | string[]> => {
+    const sel: Record<string, string | string[]> = {}
+    for (const sec of item.sections ?? []) {
+      const forSec = (opts ?? []).filter((o) => o.sectionId === sec.id)
+      if (sec.choiceType === 'single') {
+        if (forSec[0]) sel[sec.id] = forSec[0].optionId
+      } else {
+        sel[sec.id] = forSec.map((o) => o.optionId)
+      }
+    }
+    return sel
+  }
+
   const handleAddItem = (item: MenuItem) => {
     if (item.sections && item.sections.length > 0) {
+      setEditingOldOptions(null)
       setAddItemModal(item)
       setSectionSelections({})
     } else {
@@ -169,10 +216,25 @@ export const RestaurantMenuPage = () => {
     }
   }
 
-  const handleAddItemConfirm = () => {
-    if (!addItemModal?.sections?.length) return
+  // פתיחת כרטיסיית המנה (לחיצה על כל הכרטיס בתפריט) – מציג פרטים ותמונה לכל מנה
+  const openItemDetails = (item: MenuItem) => {
+    setEditingOldOptions(null)
+    setSectionSelections({})
+    setAddItemModal(item)
+  }
+
+  // ✏️ עריכת תתי-הפריטים של שורה קיימת בעגלה (פתיחת המודל עם הבחירות הנוכחיות)
+  const handleEditLine = (line: CartLine) => {
+    if (!line.item.sections?.length) return
+    setEditingOldOptions(line.selectedOptions ?? [])
+    setSectionSelections(optionsToSelections(line.item, line.selectedOptions))
+    setAddItemModal(line.item)
+    setShowCartPanel(false)
+  }
+
+  const buildSelectedOptions = (item: MenuItem): CartSelectedOption[] => {
     const selectedOptions: CartSelectedOption[] = []
-    for (const sec of addItemModal.sections) {
+    for (const sec of item.sections ?? []) {
       const val = sectionSelections[sec.id]
       if (sec.choiceType === 'single' && typeof val === 'string') {
         const opt = sec.options.find((o) => o.id === val)
@@ -185,8 +247,18 @@ export const RestaurantMenuPage = () => {
         }
       }
     }
-    addToCart(addItemModal, selectedOptions)
-    setAddItemModal(null)
+    return selectedOptions
+  }
+
+  const handleAddItemConfirm = () => {
+    if (!addItemModal) return
+    const selectedOptions = buildSelectedOptions(addItemModal)
+    if (editingOldOptions !== null) {
+      updateLineOptions(addItemModal.id, editingOldOptions, selectedOptions)
+    } else {
+      addToCart(addItemModal, selectedOptions.length ? selectedOptions : undefined)
+    }
+    closeItemModal()
   }
 
   return (
@@ -211,16 +283,26 @@ export const RestaurantMenuPage = () => {
         </motion.div>
       )}
 
-      {showCartPanel && totalItems > 0 && (
-        <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 sm:items-center"
+      {createPortal(
+        <AnimatePresence>
+        {showCartPanel && totalItems > 0 && (
+        <motion.div
+          key="cart-panel-overlay"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-[60] flex items-end justify-center bg-black/50 sm:items-center sm:p-4"
           role="dialog"
           aria-modal="true"
           aria-labelledby="cart-panel-title"
           onClick={() => setShowCartPanel(false)}
         >
-          <div
-            className="w-full max-w-md max-h-[85vh] rounded-t-2xl sm:rounded-2xl bg-vantix-surface-raised shadow-xl overflow-hidden flex flex-col"
+          <motion.div
+            initial={{ y: '100%' }}
+            animate={{ y: 0 }}
+            exit={{ y: '100%' }}
+            transition={{ type: 'spring', damping: 32, stiffness: 320 }}
+            className="w-full sm:max-w-md max-h-[85vh] rounded-t-3xl sm:rounded-2xl bg-vantix-surface-raised shadow-xl overflow-hidden flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between p-4 border-b border-vantix-cyan/20">
@@ -245,6 +327,16 @@ export const RestaurantMenuPage = () => {
                     <div className="flex items-center justify-between gap-2">
                       <span className="truncate flex-1 font-medium">{l.item.name} × {l.quantity}</span>
                       <div className="flex items-center gap-1 shrink-0">
+                        {l.item.sections && l.item.sections.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => handleEditLine(l)}
+                            className="p-1.5 rounded-lg text-vantix-fg-muted hover:bg-vantix-cyan/10 hover:text-vantix-cyan"
+                            aria-label={`ערוך תוספות ${l.item.name}`}
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </button>
+                        )}
                         <button
                           type="button"
                           onClick={() => removeFromCart(l.item.id, l.selectedOptions)}
@@ -285,8 +377,11 @@ export const RestaurantMenuPage = () => {
                 <ArrowRight className="h-4 w-4" />
               </button>
             </div>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
+        )}
+        </AnimatePresence>,
+        document.body
       )}
 
       {/* תמונת נושא – רוחב מלא של האזור, מתחילה מאחורי הסרגל */}
@@ -349,9 +444,39 @@ export const RestaurantMenuPage = () => {
 
       <div className="grid gap-8 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-6">
+          {/* שורת חיפוש – נדבקת לראש המסך מתחת לסרגל העליון בזמן גלילה */}
+          <div className="sticky top-[52px] z-30 -mx-3 px-3 pt-2 pb-2 bg-vantix-surface/85 backdrop-blur-md sm:top-[68px] sm:-mx-6 sm:px-6">
+            <div className="flex items-center gap-3 rounded-xl border border-vantix-cyan/25 bg-vantix-surface-raised px-3 py-2.5 shadow-sm">
+              <Search className="h-4 w-4 shrink-0 text-vantix-cyan" />
+              <input
+                value={menuSearch}
+                onChange={(e) => setMenuSearch(e.target.value)}
+                placeholder="חיפוש מנה בתפריט (שם או קטגוריה, למשל 'עיקריות')..."
+                className="w-full min-w-0 bg-transparent text-sm text-vantix-fg placeholder:text-vantix-fg-subtle focus:outline-none"
+                aria-label="חיפוש מנה בתפריט"
+              />
+              {menuSearch && (
+                <button
+                  type="button"
+                  onClick={() => setMenuSearch('')}
+                  className="p-1 rounded-full text-vantix-fg-muted hover:bg-vantix-cyan/10 hover:text-vantix-cyan"
+                  aria-label="נקה חיפוש"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+          </div>
+
+          {isMenuSearching && filteredItemsList.length === 0 && (
+            <p className="rounded-xl border border-vantix-cyan/20 bg-vantix-surface-raised p-6 text-center text-sm text-vantix-fg-muted">
+              לא נמצאו מנות התואמות את החיפוש &quot;{menuSearch}&quot;
+            </p>
+          )}
+
           {categoriesList.length > 0
             ? categoriesList.map((cat) => {
-                const catItems = itemsList.filter((i) => i.categoryId === cat.id)
+                const catItems = filteredItemsList.filter((i) => i.categoryId === cat.id)
                 if (catItems.length === 0) return null
                 return (
                   <section key={cat.id} aria-labelledby={`cat-${cat.id}`}>
@@ -362,7 +487,16 @@ export const RestaurantMenuPage = () => {
                       {catItems.map((item) => (
                         <li
                           key={item.id}
-                          className="flex items-center justify-between gap-4 rounded-xl border border-vantix-cyan/20 bg-vantix-surface-raised p-4 shadow-sm hover:border-vantix-cyan/25 transition"
+                          onClick={() => openItemDetails(item)}
+                          role="button"
+                          tabIndex={0}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault()
+                              openItemDetails(item)
+                            }
+                          }}
+                          className="flex cursor-pointer items-center justify-between gap-4 rounded-xl border border-vantix-cyan/20 bg-vantix-surface-raised p-4 shadow-sm transition hover:border-vantix-cyan/40 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-vantix-cyan/40 active:scale-[0.99]"
                         >
                           {item.imageUrl && (
                             <img
@@ -382,7 +516,7 @@ export const RestaurantMenuPage = () => {
                             <span className="text-vantix-cyan font-semibold whitespace-nowrap">₪{item.price.toFixed(2)}</span>
                             <button
                               type="button"
-                              onClick={() => handleAddItem(item)}
+                              onClick={(e) => { e.stopPropagation(); handleAddItem(item) }}
                               className="rounded-full bg-vantix-cyan p-2.5 text-white hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-vantix-cyan/50"
                               aria-label={`הוסף ${item.name} לעגלה`}
                             >
@@ -397,10 +531,19 @@ export const RestaurantMenuPage = () => {
               })
             : (
               <ul className="space-y-2">
-                {itemsList.map((item) => (
+                {filteredItemsList.map((item) => (
                   <li
                     key={item.id}
-                    className="flex items-center justify-between gap-4 rounded-xl border border-vantix-cyan/20 bg-vantix-surface-raised p-4 shadow-sm"
+                    onClick={() => openItemDetails(item)}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault()
+                        openItemDetails(item)
+                      }
+                    }}
+                    className="flex cursor-pointer items-center justify-between gap-4 rounded-xl border border-vantix-cyan/20 bg-vantix-surface-raised p-4 shadow-sm transition hover:border-vantix-cyan/40 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-vantix-cyan/40 active:scale-[0.99]"
                   >
                     {item.imageUrl && (
                       <img
@@ -420,7 +563,7 @@ export const RestaurantMenuPage = () => {
                       <span className="text-vantix-cyan font-semibold">₪{item.price.toFixed(2)}</span>
                       <button
                         type="button"
-                        onClick={() => handleAddItem(item)}
+                        onClick={(e) => { e.stopPropagation(); handleAddItem(item) }}
                         className="rounded-full bg-vantix-cyan p-2.5 text-white hover:brightness-110"
                         aria-label={`הוסף ${item.name} לעגלה`}
                       >
@@ -452,6 +595,16 @@ export const RestaurantMenuPage = () => {
                         <div className="flex items-center justify-between gap-2">
                           <span className="truncate flex-1 font-medium">{l.item.name} × {l.quantity}</span>
                           <div className="flex items-center gap-1 shrink-0">
+                            {l.item.sections && l.item.sections.length > 0 && (
+                              <button
+                                type="button"
+                                onClick={() => handleEditLine(l)}
+                                className="p-1.5 rounded-lg text-vantix-fg-muted hover:bg-vantix-cyan/10 hover:text-vantix-cyan"
+                                aria-label={`ערוך תוספות ${l.item.name}`}
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                              </button>
+                            )}
                             <button
                               type="button"
                               onClick={() => removeFromCart(l.item.id, l.selectedOptions)}
@@ -496,21 +649,87 @@ export const RestaurantMenuPage = () => {
         </div>
       </div>
 
-      {showCheckout && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      {createPortal(
+        <AnimatePresence>
+        {showCheckout && (
+        <motion.div
+          key="checkout-overlay"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-[60] flex items-stretch justify-center bg-black/50"
           role="dialog"
           aria-modal="true"
           aria-labelledby="checkout-title"
           onClick={() => { setShowCheckout(false); setFormErrors({}) }}
         >
-          <div
-            className="w-full max-w-md rounded-2xl bg-vantix-surface-raised p-6 shadow-xl max-h-[90vh] overflow-y-auto"
+          <motion.div
+            initial={{ y: '100%' }}
+            animate={{ y: 0 }}
+            exit={{ y: '100%' }}
+            transition={{ type: 'spring', damping: 32, stiffness: 320 }}
+            className="flex h-full w-full flex-col bg-vantix-surface-raised shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 id="checkout-title" className="text-xl font-bold text-vantix-fg mb-4">
-              פרטי משלוח
-            </h3>
+            <div className="mx-auto flex h-full w-full max-w-2xl flex-col overflow-y-auto p-6">
+            <div className="mb-4 flex items-center justify-between gap-4">
+              <h3 id="checkout-title" className="text-xl font-bold text-vantix-fg">
+                פרטי הזמנה
+              </h3>
+              <button
+                type="button"
+                onClick={() => { setShowCheckout(false); setFormErrors({}) }}
+                className="p-2 rounded-full text-vantix-fg-muted hover:bg-vantix-cyan/10 hover:text-vantix-cyan"
+                aria-label="סגור"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* בחירת אופן מימוש ההזמנה */}
+            <div className="mb-4 grid grid-cols-2 gap-2 rounded-xl border border-vantix-cyan/20 bg-vantix-surface p-1">
+              <button
+                type="button"
+                onClick={() => setFulfillment('delivery')}
+                className={`flex items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-semibold transition ${
+                  fulfillment === 'delivery'
+                    ? 'bg-vantix-cyan text-black'
+                    : 'text-vantix-fg-muted hover:bg-vantix-cyan/10'
+                }`}
+                aria-pressed={fulfillment === 'delivery'}
+              >
+                <Truck className="h-4 w-4" />
+                משלוח
+              </button>
+              <button
+                type="button"
+                onClick={() => setFulfillment('pickup')}
+                className={`flex items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-semibold transition ${
+                  fulfillment === 'pickup'
+                    ? 'bg-vantix-cyan text-black'
+                    : 'text-vantix-fg-muted hover:bg-vantix-cyan/10'
+                }`}
+                aria-pressed={fulfillment === 'pickup'}
+              >
+                <Store className="h-4 w-4" />
+                איסוף עצמי
+              </button>
+            </div>
+
+            {fulfillment === 'pickup' && (
+              <div className="mb-4 flex items-start gap-2 rounded-2xl border border-vantix-cyan/20 bg-vantix-surface p-4 text-sm">
+                <Store className="mt-0.5 h-4 w-4 shrink-0 text-vantix-cyan" />
+                <div>
+                  <p className="font-medium text-vantix-fg">איסוף מהעסק</p>
+                  <p className="mt-0.5 text-vantix-fg-muted">
+                    {businessPickupAddress
+                      ? `${businessName ? businessName + ' · ' : ''}${businessPickupAddress}`
+                      : `ההזמנה תמתין לאיסוף ב${businessName || 'עסק'}. פרטי המיקום המדויקים יתואמו עם בעל העסק.`}
+                  </p>
+                </div>
+              </div>
+            )}
+
             {formErrors._submit && (
               <p className="mb-4 rounded-lg bg-red-50 border border-red-200 text-red-700 px-3 py-2 text-sm">
                 {formErrors._submit}
@@ -524,6 +743,7 @@ export const RestaurantMenuPage = () => {
               onSelectContact={applyContact}
               onSelectAddress={applyAddress}
               onSelectPayment={applyPayment}
+              hideAddress={fulfillment === 'pickup'}
             />
 
             {form.customer_name || form.delivery_city ? (
@@ -537,7 +757,7 @@ export const RestaurantMenuPage = () => {
                     </span>
                   </div>
                 )}
-                {form.delivery_city && (
+                {fulfillment === 'delivery' && form.delivery_city && (
                   <div className="flex items-start gap-2">
                     <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-vantix-cyan" />
                     <span className="text-vantix-fg">
@@ -584,46 +804,68 @@ export const RestaurantMenuPage = () => {
                 שליחת הזמנה
               </button>
             </div>
-          </div>
-        </div>
+            </div>
+          </motion.div>
+        </motion.div>
+        )}
+        </AnimatePresence>,
+        document.body
       )}
 
-      {addItemModal && addItemModal.sections && addItemModal.sections.length > 0 && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      {createPortal(
+        <AnimatePresence>
+        {addItemModal && (
+        <motion.div
+          key="item-modal-overlay"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-[60] flex items-end justify-center bg-black/50 sm:items-center sm:p-4"
           role="dialog"
           aria-modal="true"
           aria-labelledby="add-item-title"
-          onClick={() => setAddItemModal(null)}
+          onClick={closeItemModal}
         >
-          <div
-            className="w-full max-w-md rounded-2xl bg-vantix-surface-raised shadow-xl max-h-[90vh] overflow-y-auto"
+          <motion.div
+            initial={{ y: '100%' }}
+            animate={{ y: 0 }}
+            exit={{ y: '100%' }}
+            transition={{ type: 'spring', damping: 32, stiffness: 320 }}
+            className="w-full max-h-[88vh] overflow-y-auto rounded-t-3xl bg-vantix-surface-raised shadow-xl sm:max-w-md sm:rounded-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            {addItemModal.imageUrl && (
-              <div className="relative w-full aspect-[16/10] overflow-hidden rounded-t-2xl bg-vantix-surface">
+            {addItemModal.imageUrl ? (
+              <div className="relative w-full aspect-[16/10] overflow-hidden rounded-t-3xl bg-vantix-surface sm:rounded-t-2xl">
                 <img
                   src={addItemModal.imageUrl}
                   alt=""
                   className="absolute inset-0 h-full w-full object-cover object-center"
                 />
               </div>
+            ) : (
+              <div className="flex justify-center pt-3 sm:hidden">
+                <span className="h-1.5 w-10 rounded-full bg-vantix-fg-subtle/40" />
+              </div>
             )}
             <div className="p-6">
-            <div className="flex items-center justify-between gap-4 mb-4">
+            <div className="flex items-center justify-between gap-4 mb-2">
               <h3 id="add-item-title" className="text-xl font-bold text-vantix-fg">
-                {addItemModal.name}
+                {editingOldOptions !== null ? `עריכת ${addItemModal.name}` : addItemModal.name}
               </h3>
               <button
                 type="button"
-                onClick={() => setAddItemModal(null)}
+                onClick={closeItemModal}
                 className="p-2 rounded-full text-vantix-fg-muted hover:bg-vantix-cyan/10 hover:text-vantix-cyan"
                 aria-label="סגור"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <p className="text-vantix-cyan font-semibold mb-4">₪{addItemModal.price.toFixed(2)}</p>
+            <p className="text-vantix-cyan font-semibold mb-3">₪{addItemModal.price.toFixed(2)}</p>
+            {addItemModal.description && (
+              <p className="text-sm text-vantix-fg-muted mb-4 leading-relaxed">{addItemModal.description}</p>
+            )}
+            {addItemModal.sections && addItemModal.sections.length > 0 && (
             <div className="space-y-4 mb-6">
               {addItemModal.sections.map((sec) => (
                 <div key={sec.id} className="rounded-xl border border-vantix-cyan/20 bg-vantix-surface-raised p-4">
@@ -677,17 +919,21 @@ export const RestaurantMenuPage = () => {
                 </div>
               ))}
             </div>
+            )}
             <button
               type="button"
               onClick={handleAddItemConfirm}
               className="w-full flex items-center justify-center gap-2 rounded-xl bg-vantix-orange dark:bg-vantix-cyan text-white dark:text-black py-3.5 font-semibold hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-vantix-cyan"
             >
-              <Plus className="h-5 w-5" />
-              הוסף לעגלה
+              {editingOldOptions !== null ? <Check className="h-5 w-5" /> : <Plus className="h-5 w-5" />}
+              {editingOldOptions !== null ? 'שמור שינויים' : 'הוסף לעגלה'}
             </button>
             </div>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
+        )}
+        </AnimatePresence>,
+        document.body
       )}
 
     </div>

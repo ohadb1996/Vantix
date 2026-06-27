@@ -82,8 +82,8 @@ export const PartnersCarousel = () => {
         style={{ marginLeft: 'calc(-50vw + 50%)', marginRight: 'calc(-50vw + 50%)' }}
       >
         <div className="relative w-full overflow-hidden" style={{ minHeight: '160px' }}>
-          <div className="pointer-events-none absolute left-0 top-0 z-10 h-full w-24 bg-gradient-to-r from-white via-white/80 to-transparent" />
-          <div className="pointer-events-none absolute right-0 top-0 z-10 h-full w-24 bg-gradient-to-l from-white via-white/80 to-transparent" />
+          <div className="pointer-events-none absolute left-0 top-0 z-10 h-full w-24 bg-gradient-to-r from-vantix-surface via-vantix-surface/80 to-transparent" />
+          <div className="pointer-events-none absolute right-0 top-0 z-10 h-full w-24 bg-gradient-to-l from-vantix-surface via-vantix-surface/80 to-transparent" />
 
           {isLoading ? (
             <div className="flex gap-3 justify-center py-4">
