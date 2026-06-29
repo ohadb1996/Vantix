@@ -18,6 +18,8 @@ export interface BusinessWithMenu {
   categoriesCount: number
   /** ⭐ מסומן ע"י האדמין כ"מסעדה מומלצת" (Businesses/{id}/is_recommended) */
   isRecommended?: boolean
+  /** מספר לייקים מלקוחות (Businesses/{id}/likeCount) */
+  likeCount?: number
   /** שמות המנות בתפריט – לשימוש בחיפוש כללי של מאכלים בין כל המסעדות */
   menuItemNames?: string[]
   /** כתובת העסק – להצגה בעת איסוף עצמי */
@@ -53,6 +55,7 @@ export async function getBusinessesWithMenus(): Promise<BusinessWithMenu[]> {
       let businessName = ''
       let logoUrl: string | undefined
       let isRecommended = false
+      let likeCount = 0
       let pickupAddress: string | undefined
       try {
         const bizSnap = await get(ref(db(), `Businesses/${businessId}`))
@@ -61,6 +64,7 @@ export async function getBusinessesWithMenus(): Promise<BusinessWithMenu[]> {
           businessName = data?.business_name || ''
           logoUrl = data?.logo_url || undefined
           isRecommended = data?.is_recommended === true
+          likeCount = typeof data?.likeCount === 'number' ? data.likeCount : 0
           const streetLine = [data?.business_street, data?.business_building_number].filter(Boolean).join(' ')
           pickupAddress =
             data?.business_address ||
@@ -78,6 +82,7 @@ export async function getBusinessesWithMenus(): Promise<BusinessWithMenu[]> {
         itemsCount: items,
         categoriesCount: categories,
         isRecommended,
+        likeCount,
         menuItemNames,
         pickupAddress,
       })

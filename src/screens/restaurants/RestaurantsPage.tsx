@@ -1,12 +1,18 @@
 import { useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ChevronLeft, ChevronRight, Search, Star, UtensilsCrossed } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Heart, Search, UtensilsCrossed } from 'lucide-react'
 import { RestaurantCard } from '../../components/cards/RestaurantCard'
 import { ReelsFeed } from '../../components/reels/ReelsFeed'
 import { useRestaurants } from '../../hooks/useRestaurants'
 import { useReels } from '../../hooks/useReels'
+import { useRestaurantCategories } from '../../hooks/useRestaurantCategories'
+import { useBusinessLikes } from '../../hooks/useBusinessLikes'
 import { ROUTES } from '../../constants/app'
+import {
+  RECOMMENDED_CATEGORY_NAME,
+  TOP_LIKED_COUNT,
+} from '../../services/restaurantCategories'
 import type { BusinessWithMenu } from '../../services/orderService'
 
 function RestaurantCardSkeleton() {
@@ -25,21 +31,31 @@ function RestaurantCardSkeleton() {
   )
 }
 
+type CategorySection = {
+  id: string
+  title: string
+  emoji?: string
+  businesses: BusinessWithMenu[]
+  isSystem?: boolean
+}
+
 export const RestaurantsPage = () => {
   const [searchQuery, setSearchQuery] = useState('')
+  const [likeMessage, setLikeMessage] = useState<string | null>(null)
   const { data: businesses, isLoading, error, refetch, isRefetching } = useRestaurants()
   const { data: reels } = useReels()
+  const { data: categories } = useRestaurantCategories()
+  const { isLiked, toggleLike, togglingId, isLoggedIn } = useBusinessLikes()
 
   const q = searchQuery.trim().toLowerCase()
   const isSearching = q.length > 0
 
-  // ⭐ מסעדות מומלצות (מסומנות ע"י האדמין) – לקרוסלה בראש העמוד
-  const recommended = useMemo(
-    () => (businesses ?? []).filter((b) => b.isRecommended),
-    [businesses]
-  )
+  const businessById = useMemo(() => {
+    const map = new Map<string, BusinessWithMenu>()
+    for (const b of businesses ?? []) map.set(b.businessId, b)
+    return map
+  }, [businesses])
 
-  // 🔎 חיפוש כללי: לפי שם המסעדה, מזהה, או שם של מנה כלשהי בתפריט
   const filteredBusinesses = useMemo(() => {
     if (!businesses) return []
     if (!q) return businesses
@@ -51,7 +67,6 @@ export const RestaurantsPage = () => {
     )
   }, [businesses, q])
 
-  // מנות שתואמות את החיפוש – מוצגות כתגיות על הכרטיס כדי להבהיר למה המסעדה הופיעה
   const matchedDishesByBusiness = useMemo(() => {
     const map: Record<string, string[]> = {}
     if (!q) return map
@@ -63,6 +78,97 @@ export const RestaurantsPage = () => {
     }
     return map
   }, [filteredBusinesses, q])
+
+  const categorySections = useMemo((): CategorySection[] => {
+    if (!businesses?.length || isSearching) return []
+
+    const sections: CategorySection[] = []
+    const assigned = new Set<string>()
+
+    const topLiked = [...businesses]
+      .filter((b) => (b.likeCount ?? 0) > 0)
+      .sort((a, b) => (b.likeCount ?? 0) - (a.likeCount ?? 0))
+      .slice(0, TOP_LIKED_COUNT)
+
+    if (topLiked.length > 0) {
+      sections.push({
+        id: '__recommended__',
+        title: RECOMMENDED_CATEGORY_NAME,
+        emoji: '❤️',
+        businesses: topLiked,
+        isSystem: true,
+      })
+      for (const b of topLiked) assigned.add(b.businessId)
+    }
+
+    for (const cat of categories ?? []) {
+      const catBusinesses = cat.businessIds
+        .map((id) => businessById.get(id))
+        .filter((b): b is BusinessWithMenu => !!b)
+      if (catBusinesses.length === 0) continue
+      sections.push({
+        id: cat.id,
+        title: cat.name,
+        emoji: cat.emoji,
+        businesses: catBusinesses,
+      })
+      for (const b of catBusinesses) assigned.add(b.businessId)
+    }
+
+    const uncategorized = businesses.filter((b) => !assigned.has(b.businessId))
+    if (uncategorized.length > 0 && (categories?.length ?? 0) > 0) {
+      sections.push({
+        id: '__other__',
+        title: 'עוד מסעדות',
+        businesses: uncategorized,
+      })
+    }
+
+    if (sections.length === 0 && businesses.length > 0) {
+      sections.push({
+        id: '__all__',
+        title: 'כל המסעדות',
+        businesses,
+      })
+    }
+
+    return sections
+  }, [businesses, categories, businessById, isSearching])
+
+  const handleLike = async (businessId: string) => {
+    if (!isLoggedIn) {
+      setLikeMessage('יש להתחבר כדי לסמן לייק')
+      setTimeout(() => setLikeMessage(null), 3000)
+      return
+    }
+    const result = await toggleLike(businessId)
+    if (result === 'error') {
+      setLikeMessage('לא הצלחנו לעדכן את הלייק. נסה שוב.')
+      setTimeout(() => setLikeMessage(null), 3000)
+    }
+  }
+
+  const renderBusinessCard = (b: BusinessWithMenu, matchedTags?: string[]) => (
+    <Link
+      key={b.businessId}
+      to={ROUTES.RESTAURANT_MENU(b.businessId)}
+      className="block w-[78%] shrink-0 snap-start rounded-2xl focus:outline-none focus:ring-2 focus:ring-vantix-cyan focus:ring-offset-2 sm:w-[320px] sm:rounded-3xl"
+    >
+      <RestaurantCard
+        name={b.businessName}
+        cuisine={`${b.itemsCount} פריטים • ${b.categoriesCount} קטגוריות`}
+        eta="הזמנה ומשלוח"
+        priceLevel="הזמנה מהתפריט"
+        distance="—"
+        heroImage={b.logoUrl ?? undefined}
+        tags={matchedTags ?? []}
+        likeCount={b.likeCount ?? 0}
+        isLiked={isLiked(b.businessId)}
+        likeDisabled={togglingId === b.businessId}
+        onLikeClick={() => void handleLike(b.businessId)}
+      />
+    </Link>
+  )
 
   return (
     <div className="space-y-6 sm:space-y-10">
@@ -93,11 +199,13 @@ export const RestaurantsPage = () => {
         </div>
       </motion.header>
 
-      {!isSearching && reels && reels.length > 0 && <ReelsFeed reels={reels} />}
-
-      {!isLoading && !error && !isSearching && recommended.length > 0 && (
-        <RecommendedCarousel businesses={recommended} />
+      {likeMessage && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          {likeMessage}
+        </div>
       )}
+
+      {!isSearching && reels && reels.length > 0 && <ReelsFeed reels={reels} />}
 
       {isLoading && (
         <section className="grid gap-6 md:grid-cols-2">
@@ -158,7 +266,24 @@ export const RestaurantsPage = () => {
       )}
 
       <AnimatePresence mode="wait">
-        {!isLoading && !error && filteredBusinesses && filteredBusinesses.length > 0 && (
+        {!isLoading && !error && !isSearching && categorySections.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="space-y-8 sm:space-y-10"
+          >
+            {categorySections.map((section) => (
+              <CategoryCarousel
+                key={section.id}
+                section={section}
+                renderCard={(b) => renderBusinessCard(b)}
+              />
+            ))}
+          </motion.div>
+        )}
+
+        {!isLoading && !error && isSearching && filteredBusinesses.length > 0 && (
           <motion.section
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -173,7 +298,10 @@ export const RestaurantsPage = () => {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.35, delay: index * 0.05 }}
               >
-                <Link to={ROUTES.RESTAURANT_MENU(b.businessId)} className="block focus:outline-none focus:ring-2 focus:ring-vantix-cyan focus:ring-offset-2 rounded-2xl sm:rounded-3xl">
+                <Link
+                  to={ROUTES.RESTAURANT_MENU(b.businessId)}
+                  className="block focus:outline-none focus:ring-2 focus:ring-vantix-cyan focus:ring-offset-2 rounded-2xl sm:rounded-3xl"
+                >
                   <RestaurantCard
                     name={b.businessName}
                     cuisine={`${b.itemsCount} פריטים • ${b.categoriesCount} קטגוריות`}
@@ -182,6 +310,10 @@ export const RestaurantsPage = () => {
                     distance="—"
                     heroImage={b.logoUrl ?? undefined}
                     tags={matchedDishesByBusiness[b.businessId] ?? []}
+                    likeCount={b.likeCount ?? 0}
+                    isLiked={isLiked(b.businessId)}
+                    likeDisabled={togglingId === b.businessId}
+                    onLikeClick={() => void handleLike(b.businessId)}
                   />
                 </Link>
               </motion.div>
@@ -193,14 +325,19 @@ export const RestaurantsPage = () => {
   )
 }
 
-function RecommendedCarousel({ businesses }: { businesses: BusinessWithMenu[] }) {
+function CategoryCarousel({
+  section,
+  renderCard,
+}: {
+  section: CategorySection
+  renderCard: (b: BusinessWithMenu) => React.ReactNode
+}) {
   const scrollRef = useRef<HTMLDivElement>(null)
 
   const scrollByAmount = (direction: 'next' | 'prev') => {
     const el = scrollRef.current
     if (!el) return
     const amount = Math.max(el.clientWidth * 0.8, 240)
-    // RTL: גלילה "קדימה" (לפריטים הבאים) היא שמאלה (ערך שלילי)
     el.scrollBy({ left: direction === 'next' ? -amount : amount, behavior: 'smooth' })
   }
 
@@ -210,14 +347,21 @@ function RecommendedCarousel({ businesses }: { businesses: BusinessWithMenu[] })
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
       className="space-y-3 sm:space-y-4"
-      aria-label="המסעדות המומלצות שלנו"
+      aria-label={section.title}
     >
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-amber-400/15 text-amber-400">
-            <Star className="h-4 w-4 fill-amber-400" />
-          </span>
-          <h2 className="font-display text-xl text-vantix-fg sm:text-2xl">המסעדות המומלצות שלנו</h2>
+          {section.isSystem ? (
+            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-red-400/15 text-red-400">
+              <Heart className="h-4 w-4 fill-red-400" />
+            </span>
+          ) : section.emoji ? (
+            <span className="text-2xl">{section.emoji}</span>
+          ) : null}
+          <h2 className="font-display text-xl text-vantix-fg sm:text-2xl">
+            {section.title}
+            {section.emoji && !section.isSystem ? ` ${section.emoji}` : section.isSystem ? ' ❤️' : ''}
+          </h2>
         </div>
         <div className="hidden gap-2 sm:flex">
           <button
@@ -243,23 +387,7 @@ function RecommendedCarousel({ businesses }: { businesses: BusinessWithMenu[] })
         ref={scrollRef}
         className="flex snap-x snap-mandatory gap-4 overflow-x-auto pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
-        {businesses.map((b) => (
-          <Link
-            key={b.businessId}
-            to={ROUTES.RESTAURANT_MENU(b.businessId)}
-            className="block w-[78%] shrink-0 snap-start rounded-2xl focus:outline-none focus:ring-2 focus:ring-vantix-cyan focus:ring-offset-2 sm:w-[320px] sm:rounded-3xl"
-          >
-            <RestaurantCard
-              name={b.businessName}
-              cuisine={`${b.itemsCount} פריטים • ${b.categoriesCount} קטגוריות`}
-              eta="מומלץ"
-              priceLevel="הזמנה מהתפריט"
-              distance="—"
-              heroImage={b.logoUrl ?? undefined}
-              tags={[]}
-            />
-          </Link>
-        ))}
+        {section.businesses.map((b) => renderCard(b))}
       </div>
     </motion.section>
   )
