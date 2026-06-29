@@ -1,8 +1,8 @@
-import { APP_DISPLAY_NAME } from '../../constants/app'
+import { APP_DISPLAY_NAME, APP_ICON_PATH } from '../../constants/app'
 import { useTheme } from '../../context/ThemeContext'
 
 export const BRAND_ASSETS = {
-  icon: '/assets/myIcon.png',
+  icon: APP_ICON_PATH,
   /* אייקון פינתי תלוי-תמה: כתום (רקע לבן) בלייט, כחול (רקע כהה) בדארק */
   iconLight: '/assets/orangevv.jpg',
   iconDark: '/assets/bluev.jpeg',
