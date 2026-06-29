@@ -1,5 +1,6 @@
 import { Outlet, useLocation } from 'react-router-dom'
 import { MainNav } from '../components/navigation/MainNav'
+import { ScrollToTop } from '../components/navigation/ScrollToTop'
 import { useScrolled } from '../hooks/useScrolled'
 
 export const AppLayout = () => {
@@ -13,6 +14,7 @@ export const AppLayout = () => {
 
   return (
     <div className="vantix-page-bg relative flex min-h-screen flex-col text-vantix-fg">
+      <ScrollToTop />
       <header
         className={`sticky top-0 z-50 transition-all duration-300 ${headerPadding} ${
           isRestaurantMenu ? 'bg-transparent backdrop-blur-none' : 'bg-transparent'

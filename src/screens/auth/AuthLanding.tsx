@@ -1,41 +1,14 @@
 import { Outlet } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { MainNav } from '../../components/navigation/MainNav'
+import { ScrollToTop } from '../../components/navigation/ScrollToTop'
 import { FooterCTA } from '../../components/navigation/FooterCTA'
-import { BRAND_ASSETS } from '../../components/branding/Logo'
 import { APP_DISPLAY_NAME } from '../../constants/app'
-import { useTheme } from '../../context/ThemeContext'
 
 export const AuthLanding = () => {
-  const { theme } = useTheme()
-  const isDark = theme === 'dark'
-
   return (
     <div className="relative flex min-h-screen flex-col bg-vantix-surface text-vantix-fg">
-      {isDark ? (
-        <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
-          <img
-            src={BRAND_ASSETS.hero}
-            alt=""
-            aria-hidden
-            className="absolute inset-0 h-full w-full object-cover object-center select-none"
-            draggable={false}
-          />
-          <div className="absolute inset-0 bg-black/55" />
-        </div>
-      ) : (
-        <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
-          <img
-            src="/assets/logo-white.jpeg"
-            alt=""
-            aria-hidden
-            className="absolute inset-0 h-full w-full object-cover object-center select-none"
-            draggable={false}
-          />
-          <div className="absolute inset-0 bg-white/55" />
-        </div>
-      )}
-
+      <ScrollToTop />
       <div className="sticky top-0 z-30 px-3 py-1.5 sm:px-6 sm:py-2 lg:px-10 lg:py-3">
         <MainNav />
       </div>
@@ -67,9 +40,7 @@ export const AuthLanding = () => {
             <p className="text-xs font-semibold uppercase tracking-[0.3em] text-vantix-cyan">
               {APP_DISPLAY_NAME} membership
             </p>
-            <h1
-              className={`font-display text-4xl sm:text-5xl ${isDark ? 'text-white' : 'text-vantix-fg'}`}
-            >
+            <h1 className="font-display text-4xl text-vantix-fg sm:text-5xl">
               כל הטעמים, כל הפרסונליזציה – בחשבון אחד
             </h1>
             <p className="text-sm text-vantix-fg-muted">

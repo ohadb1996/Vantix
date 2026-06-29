@@ -12,7 +12,7 @@ import type { BusinessWithMenu } from '../../services/orderService'
 function RestaurantCardSkeleton() {
   return (
     <div className="overflow-hidden rounded-3xl border border-vantix-cyan/20 bg-vantix-surface-raised">
-      <div className="h-48 animate-pulse bg-gradient-to-l from-vantix-cyan to-vantix-orange/5" />
+      <div className="h-48 animate-pulse bg-vantix-overlay/5" />
       <div className="space-y-3 p-5">
         <div className="h-6 w-2/3 animate-pulse rounded bg-brand-slate/10" />
         <div className="h-4 w-1/2 animate-pulse rounded bg-brand-slate/10" />
@@ -70,33 +70,26 @@ export const RestaurantsPage = () => {
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
-        className="space-y-4 rounded-2xl border border-vantix-cyan/30 bg-gradient-to-l from-vantix-cyan to-vantix-orange/12 p-4 shadow-[0_20px_50px_rgba(255,107,53,0.14)] backdrop-blur sm:space-y-6 sm:rounded-3xl sm:p-6 sm:shadow-[0_30px_70px_rgba(255,107,53,0.18)]"
+        className="space-y-5 sm:space-y-6"
       >
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <div className="space-y-2 sm:space-y-3">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-white sm:text-xs sm:tracking-[0.32em]">
-              signature dining
-            </p>
-            <h1 className="font-display text-2xl text-vantix-fg sm:text-4xl sm:text-5xl">
-              תן לי את הטעם המדויק עכשיו
-            </h1>
-            <p className="max-w-2xl text-xs text-vantix-fg-muted sm:text-sm">
-              בחר עסק, עיין בתפריט והזמן – ההזמנה תגיע ישירות לבעל העסק עם התראה.
-            </p>
-          </div>
+        <div className="space-y-1.5 sm:space-y-2">
+          <h1 className="font-display text-2xl font-bold text-vantix-fg sm:text-4xl">
+            תן לי את הטעם המדויק עכשיו
+          </h1>
+          <p className="max-w-xl text-sm text-vantix-fg-muted">
+            בחר עסק, עיין בתפריט והזמן – ההזמנה תגיע ישירות לבעל העסק עם התראה.
+          </p>
         </div>
 
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <div className="flex flex-1 items-center gap-3 rounded-xl border border-vantix-cyan/25 bg-vantix-surface-raised px-3 py-2.5 shadow-[0_12px_30px_rgba(0,0,0,0.05)] sm:rounded-2xl sm:px-4 sm:py-3 sm:shadow-[0_18px_40px_rgba(0,0,0,0.05)]">
-            <Search className="h-4 w-4 text-vantix-cyan shrink-0 sm:h-5 sm:w-5" />
-            <input
-              placeholder="חיפוש מסעדות או מנות..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full min-w-0 bg-transparent text-sm text-vantix-fg placeholder:text-vantix-fg-subtle focus:outline-none"
-              aria-label="חיפוש מסעדות או מנות"
-            />
-          </div>
+        <div className="flex items-center gap-3 rounded-2xl border border-vantix-line/10 bg-vantix-surface-raised px-4 py-3 shadow-sm">
+          <Search className="h-5 w-5 shrink-0 text-vantix-fg-subtle" />
+          <input
+            placeholder="חיפוש מסעדות או מנות..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full min-w-0 bg-transparent text-sm text-vantix-fg placeholder:text-vantix-fg-subtle focus:outline-none"
+            aria-label="חיפוש מסעדות או מנות"
+          />
         </div>
       </motion.header>
 
