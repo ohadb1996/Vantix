@@ -8,8 +8,8 @@ const db = () => getRealtimeDb()
 
 export interface RestaurantCategory {
   id: string
+  /** שם מלא כולל אימוג'י, למשל: "רוק אנד רול 🍣" */
   name: string
-  emoji?: string
   active: boolean
   sortOrder: number
   businessIds: string[]
@@ -22,19 +22,29 @@ const parseBusinessIds = (raw: unknown): string[] => {
   return []
 }
 
+const formatCategoryName = (c: { name?: string; emoji?: string }): string => {
+  const name = (c.name || '').trim()
+  const emoji = (c.emoji || '').trim()
+  if (!emoji || name.includes(emoji)) return name
+  return `${name} ${emoji}`.trim()
+}
+
 export async function getRestaurantCategories(): Promise<RestaurantCategory[]> {
   try {
     const snap = await get(ref(db(), 'VantixContent/restaurantCategories'))
     if (!snap.exists()) return []
     const val = snap.val() as Record<
       string,
-      Omit<RestaurantCategory, 'id' | 'businessIds'> & { businessIds?: unknown }
+      Omit<RestaurantCategory, 'id' | 'businessIds' | 'name'> & {
+        name?: string
+        emoji?: string
+        businessIds?: unknown
+      }
     >
     return Object.entries(val)
       .map(([id, c]) => ({
         id,
-        name: c.name || '',
-        emoji: c.emoji,
+        name: formatCategoryName(c),
         active: c.active !== false,
         sortOrder: c.sortOrder ?? 0,
         businessIds: parseBusinessIds(c.businessIds),
@@ -48,5 +58,5 @@ export async function getRestaurantCategories(): Promise<RestaurantCategory[]> {
 
 /** מזהה וירטואלי לקטגוריית "המומלצים שלנו" – לא נשמר ב-RTDB */
 export const RECOMMENDED_CATEGORY_ID = '__recommended__'
-export const RECOMMENDED_CATEGORY_NAME = 'המומלצים שלנו'
+export const RECOMMENDED_CATEGORY_NAME = 'המומלצים שלנו ❤️'
 export const TOP_LIKED_COUNT = 10

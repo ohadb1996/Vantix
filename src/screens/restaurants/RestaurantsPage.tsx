@@ -34,7 +34,6 @@ function RestaurantCardSkeleton() {
 type CategorySection = {
   id: string
   title: string
-  emoji?: string
   businesses: BusinessWithMenu[]
   isSystem?: boolean
 }
@@ -94,7 +93,6 @@ export const RestaurantsPage = () => {
       sections.push({
         id: '__recommended__',
         title: RECOMMENDED_CATEGORY_NAME,
-        emoji: '❤️',
         businesses: topLiked,
         isSystem: true,
       })
@@ -109,7 +107,6 @@ export const RestaurantsPage = () => {
       sections.push({
         id: cat.id,
         title: cat.name,
-        emoji: cat.emoji,
         businesses: catBusinesses,
       })
       for (const b of catBusinesses) assigned.add(b.businessId)
@@ -355,12 +352,9 @@ function CategoryCarousel({
             <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-red-400/15 text-red-400">
               <Heart className="h-4 w-4 fill-red-400" />
             </span>
-          ) : section.emoji ? (
-            <span className="text-2xl">{section.emoji}</span>
           ) : null}
           <h2 className="font-display text-xl text-vantix-fg sm:text-2xl">
             {section.title}
-            {section.emoji && !section.isSystem ? ` ${section.emoji}` : section.isSystem ? ' ❤️' : ''}
           </h2>
         </div>
         <div className="hidden gap-2 sm:flex">
