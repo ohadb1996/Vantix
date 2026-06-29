@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import { useParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -26,6 +26,10 @@ export const RestaurantMenuPage = () => {
   // אופן מימוש ההזמנה: משלוח או איסוף עצמי
   const [fulfillment, setFulfillment] = useState<'delivery' | 'pickup'>('delivery')
   const [menuSearch, setMenuSearch] = useState('')
+  const [activeCategoryId, setActiveCategoryId] = useState<string | null>(null)
+  const categorySectionRefs = useRef<Map<string, HTMLElement>>(new Map())
+  const categoryTabsRef = useRef<HTMLDivElement>(null)
+  const isTabClickScrolling = useRef(false)
   const [addItemModal, setAddItemModal] = useState<MenuItem | null>(null)
   const [sectionSelections, setSectionSelections] = useState<Record<string, string | string[]>>({})
   // כשעורכים שורה קיימת בעגלה – שומרים את האופציות הישנות כדי לזהות את השורה
@@ -94,6 +98,92 @@ export const RestaurantMenuPage = () => {
     setFormErrors(err)
     return Object.keys(err).length === 0
   }, [form, fulfillment])
+
+  const categoriesList = useMemo(() => {
+    if (!menu?.categories) return []
+    return Object.values(menu.categories).sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+  }, [menu])
+
+  const itemsList = useMemo(() => {
+    if (!menu?.items) return []
+    return Object.values(menu.items)
+      .filter((i) => i.available !== false)
+      .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+  }, [menu])
+
+  const menuQuery = menuSearch.trim().toLowerCase()
+  const isMenuSearching = menuQuery.length > 0
+
+  const filteredItemsList = useMemo(() => {
+    if (!menuQuery) return itemsList
+    return itemsList.filter((item) => {
+      const catName = (menu?.categories?.[item.categoryId]?.name ?? '').toLowerCase()
+      return (
+        item.name.toLowerCase().includes(menuQuery) ||
+        (item.description ?? '').toLowerCase().includes(menuQuery) ||
+        catName.includes(menuQuery)
+      )
+    })
+  }, [itemsList, menuQuery, menu?.categories])
+
+  const visibleCategoriesForNav = useMemo(() => {
+    const sourceItems = isMenuSearching ? filteredItemsList : itemsList
+    return categoriesList.filter((cat) => sourceItems.some((i) => i.categoryId === cat.id))
+  }, [categoriesList, itemsList, filteredItemsList, isMenuSearching])
+
+  const scrollToCategory = useCallback((catId: string) => {
+    setActiveCategoryId(catId)
+    isTabClickScrolling.current = true
+    const el = categorySectionRefs.current.get(catId)
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      window.setTimeout(() => {
+        isTabClickScrolling.current = false
+      }, 900)
+    } else {
+      isTabClickScrolling.current = false
+    }
+  }, [])
+
+  useEffect(() => {
+    if (visibleCategoriesForNav.length === 0) {
+      setActiveCategoryId(null)
+      return
+    }
+    if (!activeCategoryId || !visibleCategoriesForNav.some((c) => c.id === activeCategoryId)) {
+      setActiveCategoryId(visibleCategoriesForNav[0].id)
+    }
+  }, [visibleCategoriesForNav, activeCategoryId])
+
+  useEffect(() => {
+    if (isMenuSearching || visibleCategoriesForNav.length === 0) return
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (isTabClickScrolling.current) return
+        const intersecting = entries
+          .filter((e) => e.isIntersecting)
+          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)
+        const top = intersecting[0]
+        const id = top?.target.getAttribute('data-category-id')
+        if (id) setActiveCategoryId(id)
+      },
+      { rootMargin: '-148px 0px -55% 0px', threshold: [0, 0.15, 0.35, 0.6] }
+    )
+
+    visibleCategoriesForNav.forEach((cat) => {
+      const el = categorySectionRefs.current.get(cat.id)
+      if (el) observer.observe(el)
+    })
+
+    return () => observer.disconnect()
+  }, [visibleCategoriesForNav, isMenuSearching])
+
+  useEffect(() => {
+    if (!activeCategoryId || !categoryTabsRef.current) return
+    const tab = categoryTabsRef.current.querySelector(`[data-cat-tab="${activeCategoryId}"]`)
+    tab?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' })
+  }, [activeCategoryId])
 
   const handlePlaceOrder = async () => {
     if (!businessId || cart.length === 0) return
@@ -168,24 +258,6 @@ export const RestaurantMenuPage = () => {
       </div>
     )
   }
-
-  const categoriesById = menu.categories
-  const categoriesList = Object.values(menu.categories).sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
-  const itemsList = Object.values(menu.items).filter((i) => i.available !== false).sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
-
-  // 🔎 חיפוש מנות בתוך התפריט: לפי שם/תיאור המנה או לפי שם הקטגוריה (תת-סקשן, למשל "עיקריות")
-  const menuQuery = menuSearch.trim().toLowerCase()
-  const isMenuSearching = menuQuery.length > 0
-  const itemMatchesSearch = (item: MenuItem): boolean => {
-    if (!menuQuery) return true
-    const catName = (categoriesById[item.categoryId]?.name ?? '').toLowerCase()
-    return (
-      item.name.toLowerCase().includes(menuQuery) ||
-      (item.description ?? '').toLowerCase().includes(menuQuery) ||
-      catName.includes(menuQuery)
-    )
-  }
-  const filteredItemsList = itemsList.filter(itemMatchesSearch)
 
   const closeItemModal = () => {
     setAddItemModal(null)
@@ -400,9 +472,9 @@ export const RestaurantMenuPage = () => {
 
       {/* שם העסק מתחת לתמונה – כרטיס פרימיום */}
       <div className="flex justify-center -mt-3 sm:-mt-4 px-2">
-        <div className="relative rounded-2xl bg-vantix-surface-raised/95 px-8 py-5 sm:px-10 sm:py-6 shadow-[0_12px_40px_rgba(0,0,0,0.07),0_0_0_1px_rgba(0,0,0,0.04)] backdrop-blur-sm overflow-hidden">
-          <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-vantix-orange/60 to-transparent" />
-          <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-vantix-orange/25 to-transparent" />
+        <div className="relative rounded-2xl bg-vantix-surface-raised/95 dark:bg-vantix-surface-raised/95 px-8 py-5 sm:px-10 sm:py-6 shadow-[0_12px_40px_rgba(0,0,0,0.07),0_0_0_1px_rgba(0,0,0,0.04)] backdrop-blur-sm overflow-hidden">
+          <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-vantix-orange/60 to-transparent dark:via-vantix-cyan/60" />
+          <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-vantix-orange/25 to-transparent dark:via-vantix-cyan/25" />
           <h1 className="relative font-display text-2xl sm:text-3xl lg:text-4xl font-bold text-vantix-fg text-center tracking-tight">
             {businessName || 'תפריט'}
           </h1>
@@ -466,6 +538,46 @@ export const RestaurantMenuPage = () => {
                 </button>
               )}
             </div>
+
+            {/* ניווט מהיר לקטגוריות – כמו Wolt / משלוחה */}
+            {!isMenuSearching && visibleCategoriesForNav.length > 1 && (
+              <div
+                ref={categoryTabsRef}
+                className="mt-2 overflow-x-auto -mx-1 px-1 border-b border-vantix-cyan/15 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+                role="tablist"
+                aria-label="קטגוריות בתפריט"
+              >
+                <div className="flex min-w-0 gap-0 whitespace-nowrap">
+                  {visibleCategoriesForNav.map((cat) => {
+                    const isActive = activeCategoryId === cat.id
+                    return (
+                      <button
+                        key={cat.id}
+                        type="button"
+                        role="tab"
+                        data-cat-tab={cat.id}
+                        aria-selected={isActive}
+                        onClick={() => scrollToCategory(cat.id)}
+                        className={`relative shrink-0 px-4 py-3 text-sm transition-colors ${
+                          isActive
+                            ? 'font-bold text-vantix-fg'
+                            : 'font-medium text-vantix-fg-muted hover:text-vantix-fg'
+                        }`}
+                      >
+                        {cat.name}
+                        {isActive && (
+                          <motion.span
+                            layoutId="menu-category-tab-underline"
+                            className="absolute bottom-0 left-2 right-2 h-0.5 rounded-full bg-vantix-cyan"
+                            transition={{ type: 'spring', stiffness: 420, damping: 32 }}
+                          />
+                        )}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
           </div>
 
           {isMenuSearching && filteredItemsList.length === 0 && (
@@ -479,7 +591,16 @@ export const RestaurantMenuPage = () => {
                 const catItems = filteredItemsList.filter((i) => i.categoryId === cat.id)
                 if (catItems.length === 0) return null
                 return (
-                  <section key={cat.id} aria-labelledby={`cat-${cat.id}`}>
+                  <section
+                    key={cat.id}
+                    ref={(el) => {
+                      if (el) categorySectionRefs.current.set(cat.id, el)
+                      else categorySectionRefs.current.delete(cat.id)
+                    }}
+                    data-category-id={cat.id}
+                    className="scroll-mt-[9.5rem] sm:scroll-mt-[10.5rem]"
+                    aria-labelledby={`cat-${cat.id}`}
+                  >
                     <h2 id={`cat-${cat.id}`} className="text-lg font-bold text-vantix-fg border-b-2 border-vantix-cyan/25 pb-2 mb-3">
                       {cat.name}
                     </h2>
@@ -872,7 +993,7 @@ export const RestaurantMenuPage = () => {
                   <p className="font-medium text-vantix-fg mb-2">{sec.title}</p>
                   {sec.choiceType === 'single' ? (
                     <div className="space-y-2">
-                      {sec.options.map((opt) => (
+                      {(sec.options ?? []).map((opt) => (
                         <label key={opt.id} className="flex items-center gap-3 rounded-lg border border-vantix-cyan/20 px-3 py-2 cursor-pointer hover:bg-gradient-to-l from-vantix-cyan to-vantix-orange/5">
                           <input
                             type="radio"
@@ -890,7 +1011,7 @@ export const RestaurantMenuPage = () => {
                     </div>
                   ) : (
                     <div className="space-y-2">
-                      {sec.options.map((opt) => {
+                      {(sec.options ?? []).map((opt) => {
                         const multi = (sectionSelections[sec.id] as string[] | undefined) ?? []
                         const checked = multi.includes(opt.id)
                         return (
