@@ -1,0 +1,89 @@
+workflows:
+  ios-workflow:
+    name: Vantix iOS
+    max_build_duration: 120
+    instance_type: mac_mini_m2
+    integrations:
+      app_store_connect: MaxDelivery
+
+    environment:
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.vantix.app
+
+      vars:
+        XCODE_WORKSPACE: "App.xcworkspace"
+        XCODE_SCHEME: "App"
+        BUNDLE_ID: "com.vantix.app"
+        APP_STORE_APPLE_ID: 6785395710
+
+    scripts:
+      - name: Install npm dependencies
+        script: |
+          export npm_config_build_from_source=false
+          npm install --legacy-peer-deps
+
+      - name: Build web app
+        script: |
+          npm run build
+
+      - name: Add iOS platform if needed
+        script: |
+          if [ ! -d "ios" ]; then
+            npx cap add ios
+          fi
+
+      - name: Sync Capacitor iOS
+        script: |
+          npx cap sync ios
+
+      - name: Install CocoaPods dependencies
+        script: |
+          cd ios/App
+          pod install --repo-update || pod install
+
+      - name: Set up code signing settings on Xcode project
+        script: |
+          cd ios/App
+          echo "📝 Running xcode-project use-profiles..."
+          xcode-project use-profiles
+          if grep -q "CODE_SIGN_STYLE = Automatic" App.xcodeproj/project.pbxproj; then
+            sed -i.bak 's/CODE_SIGN_STYLE = Automatic;/CODE_SIGN_STYLE = Manual;/g' App.xcodeproj/project.pbxproj
+            rm -f App.xcodeproj/project.pbxproj.bak
+          fi
+          if grep -q "PROVISIONING_PROFILE_SPECIFIER" App.xcodeproj/project.pbxproj; then
+            echo "✅ Provisioning profiles found"
+          else
+            echo "⚠️ No PROVISIONING_PROFILE_SPECIFIER found — signing may fail"
+          fi
+
+      - name: Increment build number
+        script: |
+          cd ios/App
+          NEW_BUILD_NUMBER=$(date +%Y%m%d%H%M)
+          agvtool new-version -all $NEW_BUILD_NUMBER
+
+      - name: Build ipa for distribution
+        script: |
+          xcode-project build-ipa \
+            --workspace "ios/App/$XCODE_WORKSPACE" \
+            --scheme "$XCODE_SCHEME" \
+            || (echo "❌ Build failed, checking logs..." && cat /tmp/xcodebuild_logs/*.log 2>/dev/null | tail -50 && exit 1)
+
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+
+    publishing:
+      email:
+        recipients:
+          - maxdelivery4u@gmail.com
+        notify:
+          success: true
+          failure: true
+
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+        submit_to_app_store: true
+        release_type: MANUAL
