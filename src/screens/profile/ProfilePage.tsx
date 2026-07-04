@@ -1,4 +1,5 @@
-import { Link } from 'react-router-dom'
+import { useEffect } from 'react'
+import { Link, useLocation } from 'react-router-dom'
 import { User, History, MessageCircle, ChevronLeft, Palette, LogOut } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { ROUTES, SUPPORT_LINK } from '../../constants/app'
@@ -12,9 +13,18 @@ import {
 export const ProfilePage = () => {
   const { user, logout } = useAuth()
   const { theme } = useTheme()
+  const location = useLocation()
   const displayName = user?.displayName?.trim() || user?.email || 'משתמש'
   const email = user?.email ?? ''
   const phone = user?.phoneNumber ?? ''
+
+  useEffect(() => {
+    if (location.hash !== '#payments') return
+    const timer = window.setTimeout(() => {
+      document.getElementById('payments')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 100)
+    return () => window.clearTimeout(timer)
+  }, [location.hash])
 
   if (!user) {
     return (

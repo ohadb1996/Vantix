@@ -59,4 +59,6 @@ export async function getRestaurantCategories(): Promise<RestaurantCategory[]> {
 /** מזהה וירטואלי לקטגוריית "המומלצים שלנו" – לא נשמר ב-RTDB */
 export const RECOMMENDED_CATEGORY_ID = '__recommended__'
 export const RECOMMENDED_CATEGORY_NAME = 'המומלצים שלנו ❤️'
+export const FAVORITES_CATEGORY_ID = '__favorites__'
+export const FAVORITES_CATEGORY_NAME = 'המועדפים שלי ❤️'
 export const TOP_LIKED_COUNT = 10

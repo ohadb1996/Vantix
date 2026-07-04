@@ -7,7 +7,7 @@ import {
 } from '../../hooks/useCustomerProfile'
 import { SavedAddressFormModal } from './SavedAddressFormModal'
 import { SavedContactFormModal } from './SavedContactFormModal'
-import { SavedPaymentFormModal } from './SavedPaymentFormModal'
+import { WalletBalanceRow } from '../wallet/WalletBalanceRow'
 import {
   addressTitle,
   addressSummary,
@@ -300,12 +300,24 @@ export function PaymentsSection() {
   const [editing, setEditing] = useState<SavedPayment | null | undefined>(undefined)
 
   return (
-    <SectionShell
-      title="אמצעי תשלום"
-      icon={<CreditCard className="h-5 w-5 text-vantix-cyan" />}
-      addLabel="הוסף"
-      onAdd={() => setEditing(null)}
-    >
+    <section id="payments" className={cardClass}>
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <h2 className="flex items-center gap-2 font-semibold text-vantix-fg">
+          <CreditCard className="h-5 w-5 text-vantix-cyan" />
+          אמצעי תשלום
+        </h2>
+        <button
+          type="button"
+          onClick={() => setEditing(null)}
+          className="flex items-center gap-1 rounded-full border border-vantix-cyan/30 bg-vantix-cyan/5 px-3 py-1.5 text-sm font-semibold text-vantix-cyan transition hover:bg-vantix-cyan/10"
+        >
+          <Plus className="h-4 w-4" />
+          הוסף
+        </button>
+      </div>
+
+      <WalletBalanceRow />
+
       {isLoading ? (
         <Loading />
       ) : items.length === 0 ? (
@@ -340,7 +352,7 @@ export function PaymentsSection() {
           }}
         />
       )}
-    </SectionShell>
+    </section>
   )
 }
 

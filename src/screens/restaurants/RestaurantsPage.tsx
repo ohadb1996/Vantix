@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ChevronLeft, ChevronRight, Heart, Search, UtensilsCrossed } from 'lucide-react'
 import { RestaurantCard } from '../../components/cards/RestaurantCard'
+import { WalletBalanceBanner } from '../../components/wallet/WalletBalanceBanner'
 import { useToast } from '../../components/ui/Toast'
 import { haptic } from '../../lib/native'
 import { ReelsFeed } from '../../components/reels/ReelsFeed'
@@ -12,6 +13,8 @@ import { useRestaurantCategories } from '../../hooks/useRestaurantCategories'
 import { useBusinessLikes } from '../../hooks/useBusinessLikes'
 import { ROUTES } from '../../constants/app'
 import {
+  FAVORITES_CATEGORY_ID,
+  FAVORITES_CATEGORY_NAME,
   RECOMMENDED_CATEGORY_NAME,
   TOP_LIKED_COUNT,
 } from '../../services/restaurantCategories'
@@ -47,7 +50,7 @@ export const RestaurantsPage = () => {
   const { data: businesses, isLoading, error, refetch, isRefetching } = useRestaurants()
   const { data: reels } = useReels()
   const { data: categories } = useRestaurantCategories()
-  const { isLiked, toggleLike, togglingId, isLoggedIn } = useBusinessLikes()
+  const { isLiked, likedBusinessIds, toggleLike, togglingId, isLoggedIn } = useBusinessLikes()
 
   useEffect(() => {
     if (error) toast.error('לא הצלחנו לטעון את המסעדות. בדקו את החיבור לאינטרנט ונסו שוב.')
@@ -106,6 +109,20 @@ export const RestaurantsPage = () => {
       for (const b of topLiked) assigned.add(b.businessId)
     }
 
+    if (isLoggedIn && likedBusinessIds.size > 0) {
+      const favorites = [...likedBusinessIds]
+        .map((id) => businessById.get(id))
+        .filter((b): b is BusinessWithMenu => !!b)
+      if (favorites.length > 0) {
+        sections.push({
+          id: FAVORITES_CATEGORY_ID,
+          title: FAVORITES_CATEGORY_NAME,
+          businesses: favorites,
+          isSystem: true,
+        })
+      }
+    }
+
     for (const cat of categories ?? []) {
       const catBusinesses = cat.businessIds
         .map((id) => businessById.get(id))
@@ -137,7 +154,7 @@ export const RestaurantsPage = () => {
     }
 
     return sections
-  }, [businesses, categories, businessById, isSearching])
+  }, [businesses, categories, businessById, isSearching, isLoggedIn, likedBusinessIds])
 
   const handleLike = async (businessId: string) => {
     if (!isLoggedIn) {
@@ -166,7 +183,7 @@ export const RestaurantsPage = () => {
       <RestaurantCard
         name={b.businessName}
         eta="הזמנה ומשלוח"
-        distance="—"
+        address={b.pickupAddress ?? '—'}
         heroImage={b.logoUrl ?? undefined}
         tags={matchedTags ?? []}
         isLiked={isLiked(b.businessId)}
@@ -185,14 +202,7 @@ export const RestaurantsPage = () => {
         transition={{ duration: 0.4 }}
         className="space-y-5 sm:space-y-6"
       >
-        <div className="space-y-1.5 sm:space-y-2">
-          <h1 className="font-display text-2xl font-bold text-vantix-fg sm:text-4xl">
-            תן לי את הטעם המדויק עכשיו
-          </h1>
-          <p className="max-w-xl text-sm text-vantix-fg-muted">
-            בחר עסק, עיין בתפריט והזמן – ההזמנה תגיע ישירות לבעל העסק עם התראה.
-          </p>
-        </div>
+        <WalletBalanceBanner />
 
         <div className="flex items-center gap-3 rounded-2xl border border-vantix-line/10 bg-vantix-surface-raised px-4 py-3 shadow-sm">
           <Search className="h-5 w-5 shrink-0 text-vantix-fg-subtle" />
@@ -307,7 +317,7 @@ export const RestaurantsPage = () => {
                   <RestaurantCard
                     name={b.businessName}
                     eta="הזמנה ומשלוח"
-                    distance="—"
+                    address={b.pickupAddress ?? '—'}
                     heroImage={b.logoUrl ?? undefined}
                     tags={matchedDishesByBusiness[b.businessId] ?? []}
                     isLiked={isLiked(b.businessId)}

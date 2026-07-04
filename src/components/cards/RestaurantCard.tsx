@@ -4,7 +4,7 @@ type RestaurantCardProps = {
   name: string
   eta: string
   rating?: number | null
-  distance: string
+  address: string
   heroImage?: string | null
   tags?: string[]
   isLiked?: boolean
@@ -16,7 +16,7 @@ export const RestaurantCard = ({
   name,
   eta,
   rating,
-  distance,
+  address,
   heroImage,
   tags = [],
   isLiked = false,
@@ -75,9 +75,9 @@ export const RestaurantCard = ({
         </header>
 
         <div className="flex min-h-0 items-center gap-2 overflow-hidden text-[11px] text-vantix-fg-muted lg:gap-3 lg:text-xs">
-          <span className="flex shrink-0 items-center gap-1">
-            <MapPin className="h-3 w-3 text-vantix-cyan" />
-            {distance}
+          <span className="flex min-w-0 items-center gap-1">
+            <MapPin className="h-3 w-3 shrink-0 text-vantix-cyan" />
+            <span className="truncate">{address}</span>
           </span>
         </div>
 

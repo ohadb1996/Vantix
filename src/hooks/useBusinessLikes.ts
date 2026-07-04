@@ -64,6 +64,7 @@ export function useBusinessLikes() {
 
   return {
     isLiked,
+    likedBusinessIds: localLiked,
     toggleLike,
     togglingId,
     isLoading,
