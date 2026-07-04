@@ -5,6 +5,8 @@ export interface MenuCategory {
   id: string
   name: string
   sortOrder: number
+  /** false = מוסתר מאפליקציית הלקוחות */
+  available?: boolean
 }
 
 /** אפשרות אחת בתוך סקשן (למשל "גדול", "תוספת גבינה") */
@@ -21,6 +23,10 @@ export interface MenuItemSection {
   title: string
   choiceType: 'single' | 'multiple'
   options: MenuItemOption[]
+  /** האם הלקוח חייב לבחור לפחות אפשרות אחת בסקשן */
+  required?: boolean
+  /** בבחירה מרובה + חובה – מינימום בחירות (ברירת מחדל 1) */
+  minSelections?: number
 }
 
 export interface MenuItem {

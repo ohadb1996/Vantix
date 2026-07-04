@@ -39,6 +39,24 @@ function getScrollParent(node: HTMLElement | null): HTMLElement | null {
   return null
 }
 
+function getFirstIncompleteRequiredSectionId(
+  item: MenuItem,
+  selections: Record<string, string | string[]>
+): string | null {
+  for (const sec of item.sections ?? []) {
+    if (!sec.required) continue
+    const val = selections[sec.id]
+    if (sec.choiceType === 'single') {
+      if (typeof val !== 'string' || !val) return sec.id
+      continue
+    }
+    const multi = Array.isArray(val) ? val : []
+    const min = Math.max(1, sec.minSelections ?? 1)
+    if (multi.length < min) return sec.id
+  }
+  return null
+}
+
 function MenuItemRow({
   item,
   onOpen,
@@ -140,6 +158,8 @@ export const RestaurantMenuPage = () => {
   const isTabClickScrolling = useRef(false)
   const submitErrorRef = useRef<HTMLParagraphElement>(null)
   const itemModalScrollRef = useRef<HTMLDivElement>(null)
+  const itemModalSectionRefs = useRef<Map<string, HTMLDivElement>>(new Map())
+  const [highlightSectionId, setHighlightSectionId] = useState<string | null>(null)
   const itemModalDragControls = useDragControls()
   const [addItemModal, setAddItemModal] = useState<MenuItem | null>(null)
   const [sectionSelections, setSectionSelections] = useState<Record<string, string | string[]>>({})
@@ -242,13 +262,20 @@ export const RestaurantMenuPage = () => {
 
   const categoriesList = useMemo(() => {
     if (!menu?.categories) return []
-    return Object.values(menu.categories).sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+    return Object.values(menu.categories)
+      .filter((c) => c.available !== false)
+      .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
   }, [menu])
 
   const itemsList = useMemo(() => {
     if (!menu?.items) return []
+    const visibleCategoryIds = new Set(
+      Object.values(menu.categories ?? {})
+        .filter((c) => c.available !== false)
+        .map((c) => c.id)
+    )
     return Object.values(menu.items)
-      .filter((i) => i.available !== false)
+      .filter((i) => i.available !== false && visibleCategoryIds.has(i.categoryId))
       .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
   }, [menu])
 
@@ -496,6 +523,17 @@ export const RestaurantMenuPage = () => {
     setAddItemModal(null)
     setSectionSelections({})
     setEditingOldOptions(null)
+    setHighlightSectionId(null)
+    itemModalSectionRefs.current.clear()
+  }
+
+  const scrollToItemModalSection = (sectionId: string) => {
+    const scrollRoot = itemModalScrollRef.current
+    const el = itemModalSectionRefs.current.get(sectionId)
+    if (!scrollRoot || !el) return
+    const top =
+      el.getBoundingClientRect().top - scrollRoot.getBoundingClientRect().top + scrollRoot.scrollTop - 12
+    scrollRoot.scrollTo({ top: Math.max(0, top), behavior: 'smooth' })
   }
 
   const startItemModalDrag = (event: React.PointerEvent) => {
@@ -568,6 +606,13 @@ export const RestaurantMenuPage = () => {
 
   const handleAddItemConfirm = () => {
     if (!addItemModal) return
+    const missingSectionId = getFirstIncompleteRequiredSectionId(addItemModal, sectionSelections)
+    if (missingSectionId) {
+      scrollToItemModalSection(missingSectionId)
+      setHighlightSectionId(missingSectionId)
+      window.setTimeout(() => setHighlightSectionId(null), 2000)
+      return
+    }
     const selectedOptions = buildSelectedOptions(addItemModal)
     if (editingOldOptions !== null) {
       updateLineOptions(addItemModal.id, editingOldOptions, selectedOptions)
@@ -1141,24 +1186,24 @@ export const RestaurantMenuPage = () => {
             dragConstraints={{ top: 0, bottom: 0 }}
             dragElastic={{ top: 0, bottom: 0.55 }}
             onDragEnd={handleItemModalDragEnd}
-            className="flex w-full max-h-[88vh] flex-col rounded-t-3xl bg-vantix-surface-raised shadow-xl sm:max-w-md sm:rounded-2xl"
+            className="flex w-full max-h-[88vh] flex-col rounded-t-3xl bg-vantix-surface-raised shadow-xl sm:max-w-md sm:rounded-2xl overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
-            {addItemModal.imageUrl ? (
-              <div
-                className="relative aspect-[16/10] w-full shrink-0 cursor-grab overflow-hidden rounded-t-3xl bg-vantix-surface active:cursor-grabbing touch-none select-none sm:rounded-t-2xl"
-                onPointerDown={startItemModalDrag}
-              >
-                <img
-                  src={addItemModal.imageUrl}
-                  alt=""
-                  draggable={false}
-                  className="pointer-events-none absolute inset-0 h-full w-full object-cover object-center"
-                />
-              </div>
-            ) : null}
             <div ref={itemModalScrollRef} className="scrollbar-hide min-h-0 flex-1 overflow-y-auto overscroll-y-contain">
-            <div className="p-6">
+              {addItemModal.imageUrl ? (
+                <div
+                  className="relative aspect-[16/10] w-full cursor-grab overflow-hidden bg-vantix-surface touch-none select-none active:cursor-grabbing"
+                  onPointerDown={startItemModalDrag}
+                >
+                  <img
+                    src={addItemModal.imageUrl}
+                    alt=""
+                    draggable={false}
+                    className="pointer-events-none h-full w-full object-cover object-center"
+                  />
+                </div>
+              ) : null}
+              <div className="p-6">
             <div
               className={`mb-2 flex items-center justify-between gap-4 ${addItemModal.imageUrl ? '' : 'cursor-grab touch-none select-none active:cursor-grabbing'}`}
               onPointerDown={addItemModal.imageUrl ? undefined : startItemModalDrag}
@@ -1183,8 +1228,29 @@ export const RestaurantMenuPage = () => {
             {addItemModal.sections && addItemModal.sections.length > 0 && (
             <div className="space-y-4 mb-6">
               {addItemModal.sections.map((sec) => (
-                <div key={sec.id} className="rounded-xl border border-vantix-cyan/20 bg-vantix-surface-raised p-4">
-                  <p className="font-medium text-vantix-fg mb-2">{sec.title}</p>
+                <div
+                  key={sec.id}
+                  ref={(el) => {
+                    if (el) itemModalSectionRefs.current.set(sec.id, el)
+                    else itemModalSectionRefs.current.delete(sec.id)
+                  }}
+                  className={`rounded-xl border bg-vantix-surface-raised p-4 transition-shadow duration-300 ${
+                    highlightSectionId === sec.id
+                      ? 'border-vantix-orange ring-2 ring-vantix-orange/40 shadow-md'
+                      : 'border-vantix-cyan/20'
+                  }`}
+                >
+                  <p className="font-medium text-vantix-fg mb-1">
+                    {sec.title}
+                    {sec.required ? <span className="text-red-500 mr-1">*</span> : null}
+                  </p>
+                  {sec.required && (
+                    <p className="text-xs text-vantix-fg-muted mb-2">
+                      {sec.choiceType === 'single'
+                        ? 'חובה לבחור אפשרות אחת'
+                        : `חובה לבחור לפחות ${Math.max(1, sec.minSelections ?? 1)} אפשרויות`}
+                    </p>
+                  )}
                   {sec.choiceType === 'single' ? (
                     <div className="space-y-2">
                       {(sec.options ?? []).map((opt) => (
