@@ -13,7 +13,7 @@ export const AuthLanding = () => {
         <MainNav />
       </div>
 
-      <div className="relative z-10 mx-auto flex w-full max-w-5xl min-h-0 flex-1 flex-col gap-10 overflow-y-auto overscroll-y-contain px-6 pb-16 pt-8 sm:px-10">
+      <div className="scrollbar-hide relative z-10 mx-auto flex w-full max-w-5xl min-h-0 flex-1 flex-col gap-10 overflow-y-auto overscroll-y-contain px-6 pb-16 pt-8 sm:px-10">
         <main className="grid gap-10 lg:grid-cols-[1.05fr_1fr] lg:items-center">
           <section className="space-y-6">
             <div className="flex" style={{ perspective: '1000px' }}>

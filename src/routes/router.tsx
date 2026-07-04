@@ -3,6 +3,7 @@ import { AppLayout } from '../layouts/AppLayout'
 import { HomePage } from '../screens/home/HomePage'
 import { RestaurantsPage } from '../screens/restaurants/RestaurantsPage'
 import { RestaurantMenuPage } from '../screens/restaurants/RestaurantMenuPage'
+import { SearchPage } from '../screens/search/SearchPage'
 import { OrderHistoryPage } from '../screens/orders/OrderHistoryPage'
 import { OrderTrackingPage } from '../screens/orders/OrderTrackingPage'
 import { ProfilePage } from '../screens/profile/ProfilePage'
@@ -33,6 +34,10 @@ export const router = createBrowserRouter([
       {
         path: 'restaurants/:businessId',
         element: <RestaurantMenuPage />,
+      },
+      {
+        path: 'search',
+        element: <SearchPage />,
       },
       {
         path: 'orders',

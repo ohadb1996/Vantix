@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { useEffect, useMemo, useRef } from 'react'
+import { Link, Navigate, useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ChevronLeft, ChevronRight, Heart, Search, UtensilsCrossed } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Heart, UtensilsCrossed } from 'lucide-react'
 import { RestaurantCard } from '../../components/cards/RestaurantCard'
 import { WalletBalanceBanner } from '../../components/wallet/WalletBalanceBanner'
 import { useToast } from '../../components/ui/Toast'
@@ -45,7 +45,7 @@ type CategorySection = {
 
 export const RestaurantsPage = () => {
   const [searchParams] = useSearchParams()
-  const [searchQuery, setSearchQuery] = useState(() => searchParams.get('q') ?? '')
+  const legacyQuery = searchParams.get('q')?.trim()
   const toast = useToast()
   const { data: businesses, isLoading, error, refetch, isRefetching } = useRestaurants()
   const { data: reels } = useReels()
@@ -56,40 +56,14 @@ export const RestaurantsPage = () => {
     if (error) toast.error('לא הצלחנו לטעון את המסעדות. בדקו את החיבור לאינטרנט ונסו שוב.')
   }, [error, toast])
 
-  const q = searchQuery.trim().toLowerCase()
-  const isSearching = q.length > 0
-
   const businessById = useMemo(() => {
     const map = new Map<string, BusinessWithMenu>()
     for (const b of businesses ?? []) map.set(b.businessId, b)
     return map
   }, [businesses])
 
-  const filteredBusinesses = useMemo(() => {
-    if (!businesses) return []
-    if (!q) return businesses
-    return businesses.filter(
-      (b) =>
-        b.businessName.toLowerCase().includes(q) ||
-        b.businessId.toLowerCase().includes(q) ||
-        (b.menuItemNames ?? []).some((n) => n.toLowerCase().includes(q))
-    )
-  }, [businesses, q])
-
-  const matchedDishesByBusiness = useMemo(() => {
-    const map: Record<string, string[]> = {}
-    if (!q) return map
-    for (const b of filteredBusinesses) {
-      const dishes = (b.menuItemNames ?? [])
-        .filter((n) => n.toLowerCase().includes(q))
-        .slice(0, 3)
-      if (dishes.length) map[b.businessId] = dishes
-    }
-    return map
-  }, [filteredBusinesses, q])
-
   const categorySections = useMemo((): CategorySection[] => {
-    if (!businesses?.length || isSearching) return []
+    if (!businesses?.length) return []
 
     const sections: CategorySection[] = []
     const assigned = new Set<string>()
@@ -154,7 +128,7 @@ export const RestaurantsPage = () => {
     }
 
     return sections
-  }, [businesses, categories, businessById, isSearching, isLoggedIn, likedBusinessIds])
+  }, [businesses, categories, businessById, isLoggedIn, likedBusinessIds])
 
   const handleLike = async (businessId: string) => {
     if (!isLoggedIn) {
@@ -194,6 +168,10 @@ export const RestaurantsPage = () => {
     )
   }
 
+  if (legacyQuery) {
+    return <Navigate to={`${ROUTES.SEARCH}?q=${encodeURIComponent(legacyQuery)}`} replace />
+  }
+
   return (
     <div className="space-y-6 sm:space-y-10">
       <motion.header
@@ -203,20 +181,9 @@ export const RestaurantsPage = () => {
         className="space-y-5 sm:space-y-6"
       >
         <WalletBalanceBanner />
-
-        <div className="flex items-center gap-3 rounded-2xl border border-vantix-line/10 bg-vantix-surface-raised px-4 py-3 shadow-sm">
-          <Search className="h-5 w-5 shrink-0 text-vantix-fg-subtle" />
-          <input
-            placeholder="חיפוש מסעדות או מנות..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full min-w-0 bg-transparent text-sm text-vantix-fg placeholder:text-vantix-fg-subtle focus:outline-none"
-            aria-label="חיפוש מסעדות או מנות"
-          />
-        </div>
       </motion.header>
 
-      {!isSearching && reels && reels.length > 0 && <ReelsFeed reels={reels} />}
+      {reels && reels.length > 0 && <ReelsFeed reels={reels} />}
 
       {isLoading && (
         <section className="grid gap-6 md:grid-cols-2">
@@ -261,76 +228,26 @@ export const RestaurantsPage = () => {
         </motion.div>
       )}
 
-      {!isLoading && !error && businesses && businesses.length > 0 && filteredBusinesses.length === 0 && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-center text-amber-800"
-        >
-          לא נמצאו מסעדות התואמות את החיפוש &quot;{searchQuery}&quot;
-        </motion.div>
+      {!isLoading && !error && businesses && businesses.length > 0 && (
+        <AnimatePresence mode="wait">
+          {categorySections.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="space-y-8 sm:space-y-10"
+            >
+              {categorySections.map((section) => (
+                <CategoryCarousel
+                  key={section.id}
+                  section={section}
+                  renderCard={(b) => renderBusinessCard(b)}
+                />
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
       )}
-
-      <AnimatePresence mode="wait">
-        {!isLoading && !error && !isSearching && categorySections.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="space-y-8 sm:space-y-10"
-          >
-            {categorySections.map((section) => (
-              <CategoryCarousel
-                key={section.id}
-                section={section}
-                renderCard={(b) => renderBusinessCard(b)}
-              />
-            ))}
-          </motion.div>
-        )}
-
-        {!isLoading && !error && isSearching && filteredBusinesses.length > 0 && (
-          <motion.section
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.3 }}
-            className="grid gap-4 sm:gap-6 md:grid-cols-2"
-          >
-            {filteredBusinesses.map((b, index) => {
-              const menuPath = ROUTES.RESTAURANT_MENU(b.businessId)
-              const to = isLoggedIn ? menuPath : ROUTES.AUTH_LOGIN
-              const linkState = isLoggedIn ? undefined : { from: { pathname: menuPath } }
-
-              return (
-              <motion.div
-                key={b.businessId}
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.35, delay: index * 0.05 }}
-              >
-                <Link
-                  to={to}
-                  state={linkState}
-                  className="block rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-vantix-cyan focus-visible:ring-offset-2 sm:rounded-3xl"
-                >
-                  <RestaurantCard
-                    name={b.businessName}
-                    eta="הזמנה ומשלוח"
-                    address={b.pickupAddress ?? '—'}
-                    heroImage={b.logoUrl ?? undefined}
-                    tags={matchedDishesByBusiness[b.businessId] ?? []}
-                    isLiked={isLiked(b.businessId)}
-                    likeDisabled={togglingId === b.businessId}
-                    onLikeClick={() => void handleLike(b.businessId)}
-                  />
-                </Link>
-              </motion.div>
-              )
-            })}
-          </motion.section>
-        )}
-      </AnimatePresence>
     </div>
   )
 }

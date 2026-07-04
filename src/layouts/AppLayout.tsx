@@ -24,7 +24,7 @@ export const AppLayout = () => {
         <MainNav />
       </header>
 
-      <main className="mx-auto flex w-full max-w-6xl min-h-0 flex-1 flex-col gap-8 overflow-y-auto overscroll-y-contain px-3 pb-[calc(7rem+var(--sab))] sm:gap-12 sm:px-6 sm:pb-32 lg:px-10">
+      <main className="scrollbar-hide mx-auto flex w-full max-w-6xl min-h-0 flex-1 flex-col gap-8 overflow-y-auto overscroll-y-contain px-3 pb-[calc(7rem+var(--sab))] sm:gap-12 sm:px-6 sm:pb-32 lg:px-10">
         <Outlet />
       </main>
 

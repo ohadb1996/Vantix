@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from 'react-router-dom'
-import { Home, UtensilsCrossed, History, User } from 'lucide-react'
+import { Home, UtensilsCrossed, History, User, Search } from 'lucide-react'
 import { ROUTES } from '../../constants/app'
 import { haptic } from '../../lib/native'
 import { useAuth } from '../../context/AuthContext'
@@ -7,6 +7,7 @@ import { useAuth } from '../../context/AuthContext'
 const ALL_TABS = [
   { to: ROUTES.HOME, label: 'בית', icon: Home, end: true, guestOnly: true },
   { to: ROUTES.RESTAURANTS, label: 'מסעדות', icon: UtensilsCrossed, end: false, guestOnly: false },
+  { to: ROUTES.SEARCH, label: 'חיפוש', icon: Search, end: true, guestOnly: false },
   { to: ROUTES.ORDERS, label: 'הזמנות', icon: History, end: false, guestOnly: false },
   { to: ROUTES.PROFILE, label: 'פרופיל', icon: User, end: false, guestOnly: false },
 ]

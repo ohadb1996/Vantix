@@ -1,4 +1,4 @@
-import { ChevronRight, UtensilsCrossed, History } from 'lucide-react'
+import { ChevronRight, UtensilsCrossed, History, Search } from 'lucide-react'
 import { Link, NavLink, useLocation, useMatch } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { useAuth } from '../../context/AuthContext'
@@ -10,6 +10,7 @@ import { ThemeToggle } from '../ui/ThemeToggle'
 
 const NAV_LINKS = [
   { to: ROUTES.RESTAURANTS, label: 'מסעדות', end: false, icon: UtensilsCrossed },
+  { to: ROUTES.SEARCH, label: 'חיפוש', end: true, icon: Search },
   { to: ROUTES.ORDERS, label: 'ההזמנות שלי', end: false, icon: History },
 ]
 

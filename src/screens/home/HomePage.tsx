@@ -102,7 +102,7 @@ export const HomePage = () => {
               {filters.map((filter) => (
                 <Link
                   key={filter.id}
-                  to={`${ROUTES.RESTAURANTS}?q=${encodeURIComponent(filter.label)}`}
+                  to={`${ROUTES.SEARCH}?q=${encodeURIComponent(filter.label)}`}
                   onClick={() => void haptic.light()}
                   className="rounded-full border border-vantix-cyan/20 bg-vantix-surface-raised px-4 py-2 text-xs font-semibold text-vantix-fg-muted transition hover:border-vantix-cyan/40 hover:text-vantix-fg"
                 >

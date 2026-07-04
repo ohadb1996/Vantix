@@ -7,6 +7,7 @@ import {
 } from '../../hooks/useCustomerProfile'
 import { SavedAddressFormModal } from './SavedAddressFormModal'
 import { SavedContactFormModal } from './SavedContactFormModal'
+import { SavedPaymentFormModal } from './SavedPaymentFormModal'
 import { WalletBalanceRow } from '../wallet/WalletBalanceRow'
 import {
   addressTitle,

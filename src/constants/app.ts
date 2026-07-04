@@ -20,6 +20,7 @@ export const APP_FAVICON_32 = '/favicon-32x32.png'
 export const ROUTES = {
   HOME: '/',
   RESTAURANTS: '/restaurants',
+  SEARCH: '/search',
   RESTAURANT_MENU: (id: string) => `/restaurants/${id}`,
   ORDERS: '/orders',
   ORDER_TRACKING: (orderId: string) => `/orders/${orderId}`,

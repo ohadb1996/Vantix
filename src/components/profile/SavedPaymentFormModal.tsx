@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { CreditCard } from 'lucide-react'
 import { ProfileFormModal, Field, ModalActions } from './ProfileFormModal'
+import { CARD_NUMBER_DIGITS, formatCardNumberInput, formatMaskedCardNumber, stripCardNumber } from '../../utils/cardNumber'
 import type { SavedPayment, SavedPaymentInput } from '../../types/customerProfile'
 
 function formatExpiryInput(raw: string): string {
@@ -51,11 +52,13 @@ export function SavedPaymentFormModal({
 
   const submit = async () => {
     const err: Record<string, string> = {}
-    const digits = cardNumber.replace(/\D/g, '')
+    const digits = stripCardNumber(cardNumber)
     const parsedExpiry = parseExpiry(expiry)
 
     if (!isEdit) {
-      if (digits.length < 13 || digits.length > 19) err.cardNumber = 'נא להזין מספר כרטיס תקין'
+      if (digits.length !== CARD_NUMBER_DIGITS) {
+        err.cardNumber = `נא להזין מספר כרטיס בן ${CARD_NUMBER_DIGITS} ספרות`
+      }
       if (!cvv.trim() || !/^\d{3,4}$/.test(cvv.trim())) err.cvv = 'נא להזין CVV תקין'
     }
     if (!holderId.trim() || !isValidIsraeliId(holderId)) err.holderId = 'נא להזין ת.ז תקינה'
@@ -92,7 +95,7 @@ export function SavedPaymentFormModal({
       {isEdit ? (
         <Field
           label="4 ספרות אחרונות"
-          value={initial?.last4 ?? ''}
+          value={initial?.last4 ? formatMaskedCardNumber(initial.last4) : ''}
           onChange={() => {}}
           disabled
         />
@@ -102,7 +105,7 @@ export function SavedPaymentFormModal({
           placeholder="1234 5678 9012 3456"
           inputMode="numeric"
           value={cardNumber}
-          onChange={(v) => setCardNumber(v.replace(/[^\d\s]/g, '').slice(0, 23))}
+          onChange={(v) => setCardNumber(formatCardNumberInput(v))}
           error={errors.cardNumber}
         />
       )}

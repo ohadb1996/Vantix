@@ -4,6 +4,7 @@ import {
   type SavedContact,
   type SavedPayment,
 } from '../../types/customerProfile'
+import { formatMaskedCardNumber } from '../../utils/cardNumber'
 
 export function addressTitle(a: SavedAddress): string {
   if (a.label) return a.label
@@ -43,7 +44,7 @@ export function paymentTitle(p: SavedPayment): string {
 
 export function paymentSummary(p: SavedPayment): string {
   const parts: string[] = []
-  if (p.last4) parts.push(`•••• ${p.last4}`)
+  if (p.last4) parts.push(formatMaskedCardNumber(p.last4))
   if (p.expiryMonth && p.expiryYear) parts.push(`תוקף ${p.expiryMonth}/${p.expiryYear}`)
   if (parts.length === 0) parts.push(PAYMENT_METHOD_LABELS[p.type])
   return parts.join(' · ')
