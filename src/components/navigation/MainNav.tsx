@@ -142,22 +142,12 @@ export const MainNav = () => {
             </button>
           </>
         ) : (
-          <>
-            <Link
-              to={ROUTES.AUTH_LOGIN}
-              className={`hidden rounded-full border border-vantix-cyan/25 bg-vantix-surface-raised font-semibold text-vantix-fg transition hover:border-vantix-cyan/50 sm:block ${
-                scrolled ? 'px-4 py-2 text-sm' : 'px-3 py-1.5 text-xs'
-              }`}
-            >
-              התחברות
-            </Link>
-            <Link
-              to={ROUTES.AUTH_REGISTER}
-              className={`vantix-btn-primary ${scrolled ? 'px-5 py-2 text-sm' : 'px-4 py-1.5 text-xs'}`}
-            >
-              להתחיל הזמנה
-            </Link>
-          </>
+          <Link
+            to={ROUTES.AUTH_LOGIN}
+            className={`vantix-btn-primary ${scrolled ? 'px-5 py-2 text-sm' : 'px-4 py-1.5 text-xs'}`}
+          >
+            להתחיל הזמנה
+          </Link>
         )}
       </div>
     </nav>
