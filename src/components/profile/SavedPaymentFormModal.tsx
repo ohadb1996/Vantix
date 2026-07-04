@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { CreditCard } from 'lucide-react'
 import { ProfileFormModal, Field, ModalActions } from './ProfileFormModal'
 import { CARD_NUMBER_DIGITS, formatCardNumberInput, formatMaskedCardNumber, stripCardNumber } from '../../utils/cardNumber'
+import { tokenizeSavedCard } from '../../services/paymentService'
 import type { SavedPayment, SavedPaymentInput } from '../../types/customerProfile'
 
 function formatExpiryInput(raw: string): string {
@@ -34,7 +35,7 @@ export function SavedPaymentFormModal({
 }: {
   initial?: SavedPayment | null
   saving?: boolean
-  onSubmit: (data: SavedPaymentInput) => void | Promise<void>
+  onSubmit: (data: SavedPaymentInput) => void | Promise<void | string>
   onClose: () => void
   zIndexClass?: string
 }) {
@@ -49,6 +50,7 @@ export function SavedPaymentFormModal({
       : ''
   )
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [tokenizing, setTokenizing] = useState(false)
 
   const submit = async () => {
     const err: Record<string, string> = {}
@@ -68,7 +70,7 @@ export function SavedPaymentFormModal({
     if (Object.keys(err).length > 0) return
 
     const last4 = isEdit ? initial?.last4 : digits.slice(-4)
-    await onSubmit({
+    const paymentInput: SavedPaymentInput = {
       type: 'credit',
       label: label.trim() || undefined,
       last4,
@@ -76,7 +78,25 @@ export function SavedPaymentFormModal({
       expiryMonth: parsedExpiry!.month,
       expiryYear: parsedExpiry!.year,
       isDefault: initial?.isDefault,
-    })
+    }
+
+    const savedId = await onSubmit(paymentInput)
+
+    if (!isEdit && typeof savedId === 'string' && digits && cvv) {
+      setTokenizing(true)
+      try {
+        await tokenizeSavedCard({
+          paymentId: savedId,
+          cardNumber: digits,
+          cvv: cvv.trim(),
+          expiryMonth: parsedExpiry!.month,
+          expiryYear: parsedExpiry!.year,
+          holderId: holderId.replace(/\D/g, ''),
+        })
+      } finally {
+        setTokenizing(false)
+      }
+    }
   }
 
   return (
@@ -85,10 +105,11 @@ export function SavedPaymentFormModal({
       icon={<CreditCard className="h-5 w-5 text-vantix-cyan" />}
       onClose={onClose}
       zIndexClass={zIndexClass}
-      footer={<ModalActions onCancel={onClose} onSubmit={() => void submit()} saving={saving} />}
+      footer={<ModalActions onCancel={onClose} onSubmit={() => void submit()} saving={saving || tokenizing} />}
     >
       <p className="text-xs text-vantix-fg-subtle">
-        נשמרים רק 4 ספרות אחרונות, ת.ז ותוקף. מספר כרטיס מלא ו-CVV לא נשמרים במערכת.
+        נשמרים 4 ספרות אחרונות, ת.ז ותוקף. מספר כרטיס מלא ו-CVV לא נשמרים — נוצר טוקן מאובטח
+        ב-PayPlus, ובהזמנה הבאה יספיק להזין CVV בלבד.
       </p>
       <Field label="כינוי" placeholder="לדוגמה: ויזה אישית" value={label} onChange={setLabel} optional />
 

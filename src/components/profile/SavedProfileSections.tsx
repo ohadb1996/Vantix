@@ -347,9 +347,14 @@ export function PaymentsSection() {
           saving={isSaving}
           onClose={() => setEditing(undefined)}
           onSubmit={async (data) => {
-            if (editing) await update(editing.id, data)
-            else await add(data)
+            if (editing) {
+              await update(editing.id, data)
+              setEditing(undefined)
+              return
+            }
+            const id = await add(data)
             setEditing(undefined)
+            return id
           }}
         />
       )}

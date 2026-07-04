@@ -45,6 +45,8 @@ export interface SavedPayment {
   holderId?: string
   expiryMonth?: string
   expiryYear?: string
+  /** נקבע בשרת לאחר חיוב/טוקניזציה מוצלחת */
+  hasPayplusToken?: boolean
   isDefault?: boolean
   createdAt?: string
 }

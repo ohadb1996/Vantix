@@ -1,8 +1,8 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import { useParams, useNavigate } from 'react-router-dom'
-import { motion, AnimatePresence } from 'framer-motion'
-import { placeOrder } from '../../services/orderService'
+import { motion, AnimatePresence, useDragControls, type PanInfo } from 'framer-motion'
+import { chargeAndPlaceOrder } from '../../services/paymentService'
 import type { OrderCreate, OrderItem } from '../../types/order'
 import type { MenuItem } from '../../types/menu'
 import { isValidIsraeliPhone } from '../../utils/phone'
@@ -14,8 +14,30 @@ import { useToast } from '../../components/ui/Toast'
 import { haptic } from '../../lib/native'
 import { ROUTES } from '../../constants/app'
 import { CheckoutSavedSelector } from '../../components/checkout/CheckoutSavedSelector'
+import { CourierTipSelector } from '../../components/checkout/CourierTipSelector'
+import {
+  CheckoutCreditSecurityFields,
+  validateCheckoutCreditSecurity,
+} from '../../components/checkout/CheckoutCreditSecurityFields'
+import { useSavedPayments } from '../../hooks/useCustomerProfile'
+import { stripCardNumber } from '../../utils/cardNumber'
 import { PAYMENT_METHOD_LABELS, type SavedAddress, type SavedContact, type SavedPayment, type PaymentMethodType } from '../../types/customerProfile'
 import { paymentSummary } from '../../components/profile/savedDisplay'
+
+function roundMoney(n: number) {
+  return Math.round(n * 100) / 100
+}
+
+function getScrollParent(node: HTMLElement | null): HTMLElement | null {
+  if (!node) return null
+  let el: HTMLElement | null = node.parentElement
+  while (el) {
+    const { overflowY } = getComputedStyle(el)
+    if (overflowY === 'auto' || overflowY === 'scroll' || overflowY === 'overlay') return el
+    el = el.parentElement
+  }
+  return null
+}
 
 function MenuItemRow({
   item,
@@ -80,6 +102,7 @@ export const RestaurantMenuPage = () => {
   const { cart, addToCart, removeFromCart, updateLineOptions, clearCart, totalItems, totalPrice } = useCart(businessId, menu?.items ?? null)
   const { user } = useAuth()
   const toast = useToast()
+  const { items: savedPayments } = useSavedPayments()
 
   /** הוספה לעגלה עם משוב מישושי (רטט) במובייל. */
   const addLine = useCallback(
@@ -113,8 +136,11 @@ export const RestaurantMenuPage = () => {
   const [activeCategoryId, setActiveCategoryId] = useState<string | null>(null)
   const categorySectionRefs = useRef<Map<string, HTMLElement>>(new Map())
   const categoryTabsRef = useRef<HTMLDivElement>(null)
+  const stickyNavRef = useRef<HTMLDivElement>(null)
   const isTabClickScrolling = useRef(false)
   const submitErrorRef = useRef<HTMLParagraphElement>(null)
+  const itemModalScrollRef = useRef<HTMLDivElement>(null)
+  const itemModalDragControls = useDragControls()
   const [addItemModal, setAddItemModal] = useState<MenuItem | null>(null)
   const [sectionSelections, setSectionSelections] = useState<Record<string, string | string[]>>({})
   // כשעורכים שורה קיימת בעגלה – שומרים את האופציות הישנות כדי לזהות את השורה
@@ -137,6 +163,17 @@ export const RestaurantMenuPage = () => {
   const [selectedPaymentId, setSelectedPaymentId] = useState<string>()
   const [selectedPaymentType, setSelectedPaymentType] = useState<PaymentMethodType>()
   const [paymentMethod, setPaymentMethod] = useState<string>('')
+  const [courierTip, setCourierTip] = useState(0)
+  const [creditCvv, setCreditCvv] = useState('')
+  const [creditCardNumber, setCreditCardNumber] = useState('')
+  const [creditSecurityErrors, setCreditSecurityErrors] = useState<{ cvv?: string; cardNumber?: string }>({})
+
+  const selectedSavedCard = useMemo(
+    () => savedPayments.find((p) => p.id === selectedPaymentId),
+    [savedPayments, selectedPaymentId],
+  )
+  const requireFullCard = selectedPaymentType === 'credit' && !selectedSavedCard?.hasPayplusToken
+  const checkoutTotal = useMemo(() => roundMoney(totalPrice + courierTip), [totalPrice, courierTip])
 
   const applyContact = useCallback((c: SavedContact) => {
     setSelectedContactId(c.id)
@@ -190,10 +227,18 @@ export const RestaurantMenuPage = () => {
       err._submit = 'נא לבחור אמצעי תשלום'
     } else if (selectedPaymentType === 'credit' && !selectedPaymentId) {
       err._submit = 'נא לבחור כרטיס אשראי'
+    } else if (selectedPaymentType === 'gpay' || selectedPaymentType === 'apay') {
+      err._submit = 'תשלום Google Pay / Apple Pay ישירות מהאפליקציה יתמך בקרוב – בחרו כרטיס אשראי או מזומן'
+    } else if (selectedPaymentType === 'credit') {
+      const creditErr = validateCheckoutCreditSecurity(creditCvv, creditCardNumber, requireFullCard)
+      if (Object.keys(creditErr).length) {
+        setCreditSecurityErrors(creditErr)
+        err._submit = creditErr.cardNumber || creditErr.cvv || 'נא להשלים פרטי אשראי מאובטחים'
+      }
     }
     setFormErrors(err)
     return Object.keys(err).length === 0
-  }, [form, fulfillment, selectedPaymentType, selectedPaymentId])
+  }, [form, fulfillment, selectedPaymentType, selectedPaymentId, creditCvv, creditCardNumber, requireFullCard])
 
   const categoriesList = useMemo(() => {
     if (!menu?.categories) return []
@@ -228,18 +273,64 @@ export const RestaurantMenuPage = () => {
   }, [categoriesList, itemsList, filteredItemsList, isMenuSearching])
 
   const scrollToCategory = useCallback((catId: string) => {
-    setActiveCategoryId(catId)
     isTabClickScrolling.current = true
-    const el = categorySectionRefs.current.get(catId)
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    setActiveCategoryId(catId)
+
+    const performScroll = () => {
+      const el = categorySectionRefs.current.get(catId)
+      if (!el) {
+        isTabClickScrolling.current = false
+        return
+      }
+
+      const scrollRoot = getScrollParent(el)
+      const stickyOffset = stickyNavRef.current?.offsetHeight ?? 104
+
+      if (scrollRoot) {
+        const target =
+          scrollRoot.scrollTop +
+          el.getBoundingClientRect().top -
+          scrollRoot.getBoundingClientRect().top -
+          stickyOffset
+        scrollRoot.scrollTo({ top: Math.max(0, target), behavior: 'smooth' })
+        scrollRoot.addEventListener('scrollend', () => {
+          isTabClickScrolling.current = false
+        }, { once: true })
+      } else {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }
+
       window.setTimeout(() => {
         isTabClickScrolling.current = false
-      }, 900)
-    } else {
-      isTabClickScrolling.current = false
+      }, 1000)
     }
+
+    requestAnimationFrame(() => {
+      requestAnimationFrame(performScroll)
+    })
   }, [])
+
+  const syncActiveCategoryFromScroll = useCallback(() => {
+    if (isTabClickScrolling.current || visibleCategoriesForNav.length === 0) return
+
+    const firstSection = categorySectionRefs.current.get(visibleCategoriesForNav[0]?.id ?? '')
+    const scrollRoot = getScrollParent(firstSection ?? null)
+    if (!scrollRoot) return
+
+    const stickyOffset = stickyNavRef.current?.offsetHeight ?? 104
+    const anchor = scrollRoot.getBoundingClientRect().top + stickyOffset + 1
+
+    let nextId = visibleCategoriesForNav[0].id
+    for (const cat of visibleCategoriesForNav) {
+      const el = categorySectionRefs.current.get(cat.id)
+      if (!el) continue
+      if (el.getBoundingClientRect().top <= anchor) {
+        nextId = cat.id
+      }
+    }
+
+    setActiveCategoryId((prev) => (prev === nextId ? prev : nextId))
+  }, [visibleCategoriesForNav])
 
   useEffect(() => {
     if (visibleCategoriesForNav.length === 0) {
@@ -254,31 +345,37 @@ export const RestaurantMenuPage = () => {
   useEffect(() => {
     if (isMenuSearching || visibleCategoriesForNav.length === 0) return
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (isTabClickScrolling.current) return
-        const intersecting = entries
-          .filter((e) => e.isIntersecting)
-          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)
-        const top = intersecting[0]
-        const id = top?.target.getAttribute('data-category-id')
-        if (id) setActiveCategoryId(id)
-      },
-      { rootMargin: '-104px 0px -55% 0px', threshold: [0, 0.15, 0.35, 0.6] }
-    )
+    let scrollRoot: HTMLElement | null = null
+    let scrollRaf = 0
+    let mountRaf = 0
 
-    visibleCategoriesForNav.forEach((cat) => {
-      const el = categorySectionRefs.current.get(cat.id)
-      if (el) observer.observe(el)
+    const onScroll = () => {
+      cancelAnimationFrame(scrollRaf)
+      scrollRaf = requestAnimationFrame(syncActiveCategoryFromScroll)
+    }
+
+    mountRaf = requestAnimationFrame(() => {
+      const firstSection = categorySectionRefs.current.get(visibleCategoriesForNav[0]?.id ?? '')
+      scrollRoot = getScrollParent(firstSection ?? null)
+      if (!scrollRoot) return
+      scrollRoot.addEventListener('scroll', onScroll, { passive: true })
+      syncActiveCategoryFromScroll()
     })
 
-    return () => observer.disconnect()
-  }, [visibleCategoriesForNav, isMenuSearching])
+    return () => {
+      cancelAnimationFrame(mountRaf)
+      cancelAnimationFrame(scrollRaf)
+      scrollRoot?.removeEventListener('scroll', onScroll)
+    }
+  }, [visibleCategoriesForNav, isMenuSearching, syncActiveCategoryFromScroll])
 
   useEffect(() => {
     if (!activeCategoryId || !categoryTabsRef.current) return
-    const tab = categoryTabsRef.current.querySelector(`[data-cat-tab="${activeCategoryId}"]`)
-    tab?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' })
+    const tabsContainer = categoryTabsRef.current
+    const tab = tabsContainer.querySelector(`[data-cat-tab="${activeCategoryId}"]`) as HTMLElement | null
+    if (!tab) return
+    const targetLeft = tab.offsetLeft - (tabsContainer.clientWidth - tab.clientWidth) / 2
+    tabsContainer.scrollTo({ left: Math.max(0, targetLeft), behavior: 'smooth' })
   }, [activeCategoryId])
 
   const handlePlaceOrder = async () => {
@@ -291,6 +388,7 @@ export const RestaurantMenuPage = () => {
     }
     setPlacing(true)
     setFormErrors({})
+    setCreditSecurityErrors({})
     try {
       const items: OrderItem[] = cart.map((l) => ({
         menuItemId: l.item.id,
@@ -326,13 +424,33 @@ export const RestaurantMenuPage = () => {
           : {}),
         ...(form.delivery_notes?.trim() && { delivery_notes: form.delivery_notes.trim() }),
         ...(paymentMethod.trim() && { payment_method: paymentMethod.trim() }),
+        ...(selectedPaymentType && { payment_type: selectedPaymentType }),
         items,
         status: 'new',
       }
-      const orderId = await placeOrder(order)
+      const { orderId, paymentStatus } = await chargeAndPlaceOrder(
+        order,
+        courierTip,
+        {
+          type: selectedPaymentType!,
+          savedPaymentId: selectedPaymentId,
+          cvv: selectedPaymentType === 'credit' ? creditCvv : undefined,
+          cardNumber:
+            selectedPaymentType === 'credit' && requireFullCard
+              ? stripCardNumber(creditCardNumber)
+              : undefined,
+        },
+      )
       clearCart()
       setShowCheckout(false)
-      toast.success('ההזמנה נשלחה! אפשר לעקוב אחריה כאן.')
+      setCreditCvv('')
+      setCreditCardNumber('')
+      setCourierTip(0)
+      toast.success(
+        paymentStatus === 'paid'
+          ? 'התשלום בוצע וההזמנה נשלחה!'
+          : 'ההזמנה נשלחה! התשלום במזומן בעת המסירה.',
+      )
       navigate(ROUTES.ORDER_TRACKING(orderId))
     } catch (e: unknown) {
       const err = e as { code?: string; message?: string }
@@ -378,6 +496,17 @@ export const RestaurantMenuPage = () => {
     setAddItemModal(null)
     setSectionSelections({})
     setEditingOldOptions(null)
+  }
+
+  const startItemModalDrag = (event: React.PointerEvent) => {
+    event.preventDefault()
+    itemModalDragControls.start(event)
+  }
+
+  const handleItemModalDragEnd = (_event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
+    if (info.offset.y > 90 || info.velocity.y > 400) {
+      closeItemModal()
+    }
   }
 
   const optionsToSelections = (item: MenuItem, opts: CartSelectedOption[] | undefined): Record<string, string | string[]> => {
@@ -588,7 +717,7 @@ export const RestaurantMenuPage = () => {
       <div className="grid min-w-0 gap-8 lg:grid-cols-3">
         <div className="min-w-0 space-y-4 lg:col-span-2">
           {/* שורת חיפוש – נדבקת לראש המסך מתחת לסרגל העליון בזמן גלילה */}
-          <div className="sticky top-0 z-30 -mx-3 px-3 pb-2 bg-vantix-surface/95 backdrop-blur-md sm:-mx-6 sm:px-6">
+          <div ref={stickyNavRef} className="sticky top-0 z-30 -mx-3 px-3 pb-2 bg-vantix-surface/95 backdrop-blur-md sm:-mx-6 sm:px-6">
             <div className="flex items-center gap-3 rounded-xl border border-vantix-cyan/25 bg-vantix-surface-raised px-3 py-2.5 shadow-sm">
               <Search className="h-4 w-4 shrink-0 text-vantix-cyan" />
               <input
@@ -879,6 +1008,38 @@ export const RestaurantMenuPage = () => {
               hideAddress={fulfillment === 'pickup'}
             />
 
+            {selectedPaymentType === 'credit' && selectedPaymentId ? (
+              <CheckoutCreditSecurityFields
+                cvv={creditCvv}
+                onCvvChange={setCreditCvv}
+                cardNumber={creditCardNumber}
+                onCardNumberChange={setCreditCardNumber}
+                requireFullCard={requireFullCard}
+                errors={creditSecurityErrors}
+              />
+            ) : null}
+
+            {fulfillment === 'delivery' ? (
+              <CourierTipSelector value={courierTip} onChange={setCourierTip} />
+            ) : null}
+
+            <div className="rounded-2xl border border-vantix-cyan/15 bg-vantix-surface-raised px-4 py-3 text-sm">
+              <div className="flex items-center justify-between text-vantix-fg-muted">
+                <span>סכום מנות</span>
+                <span>₪{totalPrice.toFixed(2)}</span>
+              </div>
+              {fulfillment === 'delivery' && courierTip > 0 ? (
+                <div className="mt-1 flex items-center justify-between text-vantix-fg-muted">
+                  <span>טיפ לשליח</span>
+                  <span>₪{courierTip.toFixed(0)}</span>
+                </div>
+              ) : null}
+              <div className="mt-2 flex items-center justify-between border-t border-vantix-cyan/10 pt-2 font-semibold text-vantix-fg">
+                <span>{selectedPaymentType === 'cash' ? 'לתשלום במזומן' : 'לחיוב'}</span>
+                <span className="text-vantix-cyan">₪{checkoutTotal.toFixed(2)}</span>
+              </div>
+            </div>
+
             {form.customer_name || form.delivery_city ? (
               <div className="space-y-2.5 rounded-2xl border border-vantix-cyan/20 bg-vantix-surface p-4 text-sm">
                 {form.customer_name && (
@@ -974,30 +1135,41 @@ export const RestaurantMenuPage = () => {
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
             transition={{ type: 'spring', damping: 32, stiffness: 320 }}
-            className="w-full max-h-[88vh] overflow-y-auto rounded-t-3xl bg-vantix-surface-raised shadow-xl sm:max-w-md sm:rounded-2xl"
+            drag="y"
+            dragControls={itemModalDragControls}
+            dragListener={false}
+            dragConstraints={{ top: 0, bottom: 0 }}
+            dragElastic={{ top: 0, bottom: 0.55 }}
+            onDragEnd={handleItemModalDragEnd}
+            className="flex w-full max-h-[88vh] flex-col rounded-t-3xl bg-vantix-surface-raised shadow-xl sm:max-w-md sm:rounded-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             {addItemModal.imageUrl ? (
-              <div className="relative w-full aspect-[16/10] overflow-hidden rounded-t-3xl bg-vantix-surface sm:rounded-t-2xl">
+              <div
+                className="relative aspect-[16/10] w-full shrink-0 cursor-grab overflow-hidden rounded-t-3xl bg-vantix-surface active:cursor-grabbing touch-none select-none sm:rounded-t-2xl"
+                onPointerDown={startItemModalDrag}
+              >
                 <img
                   src={addItemModal.imageUrl}
                   alt=""
-                  className="absolute inset-0 h-full w-full object-cover object-center"
+                  draggable={false}
+                  className="pointer-events-none absolute inset-0 h-full w-full object-cover object-center"
                 />
               </div>
-            ) : (
-              <div className="flex justify-center pt-3 sm:hidden">
-                <span className="h-1.5 w-10 rounded-full bg-vantix-fg-subtle/40" />
-              </div>
-            )}
+            ) : null}
+            <div ref={itemModalScrollRef} className="scrollbar-hide min-h-0 flex-1 overflow-y-auto overscroll-y-contain">
             <div className="p-6">
-            <div className="flex items-center justify-between gap-4 mb-2">
+            <div
+              className={`mb-2 flex items-center justify-between gap-4 ${addItemModal.imageUrl ? '' : 'cursor-grab touch-none select-none active:cursor-grabbing'}`}
+              onPointerDown={addItemModal.imageUrl ? undefined : startItemModalDrag}
+            >
               <h3 id="add-item-title" className="text-xl font-bold text-vantix-fg">
                 {editingOldOptions !== null ? `עריכת ${addItemModal.name}` : addItemModal.name}
               </h3>
               <button
                 type="button"
                 onClick={closeItemModal}
+                onPointerDown={(event) => event.stopPropagation()}
                 className="p-2 rounded-full text-vantix-fg-muted hover:bg-vantix-cyan/10 hover:text-vantix-cyan"
                 aria-label="סגור"
               >
@@ -1071,6 +1243,7 @@ export const RestaurantMenuPage = () => {
               {editingOldOptions !== null ? <Check className="h-5 w-5" /> : <Plus className="h-5 w-5" />}
               {editingOldOptions !== null ? 'שמור שינויים' : 'הוסף לעגלה'}
             </button>
+            </div>
             </div>
           </motion.div>
         </motion.div>

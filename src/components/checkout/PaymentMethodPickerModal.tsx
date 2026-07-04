@@ -169,12 +169,15 @@ export function PaymentMethodPickerModal({
               if (cardModal) {
                 await onUpdateCard(cardModal.id, data)
                 onSelectMethod('credit', { ...cardModal, ...data })
-              } else {
-                const created = await onAddCard(data)
-                onSelectMethod('credit', created)
+                setCardModal(undefined)
+                onClose()
+                return
               }
+              const created = await onAddCard(data)
+              onSelectMethod('credit', created)
               setCardModal(undefined)
               onClose()
+              return created.id
             } catch {
               // השגיאה מוצגת דרך מצב saving / נשארים במודל לתיקון
             }

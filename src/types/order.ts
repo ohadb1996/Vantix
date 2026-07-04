@@ -39,8 +39,20 @@ export interface Order {
   created_by_uid?: string
   /** מזהה משלוח ב-RTDB – נכתב כשבעל העסק יוצר משלוח מההזמנה */
   delivery_id?: string
-  /** אמצעי תשלום שבחר הלקוח (תצוגה בלבד – אין עיבוד תשלום באפליקציה) */
+  /** אמצעי תשלום שבחר הלקוח */
   payment_method?: string
+  /** סוג תשלום לעיבוד */
+  payment_type?: 'cash' | 'credit' | 'gpay' | 'apay' | 'bit'
+  /** סטטוס תשלום */
+  payment_status?: 'paid' | 'cash_on_delivery' | 'pending'
+  /** סכום משנה (מנות בלבד) */
+  items_subtotal?: number
+  /** טיפ לשליח (₪) */
+  courier_tip?: number
+  /** סה״כ שחויב / לגבייה */
+  total_charged?: number
+  payplus_transaction_uid?: string
+  payplus_approval_number?: string
 }
 
 /** נתונים לשליחה בצ'קאאוט (בלי orderId) */
