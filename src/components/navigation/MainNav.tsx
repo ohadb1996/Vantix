@@ -1,7 +1,8 @@
 import { LogOut, ChevronRight, User, UtensilsCrossed, History } from 'lucide-react'
-import { Link, NavLink, useLocation } from 'react-router-dom'
+import { Link, NavLink, useLocation, useMatch } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { useAuth } from '../../context/AuthContext'
+import { useMenu } from '../../hooks/useMenu'
 import { useScrolled } from '../../hooks/useScrolled'
 import { Logo } from '../branding/Logo'
 import { ROUTES } from '../../constants/app'
@@ -20,8 +21,12 @@ export const MainNav = () => {
   const location = useLocation()
   const scrolled = useScrolled()
   const isRestaurantMenu = /^\/restaurants\/[^/]+$/.test(location.pathname)
+  const menuMatch = useMatch('/restaurants/:businessId')
+  const businessId = isRestaurantMenu ? menuMatch?.params.businessId : undefined
+  const { businessName } = useMenu(businessId)
   const displayName = user?.displayName?.trim() || user?.email || ''
   const greetingLabel = displayName ? `שלום, ${displayName}` : ''
+  const navTitle = isRestaurantMenu ? businessName || 'תפריט' : null
 
   const baseBorderBg = isRestaurantMenu
     ? 'border-vantix-cyan/25 bg-vantix-surface-raised/80 backdrop-blur-md'
@@ -33,11 +38,19 @@ export const MainNav = () => {
 
   return (
     <nav
-      className={`flex min-w-0 items-center justify-between gap-1.5 overflow-x-auto border transition-all duration-300 sm:gap-4 sm:overflow-visible ${sizeClasses} ${baseBorderBg}`}
+      className={`relative flex min-w-0 items-center justify-between gap-1.5 overflow-x-auto border transition-all duration-300 sm:gap-4 sm:overflow-visible ${sizeClasses} ${baseBorderBg}`}
     >
+      {navTitle ? (
+        <div className="pointer-events-none absolute left-1/2 top-1/2 z-0 max-w-[calc(100%-7.5rem)] -translate-x-1/2 -translate-y-1/2 sm:max-w-[calc(100%-14rem)]">
+          <h1 className="truncate text-center font-display text-sm font-bold tracking-tight text-vantix-fg sm:text-base">
+            {navTitle}
+          </h1>
+        </div>
+      ) : null}
+
       <Link
         to={user ? ROUTES.RESTAURANTS : ROUTES.HOME}
-        className="flex min-w-0 shrink items-center rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-vantix-fg/20 focus-visible:ring-offset-2"
+        className="relative z-10 flex min-w-0 shrink items-center rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-vantix-fg/20 focus-visible:ring-offset-2"
         aria-label={user ? 'מסעדות' : 'עמוד הבית'}
       >
         <div className="flex shrink-0" style={{ perspective: '1000px' }}>
@@ -51,6 +64,7 @@ export const MainNav = () => {
         </div>
       </Link>
 
+      {!isRestaurantMenu ? (
       <div className="hidden shrink-0 items-center gap-2 sm:flex sm:gap-6 lg:gap-8">
         {NAV_LINKS.map((link) => {
           const Icon = link.icon
@@ -74,8 +88,9 @@ export const MainNav = () => {
           )
         })}
       </div>
+      ) : null}
 
-      <div className="flex min-w-0 shrink items-center gap-2 sm:gap-3 sm:px-0">
+      <div className="relative z-10 flex min-w-0 shrink items-center gap-2 sm:gap-3 sm:px-0">
         <ThemeToggle variant="icon" />
         {isRestaurantMenu ? (
           <Link

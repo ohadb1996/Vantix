@@ -2,6 +2,7 @@ import { type FormEvent, useState } from 'react'
 import { Eye, EyeOff, Loader2, LogIn } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
+import { getAuthErrorMessage } from '../../utils/authErrors'
 
 const GoogleIcon = () => (
   <svg className="h-5 w-5" viewBox="0 0 24 24" aria-hidden="true">
@@ -58,9 +59,7 @@ export const LoginForm = ({ redirectTo }: LoginFormProps) => {
       setForm(INITIAL_STATE)
       navigate(to)
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : 'לא הצלחנו להיכנס. נסה שוב בהמשך.'
-      setError(message)
+      setError(getAuthErrorMessage(err, 'login'))
     } finally {
       setIsSubmitting(false)
     }
@@ -74,9 +73,7 @@ export const LoginForm = ({ redirectTo }: LoginFormProps) => {
       await loginWithGoogle()
       navigate(to)
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : 'התחברות עם Google נכשלה. נסה שוב.'
-      setError(message)
+      setError(getAuthErrorMessage(err, 'google'))
     } finally {
       setIsGoogleLoading(false)
     }

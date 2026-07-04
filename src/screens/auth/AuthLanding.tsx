@@ -18,7 +18,7 @@ export const AuthLanding = () => {
           <section className="space-y-6">
             <div className="flex" style={{ perspective: '1000px' }}>
               <motion.div
-                className="flex"
+                className="flex rounded-2xl bg-vantix-surface"
                 style={{ transformStyle: 'preserve-3d' }}
                 animate={{ rotateY: 360 }}
                 transition={{ repeat: Infinity, duration: 6, ease: 'linear' }}
@@ -26,7 +26,7 @@ export const AuthLanding = () => {
                 <img
                   src="/assets/logo-white.jpeg"
                   alt={APP_DISPLAY_NAME}
-                  className="w-44 rounded-2xl object-contain sm:w-56 dark:hidden"
+                  className="w-44 rounded-2xl object-contain mix-blend-darken sm:w-56 dark:hidden"
                   draggable={false}
                 />
                 <img

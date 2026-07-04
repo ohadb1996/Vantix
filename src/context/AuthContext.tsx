@@ -23,9 +23,10 @@ import {
   sendPhoneVerificationCode,
 } from '../services/auth'
 import { signInWithGoogle } from '../services/googleAuth'
+import { getAuthErrorMessage, throwFriendlyAuthError } from '../utils/authErrors'
 
 const ACCOUNT_EXISTS_MSG =
-  'לאימייל הזה כבר קיים חשבון עם אימייל וסיסמה. התחבר עם אותו אימייל וסיסמה.'
+  'לאימייל הזה כבר קיים חשבון עם אימייל וסיסמה. התחבר/י עם אותו אימייל וסיסמה.'
 
 type AuthContextValue = {
   user: User | null
@@ -81,7 +82,7 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
         if (code === 'auth/account-exists-with-different-credential') {
           setAuthError(ACCOUNT_EXISTS_MSG)
         } else {
-          console.warn('[Auth] getRedirectResult failed:', err)
+          setAuthError(getAuthErrorMessage(err, 'google'))
         }
       })
 
@@ -90,7 +91,11 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
 
   const login = async (email: string, password: string) => {
     const auth = getFirebaseAuth()
-    await signInWithEmailAndPassword(auth, email, password)
+    try {
+      await signInWithEmailAndPassword(auth, email, password)
+    } catch (err) {
+      throwFriendlyAuthError(err, 'login')
+    }
     const currentUser = auth.currentUser
     if (currentUser) {
       await ensureCustomerProfileOnSignIn(currentUser)
@@ -109,7 +114,7 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
       if (code === 'auth/account-exists-with-different-credential') {
         throw new Error(ACCOUNT_EXISTS_MSG)
       }
-      throw err
+      throwFriendlyAuthError(err, 'google')
     }
   }
 

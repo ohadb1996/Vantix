@@ -1,6 +1,7 @@
 import { type FormEvent, useState } from 'react'
 import { CheckCircle, Eye, EyeOff, Loader2 } from 'lucide-react'
 import { signUpCustomer } from '../../services/auth'
+import { getAuthErrorMessage } from '../../utils/authErrors'
 
 type FormState = {
   fullName: string
@@ -41,11 +42,7 @@ export const SignUpForm = ({ onSuccess }: SignUpFormProps = {}) => {
         setSuccess(true)
       }
     } catch (err) {
-      const message =
-        err instanceof Error
-          ? err.message
-          : 'משהו השתבש. נסה שוב או פנה לתמיכת Vantix.'
-      setError(message)
+      setError(getAuthErrorMessage(err, 'signup'))
     } finally {
       setIsSubmitting(false)
     }

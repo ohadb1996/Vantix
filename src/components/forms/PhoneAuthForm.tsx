@@ -10,6 +10,7 @@ import { toE164 } from '../../services/auth'
 import { useAuth } from '../../context/AuthContext'
 import type { ConfirmationResult } from 'firebase/auth'
 import { isValidIsraeliPhone } from '../../utils/phone'
+import { getAuthErrorMessage } from '../../utils/authErrors'
 
 const PHONE_SEND_BUTTON_ID = 'phone-send-code-btn'
 
@@ -60,9 +61,7 @@ export const PhoneAuthForm = ({
         mode === 'link' ? await linkPhone(phoneE164, verifier) : await loginWithPhone(phoneE164, verifier)
       setConfirmationResult(result)
     } catch (err) {
-      const msg =
-        err instanceof Error ? err.message : 'שליחת הקוד נכשלה. נסה שוב.'
-      setError(msg)
+      setError(getAuthErrorMessage(err, 'phone-send'))
       try {
         ;(verifier as { reset?: () => void }).reset?.()
       } catch {
@@ -110,9 +109,7 @@ export const PhoneAuthForm = ({
       setCode('')
       onSuccess?.()
     } catch (err) {
-      const msg =
-        err instanceof Error ? err.message : 'קוד לא תקין. נסה שוב.'
-      setError(msg)
+      setError(getAuthErrorMessage(err, 'phone-code'))
     } finally {
       setLoading(false)
     }

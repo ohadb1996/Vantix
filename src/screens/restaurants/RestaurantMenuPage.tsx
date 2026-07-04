@@ -393,7 +393,7 @@ export const RestaurantMenuPage = () => {
   }
 
   return (
-    <div className="space-y-8 pb-28" dir="rtl">
+    <div className="space-y-2 pb-28 sm:space-y-3" dir="rtl">
       {/* Floating cart badge – מופיע רק כשיש פריטים */}
       {totalItems > 0 && (
         <motion.div
@@ -529,28 +529,16 @@ export const RestaurantMenuPage = () => {
         </div>
       </header>
 
-      {/* שם העסק מתחת לתמונה – כרטיס פרימיום */}
-      <div className="flex justify-center -mt-3 sm:-mt-4 px-2">
-        <div className="relative rounded-2xl bg-vantix-surface-raised/95 dark:bg-vantix-surface-raised/95 px-8 py-5 sm:px-10 sm:py-6 shadow-[0_12px_40px_rgba(0,0,0,0.07),0_0_0_1px_rgba(0,0,0,0.04)] backdrop-blur-sm overflow-hidden">
-          <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-vantix-orange/60 to-transparent dark:via-vantix-cyan/60" />
-          <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-vantix-orange/25 to-transparent dark:via-vantix-cyan/25" />
-          <h1 className="relative font-display text-2xl sm:text-3xl lg:text-4xl font-bold text-vantix-fg text-center tracking-tight">
-            {businessName || 'תפריט'}
-          </h1>
-        </div>
-      </div>
-
-
       <div className="grid gap-8 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-6">
           {/* שורת חיפוש – נדבקת לראש המסך מתחת לסרגל העליון בזמן גלילה */}
-          <div className="sticky top-[52px] z-30 -mx-3 px-3 pt-2 pb-2 bg-vantix-surface/85 backdrop-blur-md sm:top-[68px] sm:-mx-6 sm:px-6">
+          <div className="sticky top-[3.5rem] z-30 -mx-3 px-3 pt-0 pb-2 bg-vantix-surface/85 backdrop-blur-md sm:top-[4.5rem] sm:-mx-6 sm:px-6">
             <div className="flex items-center gap-3 rounded-xl border border-vantix-cyan/25 bg-vantix-surface-raised px-3 py-2.5 shadow-sm">
               <Search className="h-4 w-4 shrink-0 text-vantix-cyan" />
               <input
                 value={menuSearch}
                 onChange={(e) => setMenuSearch(e.target.value)}
-                placeholder="חיפוש מנה בתפריט (שם או קטגוריה, למשל 'עיקריות')..."
+                placeholder="חיפוש בתפריט..."
                 className="w-full min-w-0 bg-transparent text-sm text-vantix-fg placeholder:text-vantix-fg-subtle focus:outline-none"
                 aria-label="חיפוש מנה בתפריט"
               />
