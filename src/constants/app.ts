@@ -23,8 +23,6 @@ export const ROUTES = {
   RESTAURANT_MENU: (id: string) => `/restaurants/${id}`,
   ORDERS: '/orders',
   ORDER_TRACKING: (orderId: string) => `/orders/${orderId}`,
-  EXPERIENCES: '/experiences',
-  LIVE: '/live',
   PROFILE: '/profile',
   AUTH_LOGIN: '/auth/login',
   AUTH_REGISTER: '/auth/register',

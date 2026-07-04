@@ -1,4 +1,4 @@
-import { LogOut, ChevronRight, User, UtensilsCrossed, History, Sparkles, Radio } from 'lucide-react'
+import { LogOut, ChevronRight, User, UtensilsCrossed, History } from 'lucide-react'
 import { Link, NavLink, useLocation } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { useAuth } from '../../context/AuthContext'
@@ -9,8 +9,6 @@ import { ThemeToggle } from '../ui/ThemeToggle'
 
 const NAV_LINKS = [
   { to: ROUTES.RESTAURANTS, label: 'מסעדות', end: false, icon: UtensilsCrossed },
-  { to: ROUTES.EXPERIENCES, label: 'חוויות', end: false, icon: Sparkles },
-  { to: ROUTES.LIVE, label: 'לייב', end: false, icon: Radio },
   { to: ROUTES.ORDERS, label: 'ההזמנות שלי', end: false, icon: History },
 ]
 
@@ -38,9 +36,9 @@ export const MainNav = () => {
       className={`flex min-w-0 items-center justify-between gap-1.5 overflow-x-auto border transition-all duration-300 sm:gap-4 sm:overflow-visible ${sizeClasses} ${baseBorderBg}`}
     >
       <Link
-        to={ROUTES.HOME}
+        to={user ? ROUTES.RESTAURANTS : ROUTES.HOME}
         className="flex min-w-0 shrink items-center rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-vantix-fg/20 focus-visible:ring-offset-2"
-        aria-label="עמוד הבית"
+        aria-label={user ? 'מסעדות' : 'עמוד הבית'}
       >
         <div className="flex shrink-0" style={{ perspective: '1000px' }}>
           <motion.div

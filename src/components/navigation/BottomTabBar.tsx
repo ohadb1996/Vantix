@@ -2,12 +2,13 @@ import { NavLink, useLocation } from 'react-router-dom'
 import { Home, UtensilsCrossed, History, User } from 'lucide-react'
 import { ROUTES } from '../../constants/app'
 import { haptic } from '../../lib/native'
+import { useAuth } from '../../context/AuthContext'
 
-const TABS = [
-  { to: ROUTES.HOME, label: 'בית', icon: Home, end: true },
-  { to: ROUTES.RESTAURANTS, label: 'מסעדות', icon: UtensilsCrossed, end: false },
-  { to: ROUTES.ORDERS, label: 'הזמנות', icon: History, end: false },
-  { to: ROUTES.PROFILE, label: 'פרופיל', icon: User, end: false },
+const ALL_TABS = [
+  { to: ROUTES.HOME, label: 'בית', icon: Home, end: true, guestOnly: true },
+  { to: ROUTES.RESTAURANTS, label: 'מסעדות', icon: UtensilsCrossed, end: false, guestOnly: false },
+  { to: ROUTES.ORDERS, label: 'הזמנות', icon: History, end: false, guestOnly: false },
+  { to: ROUTES.PROFILE, label: 'פרופיל', icon: User, end: false, guestOnly: false },
 ]
 
 /**
@@ -16,8 +17,11 @@ const TABS = [
  */
 export function BottomTabBar() {
   const location = useLocation()
+  const { user } = useAuth()
   const isRestaurantMenu = /^\/restaurants\/[^/]+$/.test(location.pathname)
   if (isRestaurantMenu) return null
+
+  const tabs = user ? ALL_TABS.filter((t) => !t.guestOnly) : ALL_TABS
 
   return (
     <nav
@@ -26,7 +30,7 @@ export function BottomTabBar() {
       aria-label="ניווט ראשי"
     >
       <ul className="mx-auto flex max-w-md items-stretch justify-around">
-        {TABS.map((tab) => {
+        {tabs.map((tab) => {
           const Icon = tab.icon
           return (
             <li key={tab.to} className="flex-1">

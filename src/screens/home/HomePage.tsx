@@ -1,6 +1,5 @@
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Radio, Sparkles, ChevronLeft } from "lucide-react";
 import { useDiscoveryData } from "../../modules/discovery/hooks/useDiscoveryData";
 import { useAuth } from "../../context/AuthContext";
 import { BusinessPartnersCTA } from "../../components/partners/BusinessPartnersCTA";
@@ -115,42 +114,6 @@ export const HomePage = () => {
         </motion.div>
 
         <PartnersCarousel />
-      </section>
-
-      <section className="grid gap-3 sm:grid-cols-2 sm:gap-4">
-        <Link
-          to={ROUTES.EXPERIENCES}
-          onClick={() => void haptic.light()}
-          className="group flex items-center justify-between gap-3 rounded-3xl border border-vantix-cyan/20 bg-vantix-surface-raised p-5 transition hover:border-vantix-cyan/40 hover:shadow-lg hover:shadow-black/5"
-        >
-          <div className="flex items-center gap-3">
-            <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-vantix-cyan/12 text-vantix-cyan">
-              <Sparkles className="h-5 w-5" />
-            </span>
-            <div>
-              <h3 className="font-display text-lg text-vantix-fg">חוויות קולינריות</h3>
-              <p className="text-xs text-vantix-fg-muted">סדנאות, ארוחות שף וטעימות</p>
-            </div>
-          </div>
-          <ChevronLeft className="h-5 w-5 text-vantix-fg-subtle transition group-hover:-translate-x-1 group-hover:text-vantix-cyan" />
-        </Link>
-
-        <Link
-          to={ROUTES.LIVE}
-          onClick={() => void haptic.light()}
-          className="group flex items-center justify-between gap-3 rounded-3xl border border-vantix-cyan/20 bg-vantix-surface-raised p-5 transition hover:border-vantix-cyan/40 hover:shadow-lg hover:shadow-black/5"
-        >
-          <div className="flex items-center gap-3">
-            <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-red-500/12 text-red-500">
-              <Radio className="h-5 w-5" />
-            </span>
-            <div>
-              <h3 className="font-display text-lg text-vantix-fg">בישול בשידור חי</h3>
-              <p className="text-xs text-vantix-fg-muted">שפים מבשלים בזמן אמת</p>
-            </div>
-          </div>
-          <ChevronLeft className="h-5 w-5 text-vantix-fg-subtle transition group-hover:-translate-x-1 group-hover:text-vantix-cyan" />
-        </Link>
       </section>
 
       {spotlight && <SpotlightCta campaign={spotlight} />}

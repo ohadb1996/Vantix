@@ -17,7 +17,7 @@ export const LoginPage = () => {
   }
 
   if (user) {
-    return <Navigate to={from || ROUTES.HOME} replace />
+    return <Navigate to={from || ROUTES.RESTAURANTS} replace />
   }
 
   return (
