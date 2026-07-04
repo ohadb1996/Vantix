@@ -31,4 +31,4 @@ export const ROUTES = {
 export const CART_STORAGE_KEY = 'vantix_cart'
 
 /** קישור לשירות לקוחות / דיווח תקלות (וואטסאפ או דוא"ל) */
-export const SUPPORT_LINK = 'https://wa.me/972500000000'
+export const SUPPORT_LINK = 'https://wa.me/972797293919'

@@ -161,17 +161,14 @@ export const RestaurantsPage = () => {
       key={b.businessId}
       to={to}
       state={linkState}
-      className="block h-full w-[min(94vw,420px)] shrink-0 snap-start rounded-2xl px-1 py-3 outline-none focus-visible:ring-2 focus-visible:ring-vantix-cyan focus-visible:ring-offset-2 sm:w-[400px] sm:rounded-3xl"
+      className="block h-full w-[min(94vw,420px)] shrink-0 snap-start rounded-2xl px-1 py-2 outline-none focus-visible:ring-2 focus-visible:ring-vantix-cyan focus-visible:ring-offset-2 sm:w-[400px] sm:rounded-3xl"
     >
       <RestaurantCard
         name={b.businessName}
-        cuisine={`${b.itemsCount} פריטים • ${b.categoriesCount} קטגוריות`}
         eta="הזמנה ומשלוח"
-        priceLevel="הזמנה מהתפריט"
         distance="—"
         heroImage={b.logoUrl ?? undefined}
         tags={matchedTags ?? []}
-        likeCount={b.likeCount ?? 0}
         isLiked={isLiked(b.businessId)}
         likeDisabled={togglingId === b.businessId}
         onLikeClick={() => void handleLike(b.businessId)}
@@ -309,13 +306,10 @@ export const RestaurantsPage = () => {
                 >
                   <RestaurantCard
                     name={b.businessName}
-                    cuisine={`${b.itemsCount} פריטים • ${b.categoriesCount} קטגוריות`}
                     eta="הזמנה ומשלוח"
-                    priceLevel="הזמנה מהתפריט"
                     distance="—"
                     heroImage={b.logoUrl ?? undefined}
                     tags={matchedDishesByBusiness[b.businessId] ?? []}
-                    likeCount={b.likeCount ?? 0}
                     isLiked={isLiked(b.businessId)}
                     likeDisabled={togglingId === b.businessId}
                     onLikeClick={() => void handleLike(b.businessId)}

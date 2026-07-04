@@ -2,14 +2,11 @@ import { Heart, MapPin, Star, UtensilsCrossed } from 'lucide-react'
 
 type RestaurantCardProps = {
   name: string
-  cuisine: string
   eta: string
   rating?: number | null
-  priceLevel: string
   distance: string
   heroImage?: string | null
   tags?: string[]
-  likeCount?: number
   isLiked?: boolean
   likeDisabled?: boolean
   onLikeClick?: () => void
@@ -17,14 +14,11 @@ type RestaurantCardProps = {
 
 export const RestaurantCard = ({
   name,
-  cuisine,
   eta,
   rating,
-  priceLevel,
   distance,
   heroImage,
   tags = [],
-  likeCount = 0,
   isLiked = false,
   likeDisabled = false,
   onLikeClick,
@@ -32,7 +26,7 @@ export const RestaurantCard = ({
   return (
     <div className="group relative h-full rounded-2xl transition-shadow duration-300 hover:shadow-card-hover sm:rounded-3xl sm:hover:shadow-card-hover-lg">
       <article className="flex h-full flex-col overflow-hidden rounded-[inherit] border border-vantix-cyan/20 bg-vantix-surface-raised transition-colors group-hover:border-vantix-cyan/40">
-      <div className="relative aspect-[2/1] w-full shrink-0 overflow-hidden sm:aspect-[16/9]">
+      <div className="relative aspect-[5/2] w-full shrink-0 overflow-hidden lg:aspect-[2/1]">
         {heroImage ? (
           <img
             src={heroImage}
@@ -55,12 +49,11 @@ export const RestaurantCard = ({
             }}
             disabled={likeDisabled}
             aria-label={isLiked ? 'הסר לייק' : 'הוסף לייק'}
-            className="absolute left-3 top-3 z-10 flex items-center gap-1 rounded-full border border-white/20 bg-vantix-surface-raised/90 px-2.5 py-1.5 text-[11px] font-semibold backdrop-blur transition hover:scale-105 disabled:opacity-50 sm:left-4 sm:top-4"
+            className="absolute left-3 top-3 z-10 flex items-center justify-center rounded-full border border-white/20 bg-vantix-surface-raised/90 p-2 backdrop-blur transition hover:scale-105 disabled:opacity-50 sm:left-4 sm:top-4"
           >
             <Heart
               className={`h-4 w-4 ${isLiked ? 'fill-red-500 text-red-500' : 'text-vantix-fg-muted'}`}
             />
-            {likeCount > 0 && <span className="text-vantix-fg">{likeCount}</span>}
           </button>
         )}
         {rating != null && !Number.isNaN(rating) && (
@@ -71,21 +64,17 @@ export const RestaurantCard = ({
         )}
       </div>
 
-      <div className="flex min-h-[6.75rem] flex-1 flex-col justify-between p-3.5 sm:min-h-[7.25rem] sm:p-4">
-        <header className="flex min-h-0 items-start justify-between gap-2 sm:gap-3">
+      <div className="flex flex-1 flex-col justify-between gap-2 p-3 lg:min-h-[6rem] lg:gap-3 lg:p-4">
+        <header className="flex min-h-0 items-start justify-between gap-2 lg:gap-3">
           <div className="min-w-0 flex-1">
-            <h3 className="truncate font-display text-lg text-vantix-fg sm:text-xl">{name}</h3>
-            <p className="truncate text-xs text-vantix-fg-muted sm:text-sm">{cuisine}</p>
+            <h3 className="truncate font-display text-base text-vantix-fg lg:text-lg">{name}</h3>
           </div>
-          <div className="max-w-[42%] shrink-0 truncate rounded-full border border-vantix-cyan/25 bg-vantix-cyan/10 px-2.5 py-1 text-[11px] font-semibold text-vantix-cyan sm:px-3 sm:py-1 sm:text-xs">
+          <div className="max-w-[42%] shrink-0 truncate rounded-full border border-vantix-cyan/25 bg-vantix-cyan/10 px-2.5 py-1 text-[11px] font-semibold text-vantix-cyan lg:px-3 lg:py-1 lg:text-xs">
             {eta}
           </div>
         </header>
 
-        <div className="flex min-h-0 items-center gap-2 overflow-hidden text-[11px] text-vantix-fg-muted sm:gap-3 sm:text-xs">
-          <span className="truncate rounded-full border border-vantix-cyan/20 px-3 py-1">
-            {priceLevel}
-          </span>
+        <div className="flex min-h-0 items-center gap-2 overflow-hidden text-[11px] text-vantix-fg-muted lg:gap-3 lg:text-xs">
           <span className="flex shrink-0 items-center gap-1">
             <MapPin className="h-3 w-3 text-vantix-cyan" />
             {distance}

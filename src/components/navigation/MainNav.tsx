@@ -1,4 +1,4 @@
-import { ChevronRight, User, UtensilsCrossed, History } from 'lucide-react'
+import { ChevronRight, UtensilsCrossed, History } from 'lucide-react'
 import { Link, NavLink, useLocation, useMatch } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { useAuth } from '../../context/AuthContext'
@@ -106,29 +106,16 @@ export const MainNav = () => {
             <span className="hidden sm:inline">חזרה</span>
           </Link>
         ) : loading ? null : user ? (
-          <>
-            {greetingLabel ? (
-              <span
-                title={displayName}
-                className={`hidden max-w-[100px] shrink overflow-hidden text-ellipsis whitespace-nowrap rounded-full border border-vantix-cyan/20 bg-vantix-surface-raised px-2.5 py-1.5 text-xs font-semibold text-vantix-fg-muted sm:block sm:max-w-[140px] md:max-w-[200px] ${
-                  scrolled ? 'px-3 py-2 text-sm' : ''
-                }`}
-              >
-                {greetingLabel}
-              </span>
-            ) : null}
-            <Link
-              to={ROUTES.PROFILE}
-              className={`vantix-btn-ghost inline-flex shrink-0 items-center justify-center gap-2 ${
-                scrolled
-                  ? 'min-h-[44px] min-w-[44px] px-3 py-2 text-sm sm:min-h-0 sm:min-w-0 sm:px-4'
-                  : 'min-h-[32px] min-w-[32px] px-2 py-1 text-xs sm:min-h-0 sm:min-w-0 sm:px-3'
+          greetingLabel ? (
+            <span
+              title={displayName}
+              className={`hidden max-w-[100px] shrink overflow-hidden text-ellipsis whitespace-nowrap rounded-full border border-vantix-cyan/20 bg-vantix-surface-raised px-2.5 py-1.5 text-xs font-semibold text-vantix-fg-muted sm:block sm:max-w-[140px] md:max-w-[200px] ${
+                scrolled ? 'px-3 py-2 text-sm' : ''
               }`}
-              aria-label="הפרופיל שלי"
             >
-              <User className={scrolled ? 'h-4 w-4 shrink-0' : 'h-3.5 w-3.5 shrink-0'} />
-            </Link>
-          </>
+              {greetingLabel}
+            </span>
+          ) : null
         ) : (
           <Link
             to={ROUTES.AUTH_LOGIN}
