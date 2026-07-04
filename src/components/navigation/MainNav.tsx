@@ -1,4 +1,4 @@
-import { LogOut, ChevronRight, User, UtensilsCrossed, History } from 'lucide-react'
+import { LogOut, ChevronRight, User, UtensilsCrossed, History, Sparkles, Radio } from 'lucide-react'
 import { Link, NavLink, useLocation } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { useAuth } from '../../context/AuthContext'
@@ -9,6 +9,8 @@ import { ThemeToggle } from '../ui/ThemeToggle'
 
 const NAV_LINKS = [
   { to: ROUTES.RESTAURANTS, label: 'מסעדות', end: false, icon: UtensilsCrossed },
+  { to: ROUTES.EXPERIENCES, label: 'חוויות', end: false, icon: Sparkles },
+  { to: ROUTES.LIVE, label: 'לייב', end: false, icon: Radio },
   { to: ROUTES.ORDERS, label: 'ההזמנות שלי', end: false, icon: History },
 ]
 
@@ -51,7 +53,7 @@ export const MainNav = () => {
         </div>
       </Link>
 
-      <div className="flex shrink-0 items-center gap-2 sm:gap-6 lg:gap-8">
+      <div className="hidden shrink-0 items-center gap-2 sm:flex sm:gap-6 lg:gap-8">
         {NAV_LINKS.map((link) => {
           const Icon = link.icon
           return (

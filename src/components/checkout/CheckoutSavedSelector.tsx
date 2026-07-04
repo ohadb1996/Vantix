@@ -7,30 +7,44 @@ import {
 } from '../../hooks/useCustomerProfile'
 import { SavedAddressFormModal } from '../profile/SavedAddressFormModal'
 import { SavedContactFormModal } from '../profile/SavedContactFormModal'
-import { SavedPaymentFormModal } from '../profile/SavedPaymentFormModal'
 import {
   addressTitle,
   addressSummary,
   contactTitle,
   contactSummary,
-  paymentTitle,
   paymentSummary,
 } from '../profile/savedDisplay'
 import type {
   SavedAddress,
   SavedContact,
   SavedPayment,
+  PaymentMethodType,
 } from '../../types/customerProfile'
+import { PAYMENT_METHOD_LABELS } from '../../types/customerProfile'
+import { PaymentMethodPickerModal } from './PaymentMethodPickerModal'
 
 type SelectorProps = {
   selectedContactId?: string
   selectedAddressId?: string
+  selectedPaymentType?: PaymentMethodType
   selectedPaymentId?: string
   onSelectContact: (c: SavedContact) => void
   onSelectAddress: (a: SavedAddress) => void
-  onSelectPayment: (p: SavedPayment) => void
+  onSelectPaymentMethod: (type: PaymentMethodType, card?: SavedPayment) => void
   /** הסתרת בלוק הכתובות (באיסוף עצמי אין צורך בכתובת) */
   hideAddress?: boolean
+}
+
+function paymentSelectionLabel(
+  type?: PaymentMethodType,
+  card?: SavedPayment
+): string {
+  if (!type) return 'לא נבחר אמצעי תשלום'
+  if (type === 'credit') {
+    if (!card) return 'כרטיס אשראי – נא לבחור כרטיס'
+    return card.label ? `${card.label} · ${paymentSummary(card)}` : paymentSummary(card)
+  }
+  return PAYMENT_METHOD_LABELS[type]
 }
 
 function PickerCard({
@@ -117,10 +131,11 @@ const scrollRow = 'flex gap-2 overflow-x-auto pb-1 [scrollbar-width:thin]'
 export function CheckoutSavedSelector({
   selectedContactId,
   selectedAddressId,
+  selectedPaymentType,
   selectedPaymentId,
   onSelectContact,
   onSelectAddress,
-  onSelectPayment,
+  onSelectPaymentMethod,
   hideAddress = false,
 }: SelectorProps) {
   const contacts = useSavedContacts()
@@ -129,10 +144,12 @@ export function CheckoutSavedSelector({
 
   const [contactModal, setContactModal] = useState<SavedContact | null | undefined>(undefined)
   const [addressModal, setAddressModal] = useState<SavedAddress | null | undefined>(undefined)
-  const [paymentModal, setPaymentModal] = useState<SavedPayment | null | undefined>(undefined)
+  const [paymentPickerOpen, setPaymentPickerOpen] = useState(false)
+
+  const selectedCard = payments.items.find((p) => p.id === selectedPaymentId)
 
   // החלת ברירות מחדל פעם אחת כשהרשימות נטענות (צ'קאאוט מהיר)
-  const applied = useRef({ c: false, a: false, p: false })
+  const applied = useRef({ c: false, a: false })
   useEffect(() => {
     if (!applied.current.c && !selectedContactId && contacts.items.length) {
       applied.current.c = true
@@ -142,12 +159,8 @@ export function CheckoutSavedSelector({
       applied.current.a = true
       onSelectAddress(addresses.items.find((i) => i.isDefault) ?? addresses.items[0])
     }
-    if (!applied.current.p && !selectedPaymentId && payments.items.length) {
-      applied.current.p = true
-      onSelectPayment(payments.items.find((i) => i.isDefault) ?? payments.items[0])
-    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [contacts.items, addresses.items, payments.items])
+  }, [contacts.items, addresses.items])
 
   const hasAny = contacts.items.length || addresses.items.length || payments.items.length
 
@@ -213,27 +226,20 @@ export function CheckoutSavedSelector({
 
       {/* אמצעי תשלום */}
       <div>
-        <BlockHeader
-          icon={<CreditCard className="h-4 w-4 text-vantix-cyan" />}
-          label="אמצעי תשלום"
-          onAdd={() => setPaymentModal(null)}
-        />
-        {payments.items.length === 0 ? (
-          <p className="text-xs text-vantix-fg-subtle">אין אמצעי תשלום שמורים</p>
-        ) : (
-          <div className={scrollRow}>
-            {payments.items.map((p) => (
-              <PickerCard
-                key={p.id}
-                title={paymentTitle(p)}
-                summary={paymentSummary(p)}
-                selected={selectedPaymentId === p.id}
-                onSelect={() => onSelectPayment(p)}
-                onEdit={() => setPaymentModal(p)}
-              />
-            ))}
-          </div>
-        )}
+        <div className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-vantix-fg">
+          <CreditCard className="h-4 w-4 text-vantix-cyan" />
+          אמצעי תשלום
+        </div>
+        <button
+          type="button"
+          onClick={() => setPaymentPickerOpen(true)}
+          className="flex w-full items-center justify-between rounded-xl border border-vantix-cyan/20 bg-vantix-surface px-4 py-3 text-right transition hover:border-vantix-cyan/40"
+        >
+          <span className={`text-sm ${selectedPaymentType ? 'text-vantix-fg' : 'text-vantix-fg-subtle'}`}>
+            {paymentSelectionLabel(selectedPaymentType, selectedCard)}
+          </span>
+          <span className="text-xs text-vantix-cyan">שינוי</span>
+        </button>
       </div>
 
       {contactModal !== undefined && (
@@ -256,6 +262,7 @@ export function CheckoutSavedSelector({
 
       {addressModal !== undefined && (
         <SavedAddressFormModal
+          key={addressModal?.id ?? 'new'}
           initial={addressModal}
           saving={addresses.isSaving}
           onClose={() => setAddressModal(undefined)}
@@ -272,20 +279,24 @@ export function CheckoutSavedSelector({
         />
       )}
 
-      {paymentModal !== undefined && (
-        <SavedPaymentFormModal
-          initial={paymentModal}
+      {paymentPickerOpen && (
+        <PaymentMethodPickerModal
+          cards={payments.items}
+          selectedType={selectedPaymentType}
+          selectedCardId={selectedPaymentId}
           saving={payments.isSaving}
-          onClose={() => setPaymentModal(undefined)}
-          onSubmit={async (data) => {
-            if (paymentModal) {
-              await payments.update(paymentModal.id, data)
-              onSelectPayment({ ...paymentModal, ...data })
-            } else {
-              const id = await payments.add(data)
-              onSelectPayment({ id, ...data })
+          onClose={() => setPaymentPickerOpen(false)}
+          onSelectMethod={onSelectPaymentMethod}
+          onAddCard={async (data) => {
+            const id = await payments.add(data)
+            return { id, ...data }
+          }}
+          onUpdateCard={payments.update}
+          onDeleteCard={async (id) => {
+            await payments.remove(id)
+            if (selectedPaymentId === id) {
+              onSelectPaymentMethod('credit')
             }
-            setPaymentModal(undefined)
           }}
         />
       )}

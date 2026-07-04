@@ -111,12 +111,18 @@ export function useCart(businessId: string | undefined, menuItems: Record<string
   }, [])
 
   /**
-   * עריכת תתי-הפריטים (האופציות) של שורה קיימת בעגלה, מבלי להסיר אותה.
-   * מזהים את השורה לפי itemId + טביעת האצבע של האופציות הישנות.
-   * אם הבחירה החדשה זהה לשורה אחרת קיימת – ממזגים כמויות.
+   * עריכת תתי-הפריטים (האופציות) של שורה קיימת בעגלה.
+   * ברירת מחדל: עורכים יחידה אחת בלבד (כדי לאפשר פיצול, למשל 2 המבורגרים
+   * כשאחד עם גבינה והשני בלי).
+   * אם הבחירה החדשה זהה לשורה אחרת קיימת – ממזגים אליה את היחידה שנערכה.
    */
   const updateLineOptions = useCallback(
-    (itemId: string, oldOptions: CartSelectedOption[] | undefined, newOptions: CartSelectedOption[] | undefined) => {
+    (
+      itemId: string,
+      oldOptions: CartSelectedOption[] | undefined,
+      newOptions: CartSelectedOption[] | undefined,
+      quantityToUpdate = 1
+    ) => {
       setCart((prev) => {
         const oldFp = optionsFingerprint(oldOptions)
         const idx = prev.findIndex(
@@ -124,6 +130,7 @@ export function useCart(businessId: string | undefined, menuItems: Record<string
         )
         if (idx < 0) return prev
         const line = prev[idx]
+        const amount = Math.max(1, Math.min(quantityToUpdate, line.quantity))
         const newFp = optionsFingerprint(newOptions)
         if (newFp === oldFp) {
           const next = [...prev]
@@ -133,9 +140,20 @@ export function useCart(businessId: string | undefined, menuItems: Record<string
         const mergeIdx = prev.findIndex(
           (l, j) => j !== idx && l.item.id === itemId && optionsFingerprint(l.selectedOptions) === newFp
         )
-        if (mergeIdx >= 0) {
+        // לא מעדכנים את כל השורה כשיש כמות > 1: מפצלים רק את הכמות שנערכה.
+        if (line.quantity > amount) {
+          const next = [...prev]
+          next[idx] = { ...line, quantity: line.quantity - amount }
+          if (mergeIdx >= 0) {
+            next[mergeIdx] = { ...next[mergeIdx], quantity: next[mergeIdx].quantity + amount }
+          } else {
+            next.push({ item: line.item, quantity: amount, selectedOptions: newOptions })
+          }
+          return next
+        }
+        if (mergeIdx >= 0 && line.quantity <= amount) {
           return prev
-            .map((l, j) => (j === mergeIdx ? { ...l, quantity: l.quantity + line.quantity } : l))
+            .map((l, j) => (j === mergeIdx ? { ...l, quantity: l.quantity + amount } : l))
             .filter((_, j) => j !== idx)
         }
         const next = [...prev]

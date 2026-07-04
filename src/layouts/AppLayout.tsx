@@ -1,5 +1,6 @@
 import { Outlet, useLocation } from 'react-router-dom'
 import { MainNav } from '../components/navigation/MainNav'
+import { BottomTabBar } from '../components/navigation/BottomTabBar'
 import { ScrollToTop } from '../components/navigation/ScrollToTop'
 import { useScrolled } from '../hooks/useScrolled'
 
@@ -23,9 +24,11 @@ export const AppLayout = () => {
         <MainNav />
       </header>
 
-      <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-8 px-3 pb-24 sm:gap-12 sm:px-6 sm:pb-32 lg:px-10">
+      <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-8 px-3 pb-28 sm:gap-12 sm:px-6 sm:pb-32 lg:px-10">
         <Outlet />
       </main>
+
+      <BottomTabBar />
     </div>
   )
 }

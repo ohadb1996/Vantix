@@ -9,18 +9,46 @@ import { isValidIsraeliPhone } from '../../utils/phone'
 import { ShoppingCart, Plus, Minus, Loader2, Check, ArrowRight, X, User, MapPin, CreditCard, Pencil, Search, Truck, Store } from 'lucide-react'
 import { useMenu } from '../../hooks/useMenu'
 import { useCart, type CartLine, type CartSelectedOption } from '../../hooks/useCart'
+import { useAuth } from '../../context/AuthContext'
+import { useToast } from '../../components/ui/Toast'
+import { haptic } from '../../lib/native'
 import { ROUTES } from '../../constants/app'
 import { CheckoutSavedSelector } from '../../components/checkout/CheckoutSavedSelector'
-import { PAYMENT_METHOD_LABELS, type SavedAddress, type SavedContact, type SavedPayment } from '../../types/customerProfile'
+import { PAYMENT_METHOD_LABELS, type SavedAddress, type SavedContact, type SavedPayment, type PaymentMethodType } from '../../types/customerProfile'
+import { paymentSummary } from '../../components/profile/savedDisplay'
 
 export const RestaurantMenuPage = () => {
   const { businessId } = useParams<{ businessId: string }>()
   const navigate = useNavigate()
   const { menu, businessName, businessLogoUrl, businessPickupAddress, isLoading: loading } = useMenu(businessId)
   const { cart, addToCart, removeFromCart, updateLineOptions, clearCart, totalItems, totalPrice } = useCart(businessId, menu?.items ?? null)
+  const { user } = useAuth()
+  const toast = useToast()
+
+  /** הוספה לעגלה עם משוב מישושי (רטט) במובייל. */
+  const addLine = useCallback(
+    (item: MenuItem, opts?: CartSelectedOption[]) => {
+      void haptic.light()
+      addToCart(item, opts)
+    },
+    [addToCart],
+  )
+
+  /** פתיחת מסך התשלום — דורש התחברות; אחרת מפנה להתחברות ומחזיר לכאן. */
+  const openCheckout = useCallback(() => {
+    if (!businessId) return
+    if (!user) {
+      toast.info('כדי להשלים הזמנה צריך להתחבר')
+      navigate(ROUTES.AUTH_LOGIN, {
+        state: { from: { pathname: ROUTES.RESTAURANT_MENU(businessId) } },
+      })
+      return
+    }
+    void haptic.medium()
+    setShowCheckout(true)
+  }, [businessId, user, toast, navigate])
 
   const [placing, setPlacing] = useState(false)
-  const [orderDone, setOrderDone] = useState<string | null>(null)
   const [showCheckout, setShowCheckout] = useState(false)
   const [showCartPanel, setShowCartPanel] = useState(false)
   // אופן מימוש ההזמנה: משלוח או איסוף עצמי
@@ -30,6 +58,7 @@ export const RestaurantMenuPage = () => {
   const categorySectionRefs = useRef<Map<string, HTMLElement>>(new Map())
   const categoryTabsRef = useRef<HTMLDivElement>(null)
   const isTabClickScrolling = useRef(false)
+  const submitErrorRef = useRef<HTMLParagraphElement>(null)
   const [addItemModal, setAddItemModal] = useState<MenuItem | null>(null)
   const [sectionSelections, setSectionSelections] = useState<Record<string, string | string[]>>({})
   // כשעורכים שורה קיימת בעגלה – שומרים את האופציות הישנות כדי לזהות את השורה
@@ -50,6 +79,7 @@ export const RestaurantMenuPage = () => {
   const [selectedContactId, setSelectedContactId] = useState<string>()
   const [selectedAddressId, setSelectedAddressId] = useState<string>()
   const [selectedPaymentId, setSelectedPaymentId] = useState<string>()
+  const [selectedPaymentType, setSelectedPaymentType] = useState<PaymentMethodType>()
   const [paymentMethod, setPaymentMethod] = useState<string>('')
 
   const applyContact = useCallback((c: SavedContact) => {
@@ -76,9 +106,16 @@ export const RestaurantMenuPage = () => {
     }))
   }, [])
 
-  const applyPayment = useCallback((p: SavedPayment) => {
-    setSelectedPaymentId(p.id)
-    setPaymentMethod(p.label || PAYMENT_METHOD_LABELS[p.type])
+  const applyPaymentMethod = useCallback((type: PaymentMethodType, card?: SavedPayment) => {
+    setSelectedPaymentType(type)
+    if (type === 'credit' && card) {
+      setSelectedPaymentId(card.id)
+      const label = card.label ? `${card.label} · ` : ''
+      setPaymentMethod(`${label}${paymentSummary(card)}`)
+    } else {
+      setSelectedPaymentId(undefined)
+      setPaymentMethod(PAYMENT_METHOD_LABELS[type])
+    }
   }, [])
 
   const validate = useCallback((): boolean => {
@@ -87,17 +124,20 @@ export const RestaurantMenuPage = () => {
     const phone = form.customer_phone.trim()
     const city = form.delivery_city.trim()
     const street = form.delivery_street.trim()
-    const building = form.delivery_building_number.trim()
     if (!name || !phone) {
       err._submit = 'נא לבחור או להוסיף פרטים אישיים (שם וטלפון) למעלה'
     } else if (!isValidIsraeliPhone(phone)) {
       err._submit = 'מספר הטלפון בפרטים שנבחרו אינו תקין – ערוך אותו למעלה'
-    } else if (fulfillment === 'delivery' && (!city || !street || !building)) {
-      err._submit = 'נא לבחור או להוסיף כתובת למשלוח למעלה'
+    } else if (fulfillment === 'delivery' && (!city || !street)) {
+      err._submit = 'נא לבחור או להוסיף כתובת מלאה למשלוח למעלה'
+    } else if (!selectedPaymentType) {
+      err._submit = 'נא לבחור אמצעי תשלום'
+    } else if (selectedPaymentType === 'credit' && !selectedPaymentId) {
+      err._submit = 'נא לבחור כרטיס אשראי'
     }
     setFormErrors(err)
     return Object.keys(err).length === 0
-  }, [form, fulfillment])
+  }, [form, fulfillment, selectedPaymentType, selectedPaymentId])
 
   const categoriesList = useMemo(() => {
     if (!menu?.categories) return []
@@ -187,7 +227,12 @@ export const RestaurantMenuPage = () => {
 
   const handlePlaceOrder = async () => {
     if (!businessId || cart.length === 0) return
-    if (!validate()) return
+    if (!validate()) {
+      requestAnimationFrame(() => {
+        submitErrorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+      })
+      return
+    }
     setPlacing(true)
     setFormErrors({})
     try {
@@ -199,7 +244,7 @@ export const RestaurantMenuPage = () => {
         selectedOptions: l.selectedOptions?.map((o) => ({
           sectionTitle: o.sectionTitle,
           optionLabel: o.optionLabel,
-          priceCents: o.priceCents,
+          ...(o.priceCents != null ? { priceCents: o.priceCents } : {}),
         })),
       }))
       const order: OrderCreate = {
@@ -213,23 +258,37 @@ export const RestaurantMenuPage = () => {
           ? {
               delivery_city: form.delivery_city.trim(),
               delivery_street: form.delivery_street.trim(),
-              delivery_building_number: form.delivery_building_number.trim(),
-              delivery_floor: form.delivery_floor?.trim() || undefined,
-              delivery_apartment: form.delivery_apartment?.trim() || undefined,
-              delivery_building_code: form.delivery_building_code?.trim() || undefined,
+              ...(form.delivery_building_number.trim() && {
+                delivery_building_number: form.delivery_building_number.trim(),
+              }),
+              ...(form.delivery_floor?.trim() && { delivery_floor: form.delivery_floor.trim() }),
+              ...(form.delivery_apartment?.trim() && { delivery_apartment: form.delivery_apartment.trim() }),
+              ...(form.delivery_building_code?.trim() && {
+                delivery_building_code: form.delivery_building_code.trim(),
+              }),
             }
           : {}),
-        delivery_notes: form.delivery_notes?.trim() || undefined,
+        ...(form.delivery_notes?.trim() && { delivery_notes: form.delivery_notes.trim() }),
         ...(paymentMethod.trim() && { payment_method: paymentMethod.trim() }),
         items,
         status: 'new',
       }
-      await placeOrder(order)
-      setOrderDone('ok')
+      const orderId = await placeOrder(order)
       clearCart()
       setShowCheckout(false)
-    } catch {
-      setFormErrors({ _submit: 'שגיאה בשליחת ההזמנה. נסה שוב.' })
+      toast.success('ההזמנה נשלחה! אפשר לעקוב אחריה כאן.')
+      navigate(ROUTES.ORDER_TRACKING(orderId))
+    } catch (e: unknown) {
+      const err = e as { code?: string; message?: string }
+      const isPermissionDenied =
+        err?.code === 'PERMISSION_DENIED' ||
+        err?.message?.includes('PERMISSION_DENIED') ||
+        err?.message?.includes('permission_denied')
+      const message = isPermissionDenied
+        ? 'אין הרשאה לשלוח הזמנה. ודאו שהתחברתם לחשבון ונסו שוב.'
+        : 'שגיאה בשליחת ההזמנה. נסו שוב.'
+      setFormErrors({ _submit: message })
+      toast.error(message)
     } finally {
       setPlacing(false)
     }
@@ -284,7 +343,7 @@ export const RestaurantMenuPage = () => {
       setAddItemModal(item)
       setSectionSelections({})
     } else {
-      addToCart(item)
+      addLine(item)
     }
   }
 
@@ -328,7 +387,7 @@ export const RestaurantMenuPage = () => {
     if (editingOldOptions !== null) {
       updateLineOptions(addItemModal.id, editingOldOptions, selectedOptions)
     } else {
-      addToCart(addItemModal, selectedOptions.length ? selectedOptions : undefined)
+      addLine(addItemModal, selectedOptions.length ? selectedOptions : undefined)
     }
     closeItemModal()
   }
@@ -420,7 +479,7 @@ export const RestaurantMenuPage = () => {
                         <span className="w-6 text-center font-medium">{l.quantity}</span>
                         <button
                           type="button"
-                          onClick={() => addToCart(l.item, l.selectedOptions)}
+                          onClick={() => addLine(l.item, l.selectedOptions)}
                           className="p-1.5 rounded-lg text-vantix-fg-muted hover:bg-vantix-cyan/10 hover:text-vantix-cyan"
                           aria-label={`הוסף כמות ${l.item.name}`}
                         >
@@ -442,7 +501,7 @@ export const RestaurantMenuPage = () => {
               </p>
               <button
                 type="button"
-                onClick={() => { setShowCartPanel(false); setShowCheckout(true) }}
+                onClick={() => { setShowCartPanel(false); openCheckout() }}
                 className="w-full flex items-center justify-center gap-2 rounded-xl bg-vantix-orange dark:bg-vantix-cyan text-white dark:text-black py-3.5 font-semibold hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-vantix-cyan focus:ring-offset-2"
               >
                 להזמנה
@@ -481,38 +540,6 @@ export const RestaurantMenuPage = () => {
         </div>
       </div>
 
-      {orderDone && (
-        <div
-          className="rounded-2xl border border-green-200 bg-green-50 p-5 text-green-800 flex flex-col gap-4"
-          role="status"
-        >
-          <div className="flex items-center gap-3">
-            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-green-200">
-              <Check className="h-6 w-6 text-green-700" />
-            </span>
-            <div>
-              <p className="font-semibold">ההזמנה נשלחה</p>
-              <p className="text-sm text-green-700/90">בעל העסק קיבל התראה ויוכל ליצור משלוח מהאפליקציה.</p>
-            </div>
-          </div>
-          <div className="flex gap-3">
-            <button
-              type="button"
-              onClick={() => setOrderDone(null)}
-              className="flex-1 rounded-xl border-2 border-green-300 bg-vantix-surface-raised py-2.5 font-medium text-green-800 hover:bg-green-50"
-            >
-              הזמנה נוספת
-            </button>
-            <button
-              type="button"
-              onClick={() => navigate(ROUTES.RESTAURANTS)}
-              className="flex-1 rounded-xl bg-green-600 py-2.5 font-medium text-white hover:bg-green-700"
-            >
-              חזרה למסעדות
-            </button>
-          </div>
-        </div>
-      )}
 
       <div className="grid gap-8 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-6">
@@ -737,7 +764,7 @@ export const RestaurantMenuPage = () => {
                             <span className="w-6 text-center font-medium">{l.quantity}</span>
                             <button
                               type="button"
-                              onClick={() => addToCart(l.item, l.selectedOptions)}
+                              onClick={() => addLine(l.item, l.selectedOptions)}
                               className="p-1.5 rounded-lg text-vantix-fg-muted hover:bg-vantix-cyan/10 hover:text-vantix-cyan"
                               aria-label={`הוסף כמות ${l.item.name}`}
                             >
@@ -758,7 +785,7 @@ export const RestaurantMenuPage = () => {
                 </p>
                 <button
                   type="button"
-                  onClick={() => setShowCheckout(true)}
+                  onClick={openCheckout}
                   className="mt-3 w-full flex items-center justify-center gap-2 rounded-xl bg-vantix-orange dark:bg-vantix-cyan text-white dark:text-black py-3.5 font-semibold hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-vantix-cyan focus:ring-offset-2"
                 >
                   להזמנה
@@ -852,7 +879,7 @@ export const RestaurantMenuPage = () => {
             )}
 
             {formErrors._submit && (
-              <p className="mb-4 rounded-lg bg-red-50 border border-red-200 text-red-700 px-3 py-2 text-sm">
+              <p className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-400">
                 {formErrors._submit}
               </p>
             )}
@@ -860,10 +887,11 @@ export const RestaurantMenuPage = () => {
             <CheckoutSavedSelector
               selectedContactId={selectedContactId}
               selectedAddressId={selectedAddressId}
+              selectedPaymentType={selectedPaymentType}
               selectedPaymentId={selectedPaymentId}
               onSelectContact={applyContact}
               onSelectAddress={applyAddress}
-              onSelectPayment={applyPayment}
+              onSelectPaymentMethod={applyPaymentMethod}
               hideAddress={fulfillment === 'pickup'}
             />
 
@@ -906,7 +934,16 @@ export const RestaurantMenuPage = () => {
                 בחר פרטים אישיים וכתובת מהחלק העליון, או הוסף חדשים בלחיצה על &quot;חדש&quot;.
               </p>
             )}
-            <div className="mt-6 flex gap-3">
+            <div className="mt-6 flex flex-col gap-3">
+              {formErrors._submit && (
+                <p
+                  ref={submitErrorRef}
+                  className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-400"
+                >
+                  {formErrors._submit}
+                </p>
+              )}
+              <div className="flex gap-3">
               <button
                 type="button"
                 onClick={() => { setShowCheckout(false); setFormErrors({}) }}
@@ -924,6 +961,7 @@ export const RestaurantMenuPage = () => {
                 {placing ? <Loader2 className="h-5 w-5 animate-spin" /> : <Check className="h-5 w-5" />}
                 שליחת הזמנה
               </button>
+              </div>
             </div>
             </div>
           </motion.div>

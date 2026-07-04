@@ -6,6 +6,7 @@ import {
   useState,
   type ReactNode,
 } from 'react'
+import { setStatusBarTheme } from '../lib/native'
 
 export type ThemeMode = 'light' | 'dark'
 
@@ -51,6 +52,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     applyThemeToDocument(theme)
+    void setStatusBarTheme(theme)
     try {
       window.localStorage.setItem(VANTIX_THEME_STORAGE_KEY, theme)
     } catch {

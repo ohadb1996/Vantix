@@ -4,6 +4,7 @@ import { HomePage } from '../screens/home/HomePage'
 import { RestaurantsPage } from '../screens/restaurants/RestaurantsPage'
 import { RestaurantMenuPage } from '../screens/restaurants/RestaurantMenuPage'
 import { OrderHistoryPage } from '../screens/orders/OrderHistoryPage'
+import { OrderTrackingPage } from '../screens/orders/OrderTrackingPage'
 import { ProfilePage } from '../screens/profile/ProfilePage'
 import { ExperiencesPage } from '../screens/experiences/ExperiencesPage'
 import { LivePage } from '../screens/live/LivePage'
@@ -22,16 +23,21 @@ export const router = createBrowserRouter([
         element: <HomePage />,
       },
       {
+        // גלישה חופשית ללא התחברות — ההתחברות נדרשת רק בשלב התשלום (checkout).
         path: 'restaurants',
-        element: <AuthGuard><RestaurantsPage /></AuthGuard>,
+        element: <RestaurantsPage />,
       },
       {
         path: 'restaurants/:businessId',
-        element: <AuthGuard><RestaurantMenuPage /></AuthGuard>,
+        element: <RestaurantMenuPage />,
       },
       {
         path: 'orders',
         element: <OrderHistoryPage />,
+      },
+      {
+        path: 'orders/:orderId',
+        element: <AuthGuard><OrderTrackingPage /></AuthGuard>,
       },
       {
         path: 'profile',

@@ -37,6 +37,8 @@ export interface Order {
   status: 'new' | 'accepted' | 'delivery_created' | 'cancelled'
   createdAt: string
   created_by_uid?: string
+  /** מזהה משלוח ב-RTDB – נכתב כשבעל העסק יוצר משלוח מההזמנה */
+  delivery_id?: string
   /** אמצעי תשלום שבחר הלקוח (תצוגה בלבד – אין עיבוד תשלום באפליקציה) */
   payment_method?: string
 }

@@ -166,6 +166,7 @@ export function AddressesSection() {
 
       {editing !== undefined && (
         <SavedAddressFormModal
+          key={editing?.id ?? 'new'}
           initial={editing}
           saving={isSaving}
           onClose={() => setEditing(undefined)}
@@ -235,7 +236,7 @@ export function PaymentsSection() {
 
   return (
     <SectionShell
-      title="אמצעי תשלום"
+      title="כרטיסי אשראי"
       icon={<CreditCard className="h-5 w-5 text-vantix-cyan" />}
       addLabel="הוסף"
       onAdd={() => setEditing(null)}
@@ -243,7 +244,7 @@ export function PaymentsSection() {
       {isLoading ? (
         <Loading />
       ) : items.length === 0 ? (
-        <EmptyState text="אין אמצעי תשלום שמורים. הוסף אמצעי תשלום לבחירה מהירה בהזמנה." />
+        <EmptyState text="אין כרטיסי אשראי שמורים. הוסף כרטיס לבחירה מהירה בהזמנה." />
       ) : (
         <div className="space-y-2">
           {items.map((p) => (
@@ -254,7 +255,7 @@ export function PaymentsSection() {
               isDefault={p.isDefault}
               onEdit={() => setEditing(p)}
               onDelete={() => {
-                if (confirm('למחוק את אמצעי התשלום?')) void remove(p.id)
+                if (confirm('למחוק את כרטיס האשראי?')) void remove(p.id)
               }}
               onSetDefault={() => void setDefault(p.id)}
             />

@@ -116,3 +116,35 @@ body {
     @apply bg-vantix-surface-raised;
   }
 }
+
+/*
+ * Google Maps InfoWindow – שקוף כמו vantix-pop ב-partners (Leaflet).
+ * הכרטיס הפנימי שלנו הוא המשטח הזכוכיתי היחיד.
+ */
+.gm-style-iw,
+.gm-style-iw-c {
+  padding: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  max-width: none !important;
+}
+.gm-style-iw-d {
+  overflow: visible !important;
+  max-height: none !important;
+  max-width: none !important;
+  width: auto !important;
+}
+.gm-style-iw-ch {
+  max-width: none !important;
+}
+.gm-style-iw-chr {
+  display: none !important;
+}
+.gm-style .gm-style-iw-tc {
+  display: none !important;
+}
+.vantix-gmaps-popup {
+  display: inline-block;
+  width: fit-content;
+  max-width: min(90vw, 220px);
+}

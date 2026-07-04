@@ -2,13 +2,29 @@
  * שירות הזמנות ותפריטים – Realtime Database בלבד (אותו DB כמו maxDelivery-partners).
  * רשימת מסעדות: אם קריאה ישירה נחסמת (כללי אבטחה), משתמשים ב-Cloud Function ציבורית.
  */
-import { ref, get, push, set, query, orderByChild, equalTo } from 'firebase/database'
+import { ref, get, push, set, query, orderByChild, equalTo, onValue, off } from 'firebase/database'
 import { getRealtimeDb, getFirebaseAuth, getFirebaseApp } from '../lib/firebase'
 import { normalizeIsraeliPhone } from '../utils/phone'
 import type { Order, OrderCreate } from '../types/order'
 import type { BusinessMenu } from '../types/menu'
+import type { BusinessLocationInfo, CourierLocation, TrackedDelivery } from '../types/tracking'
 
 const db = () => getRealtimeDb()
+
+/** RTDB לא מקבל undefined – מסיר רקursively לפני כתיבה */
+function cleanForRtdb<T>(value: T): T {
+  if (value === undefined) return value
+  if (value === null || typeof value !== 'object') return value
+  if (Array.isArray(value)) {
+    return value.map((item) => cleanForRtdb(item)) as T
+  }
+  const out: Record<string, unknown> = {}
+  for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+    if (v === undefined) continue
+    out[k] = cleanForRtdb(v)
+  }
+  return out as T
+}
 
 export interface BusinessWithMenu {
   businessId: string
@@ -131,16 +147,16 @@ export async function getBusinessMenu(businessId: string): Promise<BusinessMenu 
 export async function placeOrder(order: OrderCreate): Promise<string> {
   const auth = getFirebaseAuth()
   const uid = auth.currentUser?.uid
-  const payload: Omit<Order, 'orderId'> = {
+  const payload = cleanForRtdb({
     ...order,
     customer_phone: normalizeIsraeliPhone(order.customer_phone),
-    status: 'new',
+    status: 'new' as const,
     createdAt: new Date().toISOString(),
-    ...(uid && { created_by_uid: uid }),
-  }
+    ...(uid ? { created_by_uid: uid } : {}),
+  })
 
   const ordersRef = ref(db(), 'Orders')
-  const newRef = await push(ordersRef)
+  const newRef = push(ordersRef)
   const orderId = newRef.key
   if (!orderId) throw new Error('Failed to create order')
 
@@ -152,6 +168,92 @@ export async function placeOrder(order: OrderCreate): Promise<string> {
  * היסטוריית הזמנות של המשתמש המחובר (created_by_uid).
  * דורש אינדקס ב-Firebase: Orders, orderBy: created_by_uid
  */
+export async function getOrder(orderId: string): Promise<Order | null> {
+  const snap = await get(ref(db(), `Orders/${orderId}`))
+  if (!snap.exists()) return null
+  return { ...(snap.val() as Omit<Order, 'orderId'>), orderId }
+}
+
+export function subscribeToOrder(
+  orderId: string,
+  onData: (order: Order | null) => void,
+  onError?: (err: Error) => void
+): () => void {
+  const orderRef = ref(db(), `Orders/${orderId}`)
+  const handler = (snap: { exists: () => boolean; val: () => unknown }) => {
+    if (!snap.exists()) {
+      onData(null)
+      return
+    }
+    onData({ ...(snap.val() as Omit<Order, 'orderId'>), orderId })
+  }
+  const errHandler = (e: Error) => onError?.(e)
+  onValue(orderRef, handler, errHandler)
+  return () => off(orderRef, 'value', handler)
+}
+
+export function subscribeToDelivery(
+  deliveryId: string,
+  onData: (delivery: TrackedDelivery | null) => void,
+  onError?: (err: Error) => void
+): () => void {
+  const deliveryRef = ref(db(), `Deliveries/${deliveryId}`)
+  const handler = (snap: { exists: () => boolean; val: () => unknown }) => {
+    if (!snap.exists()) {
+      onData(null)
+      return
+    }
+    const val = snap.val() as Record<string, unknown>
+    onData({ id: deliveryId, ...val } as TrackedDelivery)
+  }
+  const errHandler = (e: Error) => onError?.(e)
+  onValue(deliveryRef, handler, errHandler)
+  return () => off(deliveryRef, 'value', handler)
+}
+
+export function subscribeToCourierOnDelivery(
+  deliveryId: string,
+  onData: (location: CourierLocation | null) => void
+): () => void {
+  const locRef = ref(db(), `Deliveries/${deliveryId}/courier_current_location`)
+  const handler = (snap: { exists: () => boolean; val: () => unknown }) => {
+    if (!snap.exists()) {
+      onData(null)
+      return
+    }
+    const val = snap.val() as { lat?: number; lng?: number; timestamp?: number }
+    if (typeof val.lat === 'number' && typeof val.lng === 'number') {
+      onData({ lat: val.lat, lng: val.lng, timestamp: val.timestamp })
+    } else {
+      onData(null)
+    }
+  }
+  onValue(locRef, handler)
+  return () => off(locRef, 'value', handler)
+}
+
+export async function getBusinessLocation(businessId: string): Promise<BusinessLocationInfo | null> {
+  const snap = await get(ref(db(), `Businesses/${businessId}`))
+  if (!snap.exists()) return null
+  const data = snap.val() as Record<string, unknown>
+  const streetLine = [data.business_street, data.business_building_number].filter(Boolean).join(' ')
+  const address =
+    (typeof data.business_address === 'string' && data.business_address) ||
+    [streetLine, data.business_city].filter(Boolean).join(', ') ||
+    ''
+  const coords =
+    (data.business_coordinates as { lat?: number; lng?: number } | undefined) ||
+    (data.location as { lat?: number; lng?: number } | undefined)
+  return {
+    name: String(data.business_name || ''),
+    address,
+    coordinates:
+      coords && typeof coords.lat === 'number' && typeof coords.lng === 'number'
+        ? { lat: coords.lat, lng: coords.lng }
+        : null,
+  }
+}
+
 export async function getMyOrders(uid: string): Promise<Order[]> {
   const q = query(
     ref(db(), 'Orders'),

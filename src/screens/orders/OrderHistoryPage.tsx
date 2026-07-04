@@ -127,10 +127,16 @@ export const OrderHistoryPage = () => {
                   </p>
                 ) : null}
                 <Link
-                  to={ROUTES.RESTAURANT_MENU(order.business_id)}
+                  to={order.orderId ? ROUTES.ORDER_TRACKING(order.orderId) : ROUTES.ORDERS}
                   className="mt-3 inline-block text-sm font-medium text-vantix-cyan hover:underline"
                 >
-                  להזמין שוב מהעסק
+                  מעקב אחרי ההזמנה
+                </Link>
+                <Link
+                  to={ROUTES.RESTAURANT_MENU(order.business_id)}
+                  className="mt-1 mr-4 inline-block text-sm text-vantix-fg-subtle hover:text-vantix-cyan hover:underline"
+                >
+                  להזמין שוב
                 </Link>
               </li>
             )

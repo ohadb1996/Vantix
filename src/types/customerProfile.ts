@@ -37,10 +37,14 @@ export type PaymentMethodType = 'cash' | 'credit' | 'bit' | 'gpay' | 'apay'
 export interface SavedPayment {
   id: string
   type: PaymentMethodType
-  /** כינוי ידידותי – "ויזה אישית" וכו' (לא נשמרים פרטי כרטיס רגישים) */
+  /** כינוי ידידותי – "ויזה אישית" וכו' */
   label?: string
-  /** 4 ספרות אחרונות לתצוגה בלבד (אופציונלי) */
+  /** 4 ספרות אחרונות לתצוגה בלבד */
   last4?: string
+  /** ת.ז של בעל הכרטיס (לצורך הזמנה) */
+  holderId?: string
+  expiryMonth?: string
+  expiryYear?: string
   isDefault?: boolean
   createdAt?: string
 }
@@ -57,3 +61,11 @@ export const PAYMENT_METHOD_LABELS: Record<PaymentMethodType, string> = {
 export const PAYMENT_METHOD_OPTIONS: { type: PaymentMethodType; label: string }[] = (
   Object.keys(PAYMENT_METHOD_LABELS) as PaymentMethodType[]
 ).map((type) => ({ type, label: PAYMENT_METHOD_LABELS[type] }))
+
+/** אפשרויות בחירה בצ'קאאוט – לפי סדר התצוגה */
+export const CHECKOUT_PAYMENT_OPTIONS: { type: PaymentMethodType; label: string }[] = [
+  { type: 'gpay', label: PAYMENT_METHOD_LABELS.gpay },
+  { type: 'apay', label: PAYMENT_METHOD_LABELS.apay },
+  { type: 'cash', label: PAYMENT_METHOD_LABELS.cash },
+  { type: 'credit', label: PAYMENT_METHOD_LABELS.credit },
+]

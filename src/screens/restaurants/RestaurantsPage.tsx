@@ -1,8 +1,10 @@
-import { useMemo, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ChevronLeft, ChevronRight, Heart, Search, UtensilsCrossed } from 'lucide-react'
 import { RestaurantCard } from '../../components/cards/RestaurantCard'
+import { useToast } from '../../components/ui/Toast'
+import { haptic } from '../../lib/native'
 import { ReelsFeed } from '../../components/reels/ReelsFeed'
 import { useRestaurants } from '../../hooks/useRestaurants'
 import { useReels } from '../../hooks/useReels'
@@ -39,12 +41,17 @@ type CategorySection = {
 }
 
 export const RestaurantsPage = () => {
-  const [searchQuery, setSearchQuery] = useState('')
-  const [likeMessage, setLikeMessage] = useState<string | null>(null)
+  const [searchParams] = useSearchParams()
+  const [searchQuery, setSearchQuery] = useState(() => searchParams.get('q') ?? '')
+  const toast = useToast()
   const { data: businesses, isLoading, error, refetch, isRefetching } = useRestaurants()
   const { data: reels } = useReels()
   const { data: categories } = useRestaurantCategories()
   const { isLiked, toggleLike, togglingId, isLoggedIn } = useBusinessLikes()
+
+  useEffect(() => {
+    if (error) toast.error('לא הצלחנו לטעון את המסעדות. בדקו את החיבור לאינטרנט ונסו שוב.')
+  }, [error, toast])
 
   const q = searchQuery.trim().toLowerCase()
   const isSearching = q.length > 0
@@ -134,14 +141,13 @@ export const RestaurantsPage = () => {
 
   const handleLike = async (businessId: string) => {
     if (!isLoggedIn) {
-      setLikeMessage('יש להתחבר כדי לסמן לייק')
-      setTimeout(() => setLikeMessage(null), 3000)
+      toast.info('יש להתחבר כדי לסמן לייק')
       return
     }
+    void haptic.light()
     const result = await toggleLike(businessId)
     if (result === 'error') {
-      setLikeMessage('לא הצלחנו לעדכן את הלייק. נסה שוב.')
-      setTimeout(() => setLikeMessage(null), 3000)
+      toast.error('לא הצלחנו לעדכן את הלייק. נסו שוב.')
     }
   }
 
@@ -196,12 +202,6 @@ export const RestaurantsPage = () => {
         </div>
       </motion.header>
 
-      {likeMessage && (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          {likeMessage}
-        </div>
-      )}
-
       {!isSearching && reels && reels.length > 0 && <ReelsFeed reels={reels} />}
 
       {isLoading && (
@@ -218,15 +218,10 @@ export const RestaurantsPage = () => {
           animate={{ opacity: 1 }}
           className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-800"
         >
-          <p className="font-medium">לא ניתן לטעון את רשימת העסקים.</p>
+          <p className="font-medium">לא הצלחנו לטעון את רשימת המסעדות.</p>
           <p className="mt-1 text-sm text-amber-700/90">
-            וודא שאתה מחובר לאינטרנט ושה־Firebase מוגדר. אם השגיאה ממשיכה – ייתכן שכללי האבטחה של Realtime Database חוסמים קריאה (נסה לאפשר קריאה ל־BusinessMenus ו־Businesses).
+            בדקו את החיבור לאינטרנט ונסו שוב. אם הבעיה נמשכת, נסו שוב מאוחר יותר.
           </p>
-          {error instanceof Error && error.message && (
-            <p className="mt-2 text-xs font-mono text-amber-600/80 break-all" dir="ltr">
-              {error.message}
-            </p>
-          )}
           <button
             type="button"
             onClick={() => void refetch()}

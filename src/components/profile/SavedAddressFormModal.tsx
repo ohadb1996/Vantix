@@ -1,9 +1,9 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { MapPin } from 'lucide-react'
 import { ProfileFormModal, Field, ModalActions } from './ProfileFormModal'
+import { AddressAutocompleteField } from './AddressAutocompleteField'
+import { formatFullAddress } from './savedDisplay'
 import type { SavedAddress, SavedAddressInput } from '../../types/customerProfile'
-
-const REQUIRED = 'שדה חובה'
 
 export function SavedAddressFormModal({
   initial,
@@ -26,18 +26,21 @@ export function SavedAddressFormModal({
   const [notes, setNotes] = useState(initial?.delivery_notes ?? '')
   const [errors, setErrors] = useState<Record<string, string>>({})
 
+  const fullAddressValue = useMemo(
+    () => formatFullAddress({ delivery_street: street, delivery_building_number: building, delivery_city: city }),
+    [street, building, city]
+  )
+
   const submit = () => {
     const err: Record<string, string> = {}
-    if (!city.trim()) err.city = REQUIRED
-    if (!street.trim()) err.street = REQUIRED
-    if (!building.trim()) err.building = REQUIRED
+    if (!city.trim() || !street.trim()) err.fullAddress = 'נא לבחור כתובת מלאה מהרשימה'
     setErrors(err)
     if (Object.keys(err).length > 0) return
     onSubmit({
       label: label.trim() || undefined,
       delivery_city: city.trim(),
       delivery_street: street.trim(),
-      delivery_building_number: building.trim(),
+      delivery_building_number: building.trim() || '',
       delivery_floor: floor.trim() || undefined,
       delivery_apartment: apartment.trim() || undefined,
       delivery_building_code: buildingCode.trim() || undefined,
@@ -54,13 +57,24 @@ export function SavedAddressFormModal({
       footer={<ModalActions onCancel={onClose} onSubmit={submit} saving={saving} />}
     >
       <Field label="כינוי לכתובת" placeholder="בית, עבודה..." value={label} onChange={setLabel} optional />
-      <Field label="עיר" placeholder="עיר" value={city} onChange={setCity} error={errors.city} />
-      <Field label="רחוב" placeholder="רחוב" value={street} onChange={setStreet} error={errors.street} />
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="מספר בית" placeholder="מס׳ בית" value={building} onChange={setBuilding} error={errors.building} />
+      <AddressAutocompleteField
+        value={fullAddressValue}
+        error={errors.fullAddress}
+        required
+        onSelect={({ city: nextCity, street: nextStreet, buildingNumber }) => {
+          if (nextCity) {
+            setCity(nextCity)
+            setErrors((prev) => ({ ...prev, fullAddress: '' }))
+          }
+          if (nextStreet) {
+            setStreet(nextStreet)
+            setErrors((prev) => ({ ...prev, fullAddress: '' }))
+          }
+          if (buildingNumber) setBuilding(buildingNumber)
+        }}
+      />
+      <div className="grid grid-cols-3 gap-3">
         <Field label="קומה" placeholder="קומה" value={floor} onChange={setFloor} optional />
-      </div>
-      <div className="grid grid-cols-2 gap-3">
         <Field label="דירה" placeholder="דירה" value={apartment} onChange={setApartment} optional />
         <Field label="קוד לבניין" placeholder="*147" value={buildingCode} onChange={setBuildingCode} optional />
       </div>

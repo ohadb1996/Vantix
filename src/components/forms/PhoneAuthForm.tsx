@@ -9,6 +9,7 @@ import { getFirebaseAuth } from '../../lib/firebase'
 import { toE164 } from '../../services/auth'
 import { useAuth } from '../../context/AuthContext'
 import type { ConfirmationResult } from 'firebase/auth'
+import { isValidIsraeliPhone } from '../../utils/phone'
 
 const PHONE_SEND_BUTTON_ID = 'phone-send-code-btn'
 
@@ -40,6 +41,10 @@ export const PhoneAuthForm = ({
     const raw = phoneRef.current.trim()
     if (!raw) {
       setError('הזן מספר טלפון')
+      return
+    }
+    if (!isValidIsraeliPhone(raw)) {
+      setError('נא להזין מספר טלפון ישראלי תקין (05x-xxx-xxxx)')
       return
     }
     const phoneE164 = toE164(raw)
@@ -151,7 +156,7 @@ export const PhoneAuthForm = ({
       <input
         type="tel"
         value={phone}
-        onChange={(e) => setPhone(e.target.value)}
+        onChange={(e) => setPhone(e.target.value.replace(/[^\d+\-\s]/g, ''))}
         placeholder="050-1234567"
         className="w-full rounded-2xl border border-vantix-cyan/20 bg-vantix-surface-raised px-4 py-3 text-sm text-vantix-fg outline-none transition focus:border-vantix-cyan/40 focus:ring-2 focus:ring-vantix-cyan/10"
       />

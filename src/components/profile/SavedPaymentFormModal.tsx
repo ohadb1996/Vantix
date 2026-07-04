@@ -1,82 +1,141 @@
 import { useState } from 'react'
 import { CreditCard } from 'lucide-react'
 import { ProfileFormModal, Field, ModalActions } from './ProfileFormModal'
-import {
-  PAYMENT_METHOD_OPTIONS,
-  type PaymentMethodType,
-  type SavedPayment,
-  type SavedPaymentInput,
-} from '../../types/customerProfile'
+import type { SavedPayment, SavedPaymentInput } from '../../types/customerProfile'
+
+function formatExpiryInput(raw: string): string {
+  const digits = raw.replace(/\D/g, '').slice(0, 4)
+  if (digits.length <= 2) return digits
+  return `${digits.slice(0, 2)}/${digits.slice(2)}`
+}
+
+function parseExpiry(value: string): { month: string; year: string } | null {
+  const match = value.match(/^(\d{2})\/(\d{2})$/)
+  if (!match) return null
+  const month = match[1]
+  const year = match[2]
+  const monthNum = Number(month)
+  if (monthNum < 1 || monthNum > 12) return null
+  return { month, year }
+}
+
+function isValidIsraeliId(value: string): boolean {
+  const digits = value.replace(/\D/g, '')
+  return digits.length >= 8 && digits.length <= 9
+}
 
 export function SavedPaymentFormModal({
   initial,
   saving,
   onSubmit,
   onClose,
+  zIndexClass,
 }: {
   initial?: SavedPayment | null
   saving?: boolean
-  onSubmit: (data: SavedPaymentInput) => void
+  onSubmit: (data: SavedPaymentInput) => void | Promise<void>
   onClose: () => void
+  zIndexClass?: string
 }) {
-  const [type, setType] = useState<PaymentMethodType>(initial?.type ?? 'cash')
+  const isEdit = !!initial
   const [label, setLabel] = useState(initial?.label ?? '')
-  const [last4, setLast4] = useState(initial?.last4 ?? '')
-  const [error, setError] = useState<string | undefined>()
+  const [cardNumber, setCardNumber] = useState('')
+  const [holderId, setHolderId] = useState(initial?.holderId ?? '')
+  const [cvv, setCvv] = useState('')
+  const [expiry, setExpiry] = useState(
+    initial?.expiryMonth && initial?.expiryYear
+      ? `${initial.expiryMonth}/${initial.expiryYear}`
+      : ''
+  )
+  const [errors, setErrors] = useState<Record<string, string>>({})
 
-  const showLast4 = type === 'credit'
+  const submit = async () => {
+    const err: Record<string, string> = {}
+    const digits = cardNumber.replace(/\D/g, '')
+    const parsedExpiry = parseExpiry(expiry)
 
-  const submit = () => {
-    if (showLast4 && last4.trim() && !/^\d{4}$/.test(last4.trim())) {
-      setError('יש להזין 4 ספרות')
-      return
+    if (!isEdit) {
+      if (digits.length < 13 || digits.length > 19) err.cardNumber = 'נא להזין מספר כרטיס תקין'
+      if (!cvv.trim() || !/^\d{3,4}$/.test(cvv.trim())) err.cvv = 'נא להזין CVV תקין'
     }
-    onSubmit({
-      type,
+    if (!holderId.trim() || !isValidIsraeliId(holderId)) err.holderId = 'נא להזין ת.ז תקינה'
+    if (!parsedExpiry) err.expiry = 'נא להזין תוקף בפורמט MM/YY'
+
+    setErrors(err)
+    if (Object.keys(err).length > 0) return
+
+    const last4 = isEdit ? initial?.last4 : digits.slice(-4)
+    await onSubmit({
+      type: 'credit',
       label: label.trim() || undefined,
-      last4: showLast4 ? last4.trim() || undefined : undefined,
+      last4,
+      holderId: holderId.replace(/\D/g, ''),
+      expiryMonth: parsedExpiry!.month,
+      expiryYear: parsedExpiry!.year,
       isDefault: initial?.isDefault,
     })
   }
 
   return (
     <ProfileFormModal
-      title={initial ? 'עריכת אמצעי תשלום' : 'אמצעי תשלום חדש'}
+      title={isEdit ? 'עריכת כרטיס אשראי' : 'כרטיס אשראי חדש'}
       icon={<CreditCard className="h-5 w-5 text-vantix-cyan" />}
       onClose={onClose}
-      footer={<ModalActions onCancel={onClose} onSubmit={submit} saving={saving} />}
+      zIndexClass={zIndexClass}
+      footer={<ModalActions onCancel={onClose} onSubmit={() => void submit()} saving={saving} />}
     >
-      <div>
-        <label className="mb-2 block text-sm font-medium text-vantix-fg">סוג אמצעי תשלום *</label>
-        <div className="grid grid-cols-2 gap-2">
-          {PAYMENT_METHOD_OPTIONS.map((opt) => (
-            <button
-              key={opt.type}
-              type="button"
-              onClick={() => setType(opt.type)}
-              className={`rounded-xl border px-3 py-2.5 text-sm font-semibold transition ${
-                type === opt.type
-                  ? 'border-vantix-cyan bg-vantix-cyan/10 text-vantix-cyan'
-                  : 'border-vantix-cyan/20 text-vantix-fg-muted hover:border-vantix-cyan/40'
-              }`}
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
-      </div>
+      <p className="text-xs text-vantix-fg-subtle">
+        נשמרים רק 4 ספרות אחרונות, ת.ז ותוקף. מספר כרטיס מלא ו-CVV לא נשמרים במערכת.
+      </p>
       <Field label="כינוי" placeholder="לדוגמה: ויזה אישית" value={label} onChange={setLabel} optional />
-      {showLast4 && (
+
+      {isEdit ? (
         <Field
           label="4 ספרות אחרונות"
-          placeholder="1234"
+          value={initial?.last4 ?? ''}
+          onChange={() => {}}
+          disabled
+        />
+      ) : (
+        <Field
+          label="מספר כרטיס"
+          placeholder="1234 5678 9012 3456"
           inputMode="numeric"
-          value={last4}
-          onChange={(v) => setLast4(v.replace(/\D/g, '').slice(0, 4))}
-          error={error}
-          optional
+          value={cardNumber}
+          onChange={(v) => setCardNumber(v.replace(/[^\d\s]/g, '').slice(0, 23))}
+          error={errors.cardNumber}
         />
       )}
+
+      <Field
+        label="ת.ז"
+        placeholder="123456789"
+        inputMode="numeric"
+        value={holderId}
+        onChange={(v) => setHolderId(v.replace(/\D/g, '').slice(0, 9))}
+        error={errors.holderId}
+      />
+
+      {!isEdit && (
+        <Field
+          label="CVV"
+          placeholder="123"
+          inputMode="numeric"
+          type="password"
+          value={cvv}
+          onChange={(v) => setCvv(v.replace(/\D/g, '').slice(0, 4))}
+          error={errors.cvv}
+        />
+      )}
+
+      <Field
+        label="תוקף"
+        placeholder="MM/YY"
+        inputMode="numeric"
+        value={expiry}
+        onChange={(v) => setExpiry(formatExpiryInput(v))}
+        error={errors.expiry}
+      />
     </ProfileFormModal>
   )
 }

@@ -21,6 +21,14 @@ export function addressSummary(a: SavedAddress): string {
   return [line, a.delivery_city, extra].filter(Boolean).join(' · ')
 }
 
+/** שורת כתובת מלאה לשדה עריכה / אוטוקומפליט */
+export function formatFullAddress(
+  parts: Pick<SavedAddress, 'delivery_street' | 'delivery_building_number' | 'delivery_city'>
+): string {
+  const line = [parts.delivery_street, parts.delivery_building_number].filter(Boolean).join(' ')
+  return [line, parts.delivery_city].filter(Boolean).join(', ')
+}
+
 export function contactTitle(c: SavedContact): string {
   return c.fullName || c.phone
 }
@@ -34,7 +42,9 @@ export function paymentTitle(p: SavedPayment): string {
 }
 
 export function paymentSummary(p: SavedPayment): string {
-  const parts: string[] = [PAYMENT_METHOD_LABELS[p.type]]
+  const parts: string[] = []
   if (p.last4) parts.push(`•••• ${p.last4}`)
+  if (p.expiryMonth && p.expiryYear) parts.push(`תוקף ${p.expiryMonth}/${p.expiryYear}`)
+  if (parts.length === 0) parts.push(PAYMENT_METHOD_LABELS[p.type])
   return parts.join(' · ')
 }
