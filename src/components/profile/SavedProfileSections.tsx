@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react'
-import { MapPin, User, CreditCard, Plus, Pencil, Trash2, Star, Loader2 } from 'lucide-react'
+import { MapPin, User, CreditCard, Plus, Pencil, Trash2, Star, Loader2, ChevronDown } from 'lucide-react'
 import {
   useSavedAddresses,
   useSavedContacts,
@@ -20,6 +20,35 @@ import type { SavedAddress, SavedContact, SavedPayment } from '../../types/custo
 
 const cardClass =
   'rounded-2xl border border-vantix-cyan/20 bg-vantix-surface-raised p-5 shadow-sm'
+
+function SubsectionHeader({
+  title,
+  icon,
+  onAdd,
+  addLabel,
+}: {
+  title: string
+  icon: ReactNode
+  onAdd: () => void
+  addLabel: string
+}) {
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <h3 className="flex items-center gap-2 text-sm font-semibold text-vantix-fg">
+        {icon}
+        {title}
+      </h3>
+      <button
+        type="button"
+        onClick={onAdd}
+        className="flex items-center gap-1 rounded-full border border-vantix-cyan/30 bg-vantix-cyan/5 px-3 py-1.5 text-sm font-semibold text-vantix-cyan transition hover:bg-vantix-cyan/10"
+      >
+        <Plus className="h-4 w-4" />
+        {addLabel}
+      </button>
+    </div>
+  )
+}
 
 function SectionShell({
   title,
@@ -131,17 +160,20 @@ function Loading() {
   )
 }
 
-export function AddressesSection() {
+export function AddressesSection({ embedded = false }: { embedded?: boolean }) {
   const { items, isLoading, add, update, remove, setDefault, isSaving } = useSavedAddresses()
   const [editing, setEditing] = useState<SavedAddress | null | undefined>(undefined)
 
-  return (
-    <SectionShell
-      title="הכתובות שלי"
-      icon={<MapPin className="h-5 w-5 text-vantix-cyan" />}
-      addLabel="הוסף"
-      onAdd={() => setEditing(null)}
-    >
+  const content = (
+    <>
+      {embedded ? (
+        <SubsectionHeader
+          title="הכתובות שלי"
+          icon={<MapPin className="h-4 w-4 text-vantix-cyan" />}
+          addLabel="הוסף"
+          onAdd={() => setEditing(null)}
+        />
+      ) : null}
       {isLoading ? (
         <Loading />
       ) : items.length === 0 ? (
@@ -177,21 +209,39 @@ export function AddressesSection() {
           }}
         />
       )}
+    </>
+  )
+
+  if (embedded) {
+    return <div className="space-y-3">{content}</div>
+  }
+
+  return (
+    <SectionShell
+      title="הכתובות שלי"
+      icon={<MapPin className="h-5 w-5 text-vantix-cyan" />}
+      addLabel="הוסף"
+      onAdd={() => setEditing(null)}
+    >
+      {content}
     </SectionShell>
   )
 }
 
-export function ContactsSection() {
+export function ContactsSection({ embedded = false }: { embedded?: boolean }) {
   const { items, isLoading, add, update, remove, setDefault, isSaving } = useSavedContacts()
   const [editing, setEditing] = useState<SavedContact | null | undefined>(undefined)
 
-  return (
-    <SectionShell
-      title="פרטים אישיים"
-      icon={<User className="h-5 w-5 text-vantix-cyan" />}
-      addLabel="הוסף"
-      onAdd={() => setEditing(null)}
-    >
+  const content = (
+    <>
+      {embedded ? (
+        <SubsectionHeader
+          title="פרטי קשר"
+          icon={<User className="h-4 w-4 text-vantix-cyan" />}
+          addLabel="הוסף"
+          onAdd={() => setEditing(null)}
+        />
+      ) : null}
       {isLoading ? (
         <Loading />
       ) : items.length === 0 ? (
@@ -226,6 +276,21 @@ export function ContactsSection() {
           }}
         />
       )}
+    </>
+  )
+
+  if (embedded) {
+    return <div className="space-y-3">{content}</div>
+  }
+
+  return (
+    <SectionShell
+      title="פרטים אישיים"
+      icon={<User className="h-5 w-5 text-vantix-cyan" />}
+      addLabel="הוסף"
+      onAdd={() => setEditing(null)}
+    >
+      {content}
     </SectionShell>
   )
 }
@@ -236,7 +301,7 @@ export function PaymentsSection() {
 
   return (
     <SectionShell
-      title="כרטיסי אשראי"
+      title="אמצעי תשלום"
       icon={<CreditCard className="h-5 w-5 text-vantix-cyan" />}
       addLabel="הוסף"
       onAdd={() => setEditing(null)}
@@ -244,7 +309,7 @@ export function PaymentsSection() {
       {isLoading ? (
         <Loading />
       ) : items.length === 0 ? (
-        <EmptyState text="אין כרטיסי אשראי שמורים. הוסף כרטיס לבחירה מהירה בהזמנה." />
+        <EmptyState text="אין אמצעי תשלום שמורים. הוסף אמצעי תשלום לבחירה מהירה בהזמנה." />
       ) : (
         <div className="space-y-2">
           {items.map((p) => (
@@ -276,5 +341,63 @@ export function PaymentsSection() {
         />
       )}
     </SectionShell>
+  )
+}
+
+export function PersonalDetailsSection({
+  displayName,
+  email,
+  phone,
+}: {
+  displayName: string
+  email: string
+  phone: string
+}) {
+  const [open, setOpen] = useState(false)
+
+  return (
+    <section className={cardClass}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center justify-between gap-3 text-right"
+        aria-expanded={open}
+      >
+        <span className="flex items-center gap-2 font-semibold text-vantix-fg">
+          <User className="h-5 w-5 text-vantix-cyan" />
+          עריכת פרטים אישיים
+        </span>
+        <ChevronDown
+          className={`h-5 w-5 shrink-0 text-vantix-fg-muted transition-transform ${open ? 'rotate-180' : ''}`}
+        />
+      </button>
+
+      {open ? (
+        <div className="mt-4 space-y-5 border-t border-vantix-cyan/15 pt-4">
+          <div>
+            <h3 className="mb-3 text-sm font-semibold text-vantix-fg">החשבון שלי</h3>
+            <dl className="space-y-2 text-sm">
+              <div>
+                <dt className="text-vantix-fg-subtle">שם</dt>
+                <dd className="font-medium text-vantix-fg">{displayName || '—'}</dd>
+              </div>
+              <div>
+                <dt className="text-vantix-fg-subtle">אימייל</dt>
+                <dd className="font-medium text-vantix-fg">{email || '—'}</dd>
+              </div>
+              {phone ? (
+                <div>
+                  <dt className="text-vantix-fg-subtle">טלפון</dt>
+                  <dd className="font-medium text-vantix-fg">{phone}</dd>
+                </div>
+              ) : null}
+            </dl>
+          </div>
+
+          <ContactsSection embedded />
+          <AddressesSection embedded />
+        </div>
+      ) : null}
+    </section>
   )
 }

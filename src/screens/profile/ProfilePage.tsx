@@ -1,18 +1,16 @@
-import { Link, useNavigate } from 'react-router-dom'
-import { User, History, MessageCircle, ChevronLeft, Palette } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { User, History, MessageCircle, ChevronLeft, Palette, LogOut } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { ROUTES, SUPPORT_LINK } from '../../constants/app'
 import { ThemeToggle } from '../../components/ui/ThemeToggle'
 import { useTheme } from '../../context/ThemeContext'
 import {
-  AddressesSection,
-  ContactsSection,
+  PersonalDetailsSection,
   PaymentsSection,
 } from '../../components/profile/SavedProfileSections'
 
 export const ProfilePage = () => {
-  const navigate = useNavigate()
-  const { user } = useAuth()
+  const { user, logout } = useAuth()
   const { theme } = useTheme()
   const displayName = user?.displayName?.trim() || user?.email || 'משתמש'
   const email = user?.email ?? ''
@@ -23,13 +21,12 @@ export const ProfilePage = () => {
       <div className="flex flex-col items-center justify-center gap-6 py-16 px-4" dir="rtl">
         <User className="h-16 w-16 text-vantix-cyan/50" />
         <p className="text-center text-vantix-fg-muted">יש להתחבר כדי לראות את הפרופיל</p>
-        <button
-          type="button"
-          onClick={() => navigate(ROUTES.AUTH_LOGIN)}
-          className="rounded-xl bg-vantix-orange dark:bg-vantix-cyan px-6 py-3 font-semibold text-white dark:text-black hover:brightness-110"
+        <Link
+          to={ROUTES.AUTH_LOGIN}
+          className="rounded-xl bg-vantix-orange px-6 py-3 font-semibold text-white hover:brightness-110 dark:bg-vantix-cyan dark:text-black"
         >
           התחברות
-        </button>
+        </Link>
       </div>
     )
   }
@@ -39,17 +36,8 @@ export const ProfilePage = () => {
 
   return (
     <div className="space-y-6 pb-10" dir="rtl">
-      <header className="flex items-center justify-between gap-4 border-b border-vantix-cyan/20 pb-4">
-        <button
-          type="button"
-          onClick={() => navigate(-1)}
-          className="flex items-center gap-1 text-vantix-fg-muted hover:text-vantix-fg transition"
-          aria-label="חזרה"
-        >
-          <ChevronLeft className="h-5 w-5" />
-          חזרה
-        </button>
-        <h1 className="font-display text-2xl text-vantix-fg flex items-center gap-2">
+      <header className="border-b border-vantix-cyan/20 pb-4">
+        <h1 className="flex items-center justify-start gap-2 font-display text-2xl text-vantix-fg">
           <User className="h-6 w-6 text-vantix-cyan" />
           הפרופיל שלי
         </h1>
@@ -66,37 +54,12 @@ export const ProfilePage = () => {
         <ThemeToggle variant="compact" />
       </section>
 
-      {/* חשבון */}
-      <section className={cardClass}>
-        <h2 className="font-semibold text-vantix-fg mb-3 flex items-center gap-2">
-          <User className="h-5 w-5 text-vantix-cyan" />
-          החשבון שלי
-        </h2>
-        <dl className="space-y-2 text-sm">
-          <div>
-            <dt className="text-vantix-fg-subtle">שם</dt>
-            <dd className="font-medium text-vantix-fg">{displayName || '—'}</dd>
-          </div>
-          <div>
-            <dt className="text-vantix-fg-subtle">אימייל</dt>
-            <dd className="font-medium text-vantix-fg">{email || '—'}</dd>
-          </div>
-          {phone && (
-            <div>
-              <dt className="text-vantix-fg-subtle">טלפון</dt>
-              <dd className="font-medium text-vantix-fg">{phone}</dd>
-            </div>
-          )}
-        </dl>
-      </section>
+      <PersonalDetailsSection
+        displayName={displayName}
+        email={email}
+        phone={phone}
+      />
 
-      {/* פרטים אישיים שמורים (שם + טלפון) */}
-      <ContactsSection />
-
-      {/* כתובות שמורות */}
-      <AddressesSection />
-
-      {/* אמצעי תשלום שמורים */}
       <PaymentsSection />
 
       {/* ניווט: היסטוריית הזמנות */}
@@ -132,8 +95,17 @@ export const ProfilePage = () => {
             <p className="text-sm text-vantix-fg-subtle">צ'אט וואטסאפ – שאלות, בעיות ותקלות</p>
           </div>
         </div>
-        <ChevronLeft className="h-5 w-5 text-vantix-fg-subtle group-hover:text-vantix-cyan transition rotate-180" />
+        <ChevronLeft className="h-5 w-5 rotate-180 text-vantix-fg-subtle transition group-hover:text-vantix-cyan" />
       </a>
+
+      <button
+        type="button"
+        onClick={() => void logout()}
+        className="flex w-full items-center justify-center gap-2 rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3.5 font-semibold text-red-500 transition hover:bg-red-500/20 active:scale-[0.99]"
+      >
+        <LogOut className="h-5 w-5" />
+        התנתקות
+      </button>
     </div>
   )
 }

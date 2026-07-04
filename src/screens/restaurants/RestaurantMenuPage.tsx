@@ -17,6 +17,62 @@ import { CheckoutSavedSelector } from '../../components/checkout/CheckoutSavedSe
 import { PAYMENT_METHOD_LABELS, type SavedAddress, type SavedContact, type SavedPayment, type PaymentMethodType } from '../../types/customerProfile'
 import { paymentSummary } from '../../components/profile/savedDisplay'
 
+function MenuItemRow({
+  item,
+  onOpen,
+  onAdd,
+}: {
+  item: MenuItem
+  onOpen: () => void
+  onAdd: (e: React.MouseEvent) => void
+}) {
+  const hasImage = Boolean(item.imageUrl)
+
+  return (
+    <li
+      onClick={onOpen}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          onOpen()
+        }
+      }}
+      className={`grid w-full max-w-full cursor-pointer items-center gap-2 overflow-hidden rounded-xl border border-vantix-cyan/20 bg-vantix-surface-raised p-3 shadow-sm transition hover:border-vantix-cyan/40 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-vantix-cyan/40 active:scale-[0.99] sm:gap-3 sm:p-4 ${
+        hasImage ? 'grid-cols-[auto_minmax(0,1fr)_auto]' : 'grid-cols-[minmax(0,1fr)_auto]'
+      }`}
+    >
+      {hasImage ? (
+        <img
+          src={item.imageUrl!}
+          alt=""
+          className="h-14 w-14 shrink-0 rounded-lg border border-vantix-cyan/20 object-cover sm:h-16 sm:w-16"
+        />
+      ) : null}
+      <div className="min-w-0 overflow-hidden">
+        <p className="block w-full truncate font-medium text-vantix-fg" title={item.name}>
+          {item.name}
+        </p>
+        {item.sections && item.sections.length > 0 ? (
+          <p className="mt-1 truncate text-xs text-vantix-cyan/80">יש אפשרויות לבחירה</p>
+        ) : null}
+      </div>
+      <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+        <span className="whitespace-nowrap font-semibold text-vantix-cyan">₪{item.price.toFixed(2)}</span>
+        <button
+          type="button"
+          onClick={onAdd}
+          className="rounded-full bg-vantix-cyan p-2.5 text-white hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-vantix-cyan/50"
+          aria-label={`הוסף ${item.name} לעגלה`}
+        >
+          <Plus className="h-5 w-5" />
+        </button>
+      </div>
+    </li>
+  )
+}
+
 export const RestaurantMenuPage = () => {
   const { businessId } = useParams<{ businessId: string }>()
   const navigate = useNavigate()
@@ -208,7 +264,7 @@ export const RestaurantMenuPage = () => {
         const id = top?.target.getAttribute('data-category-id')
         if (id) setActiveCategoryId(id)
       },
-      { rootMargin: '-148px 0px -55% 0px', threshold: [0, 0.15, 0.35, 0.6] }
+      { rootMargin: '-104px 0px -55% 0px', threshold: [0, 0.15, 0.35, 0.6] }
     )
 
     visibleCategoriesForNav.forEach((cat) => {
@@ -393,7 +449,7 @@ export const RestaurantMenuPage = () => {
   }
 
   return (
-    <div className="space-y-2 pb-28 sm:space-y-3" dir="rtl">
+    <div className="min-w-0 space-y-2 pb-28 sm:space-y-3" dir="rtl">
       {/* Floating cart badge – מופיע רק כשיש פריטים */}
       {totalItems > 0 && (
         <motion.div
@@ -529,10 +585,10 @@ export const RestaurantMenuPage = () => {
         </div>
       </header>
 
-      <div className="grid gap-8 lg:grid-cols-3">
-        <div className="lg:col-span-2 space-y-6">
+      <div className="grid min-w-0 gap-8 lg:grid-cols-3">
+        <div className="min-w-0 space-y-4 lg:col-span-2">
           {/* שורת חיפוש – נדבקת לראש המסך מתחת לסרגל העליון בזמן גלילה */}
-          <div className="sticky top-[3.5rem] z-30 -mx-3 px-3 pt-0 pb-2 bg-vantix-surface/85 backdrop-blur-md sm:top-[4.5rem] sm:-mx-6 sm:px-6">
+          <div className="sticky top-0 z-30 -mx-3 px-3 pb-2 bg-vantix-surface/95 backdrop-blur-md sm:-mx-6 sm:px-6">
             <div className="flex items-center gap-3 rounded-xl border border-vantix-cyan/25 bg-vantix-surface-raised px-3 py-2.5 shadow-sm">
               <Search className="h-4 w-4 shrink-0 text-vantix-cyan" />
               <input
@@ -613,98 +669,40 @@ export const RestaurantMenuPage = () => {
                       else categorySectionRefs.current.delete(cat.id)
                     }}
                     data-category-id={cat.id}
-                    className="scroll-mt-[9.5rem] sm:scroll-mt-[10.5rem]"
+                    className="scroll-mt-[6.5rem] sm:scroll-mt-[7rem]"
                     aria-labelledby={`cat-${cat.id}`}
                   >
                     <h2 id={`cat-${cat.id}`} className="text-lg font-bold text-vantix-fg border-b-2 border-vantix-cyan/25 pb-2 mb-3">
                       {cat.name}
                     </h2>
-                    <ul className="space-y-2">
+                    <ul className="w-full max-w-full space-y-2">
                       {catItems.map((item) => (
-                        <li
+                        <MenuItemRow
                           key={item.id}
-                          onClick={() => openItemDetails(item)}
-                          role="button"
-                          tabIndex={0}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' || e.key === ' ') {
-                              e.preventDefault()
-                              openItemDetails(item)
-                            }
+                          item={item}
+                          onOpen={() => openItemDetails(item)}
+                          onAdd={(e) => {
+                            e.stopPropagation()
+                            handleAddItem(item)
                           }}
-                          className="flex cursor-pointer items-center justify-between gap-4 rounded-xl border border-vantix-cyan/20 bg-vantix-surface-raised p-4 shadow-sm transition hover:border-vantix-cyan/40 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-vantix-cyan/40 active:scale-[0.99]"
-                        >
-                          {item.imageUrl && (
-                            <img
-                              src={item.imageUrl}
-                              alt=""
-                              className="h-16 w-16 rounded-lg object-cover border border-vantix-cyan/20 shrink-0"
-                            />
-                          )}
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate font-medium text-vantix-fg">{item.name}</p>
-                            {item.sections && item.sections.length > 0 && (
-                              <p className="text-xs text-vantix-cyan/80 mt-1">יש אפשרויות לבחירה</p>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-3 shrink-0">
-                            <span className="text-vantix-cyan font-semibold whitespace-nowrap">₪{item.price.toFixed(2)}</span>
-                            <button
-                              type="button"
-                              onClick={(e) => { e.stopPropagation(); handleAddItem(item) }}
-                              className="rounded-full bg-vantix-cyan p-2.5 text-white hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-vantix-cyan/50"
-                              aria-label={`הוסף ${item.name} לעגלה`}
-                            >
-                              <Plus className="h-5 w-5" />
-                            </button>
-                          </div>
-                        </li>
+                        />
                       ))}
                     </ul>
                   </section>
                 )
               })
             : (
-              <ul className="space-y-2">
+              <ul className="w-full max-w-full space-y-2">
                 {filteredItemsList.map((item) => (
-                  <li
+                  <MenuItemRow
                     key={item.id}
-                    onClick={() => openItemDetails(item)}
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault()
-                        openItemDetails(item)
-                      }
+                    item={item}
+                    onOpen={() => openItemDetails(item)}
+                    onAdd={(e) => {
+                      e.stopPropagation()
+                      handleAddItem(item)
                     }}
-                    className="flex cursor-pointer items-center justify-between gap-4 rounded-xl border border-vantix-cyan/20 bg-vantix-surface-raised p-4 shadow-sm transition hover:border-vantix-cyan/40 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-vantix-cyan/40 active:scale-[0.99]"
-                  >
-                    {item.imageUrl && (
-                      <img
-                        src={item.imageUrl}
-                        alt=""
-                        className="h-16 w-16 rounded-lg object-cover border border-vantix-cyan/20 shrink-0"
-                      />
-                    )}
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate font-medium text-vantix-fg">{item.name}</p>
-                      {item.sections && item.sections.length > 0 && (
-                        <p className="text-xs text-vantix-cyan/80 mt-1">יש אפשרויות לבחירה</p>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-3 shrink-0">
-                      <span className="text-vantix-cyan font-semibold">₪{item.price.toFixed(2)}</span>
-                      <button
-                        type="button"
-                        onClick={(e) => { e.stopPropagation(); handleAddItem(item) }}
-                        className="rounded-full bg-vantix-cyan p-2.5 text-white hover:brightness-110"
-                        aria-label={`הוסף ${item.name} לעגלה`}
-                      >
-                        <Plus className="h-5 w-5" />
-                      </button>
-                    </div>
-                  </li>
+                  />
                 ))}
               </ul>
             )}

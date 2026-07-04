@@ -1,4 +1,4 @@
-import { LogOut, ChevronRight, User, UtensilsCrossed, History } from 'lucide-react'
+import { ChevronRight, User, UtensilsCrossed, History } from 'lucide-react'
 import { Link, NavLink, useLocation, useMatch } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { useAuth } from '../../context/AuthContext'
@@ -17,7 +17,7 @@ const linkClasses =
   'relative text-sm font-semibold text-vantix-fg-muted transition hover:text-vantix-cyan'
 
 export const MainNav = () => {
-  const { user, loading, logout } = useAuth()
+  const { user, loading } = useAuth()
   const location = useLocation()
   const scrolled = useScrolled()
   const isRestaurantMenu = /^\/restaurants\/[^/]+$/.test(location.pathname)
@@ -128,18 +128,6 @@ export const MainNav = () => {
             >
               <User className={scrolled ? 'h-4 w-4 shrink-0' : 'h-3.5 w-3.5 shrink-0'} />
             </Link>
-            <button
-              type="button"
-              onClick={() => void logout()}
-              className={`vantix-btn-ghost inline-flex shrink-0 items-center justify-center gap-2 ${
-                scrolled
-                  ? 'min-h-[44px] min-w-[44px] px-3 py-2 text-sm sm:min-h-0 sm:min-w-0 sm:px-4'
-                  : 'min-h-[32px] min-w-[32px] px-2 py-1 text-xs sm:min-h-0 sm:min-w-0 sm:px-3'
-              }`}
-              aria-label="התנתקות"
-            >
-              <LogOut className={scrolled ? 'h-4 w-4 shrink-0' : 'h-3.5 w-3.5 shrink-0'} />
-            </button>
           </>
         ) : (
           <Link

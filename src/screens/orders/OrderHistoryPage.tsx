@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Link, useNavigate } from 'react-router-dom'
 import { getMyOrders, getBusinessesWithMenus } from '../../services/orderService'
 import { useAuth } from '../../context/AuthContext'
-import { History, Loader2, Package, ChevronLeft, UtensilsCrossed } from 'lucide-react'
+import { History, Loader2, Package, UtensilsCrossed } from 'lucide-react'
 import { ROUTES } from '../../constants/app'
 
 const statusLabels: Record<string, string> = {
@@ -45,17 +45,8 @@ export const OrderHistoryPage = () => {
 
   return (
     <div className="space-y-6 pb-10" dir="rtl">
-      <header className="flex items-center justify-between gap-4 border-b border-vantix-cyan/20 pb-4">
-        <button
-          type="button"
-          onClick={() => navigate(-1)}
-          className="flex items-center gap-1 text-vantix-fg-muted hover:text-vantix-fg transition"
-          aria-label="חזרה"
-        >
-          <ChevronLeft className="h-5 w-5" />
-          חזרה
-        </button>
-        <h1 className="font-display text-2xl text-vantix-fg flex items-center gap-2">
+      <header className="border-b border-vantix-cyan/20 pb-4">
+        <h1 className="flex items-center justify-start gap-2 font-display text-2xl text-vantix-fg">
           <History className="h-6 w-6 text-vantix-cyan" />
           היסטוריית הזמנות
         </h1>
