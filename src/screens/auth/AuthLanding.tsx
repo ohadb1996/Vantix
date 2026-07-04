@@ -7,14 +7,14 @@ import { APP_DISPLAY_NAME } from '../../constants/app'
 
 export const AuthLanding = () => {
   return (
-    <div className="relative flex min-h-screen flex-col bg-vantix-surface text-vantix-fg">
+    <div className="relative flex h-full min-h-0 flex-col overflow-hidden bg-vantix-surface text-vantix-fg">
       <ScrollToTop />
-      <div className="sticky top-0 z-30 px-3 py-1.5 sm:px-6 sm:py-2 lg:px-10 lg:py-3">
+      <div className="sticky top-0 z-30 shrink-0 px-3 py-1.5 sm:px-6 sm:py-2 lg:px-10 lg:py-3">
         <MainNav />
       </div>
 
-      <div className="relative z-10 mx-auto flex w-full max-w-5xl flex-1 flex-col gap-10 px-6 pb-16 pt-8 sm:px-10">
-        <main className="grid flex-1 gap-10 lg:grid-cols-[1.05fr_1fr] lg:items-center">
+      <div className="relative z-10 mx-auto flex w-full max-w-5xl min-h-0 flex-1 flex-col gap-10 overflow-y-auto overscroll-y-contain px-6 pb-16 pt-8 sm:px-10">
+        <main className="grid gap-10 lg:grid-cols-[1.05fr_1fr] lg:items-center">
           <section className="space-y-6">
             <div className="flex" style={{ perspective: '1000px' }}>
               <motion.div
@@ -67,9 +67,7 @@ export const AuthLanding = () => {
             <Outlet />
           </div>
         </main>
-      </div>
 
-      <div className="relative z-10">
         <FooterCTA />
       </div>
     </div>

@@ -56,26 +56,29 @@
 
 html {
   -webkit-text-size-adjust: 100%;
-  min-height: -webkit-fill-available;
+  height: 100%;
+  height: 100dvh;
+  overflow: hidden;
 }
 
 body {
-  min-height: 100vh;
-  min-height: 100dvh;
-  min-height: -webkit-fill-available;
+  height: 100%;
+  height: 100dvh;
+  overflow: hidden;
   @apply bg-vantix-surface text-vantix-fg antialiased;
   font-family: Rubik, system-ui, sans-serif;
   direction: rtl;
   padding-top: var(--sat);
-  padding-bottom: var(--sab);
   padding-left: var(--sal);
   padding-right: var(--sar);
   -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
 }
 
 #root {
-  min-height: 100vh;
-  min-height: 100dvh;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
 }
 
 @layer components {
@@ -114,6 +117,63 @@ body {
 
   .vantix-surface-panel {
     @apply bg-vantix-surface-raised;
+  }
+
+  .vantix-btn-google {
+    @apply relative inline-flex items-center justify-center overflow-hidden rounded-full border border-vantix-cyan/25 bg-vantix-surface-raised px-5 py-3 text-sm font-semibold text-vantix-fg transition-[transform,box-shadow,border-color] duration-700 disabled:cursor-not-allowed disabled:opacity-60;
+  }
+
+  .vantix-btn-google-shimmer {
+    @apply pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-700;
+    background: linear-gradient(
+      105deg,
+      transparent 0%,
+      rgb(var(--vantix-cyan) / 0.08) 35%,
+      rgb(var(--vantix-cyan) / 0.22) 50%,
+      rgb(var(--vantix-cyan) / 0.08) 65%,
+      transparent 100%
+    );
+    background-size: 220% 100%;
+  }
+
+  .vantix-btn-google-glow {
+    @apply pointer-events-none absolute -inset-px rounded-full opacity-0 transition-opacity duration-700;
+    background: linear-gradient(
+      135deg,
+      rgb(var(--vantix-cyan) / 0.35),
+      rgb(var(--vantix-cyan-400) / 0.15),
+      rgb(var(--vantix-cyan) / 0.05)
+    );
+    filter: blur(6px);
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .vantix-btn-google:hover:not(:disabled) {
+      @apply -translate-y-0.5 border-vantix-cyan/50 shadow-card-hover;
+    }
+
+    .vantix-btn-google:hover:not(:disabled) .vantix-btn-google-shimmer {
+      opacity: 1;
+      animation: vantix-google-shimmer 6s ease-in-out infinite;
+    }
+
+    .vantix-btn-google:hover:not(:disabled) .vantix-btn-google-glow {
+      @apply opacity-100;
+      transition-duration: 800ms;
+    }
+  }
+
+  .vantix-btn-google:active:not(:disabled) {
+    @apply translate-y-0 scale-[0.99];
+  }
+}
+
+@keyframes vantix-google-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
   }
 }
 

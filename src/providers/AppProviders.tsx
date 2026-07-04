@@ -18,13 +18,15 @@ export const AppProviders = ({ children }: PropsWithChildren) => {
   const queryClient = useMemo(() => createQueryClient(), [])
 
   return (
-    <ThemeProvider>
-      <AuthProvider>
-        <QueryClientProvider client={queryClient}>
-          <ToastProvider>{children}</ToastProvider>
-        </QueryClientProvider>
-      </AuthProvider>
-    </ThemeProvider>
+    <div className="h-full min-h-0">
+      <ThemeProvider>
+        <AuthProvider>
+          <QueryClientProvider client={queryClient}>
+            <ToastProvider>{children}</ToastProvider>
+          </QueryClientProvider>
+        </AuthProvider>
+      </ThemeProvider>
+    </div>
   )
 }
 

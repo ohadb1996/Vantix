@@ -161,7 +161,7 @@ export const RestaurantsPage = () => {
       key={b.businessId}
       to={to}
       state={linkState}
-      className="block w-[78%] shrink-0 snap-start rounded-2xl px-1 py-4 outline-none focus-visible:ring-2 focus-visible:ring-vantix-cyan focus-visible:ring-offset-2 sm:w-[320px] sm:rounded-3xl"
+      className="block h-full w-[min(94vw,420px)] shrink-0 snap-start rounded-2xl px-1 py-3 outline-none focus-visible:ring-2 focus-visible:ring-vantix-cyan focus-visible:ring-offset-2 sm:w-[400px] sm:rounded-3xl"
     >
       <RestaurantCard
         name={b.businessName}
@@ -388,7 +388,7 @@ function CategoryCarousel({
 
       <div
         ref={scrollRef}
-        className="flex snap-x snap-mandatory gap-4 overflow-x-auto py-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="flex snap-x snap-mandatory items-stretch gap-3 overflow-x-auto py-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         {section.businesses.map((b) => renderCard(b))}
       </div>

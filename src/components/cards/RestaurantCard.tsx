@@ -30,9 +30,9 @@ export const RestaurantCard = ({
   onLikeClick,
 }: RestaurantCardProps) => {
   return (
-    <div className="group relative rounded-2xl transition-shadow duration-300 hover:shadow-card-hover sm:rounded-3xl sm:hover:shadow-card-hover-lg">
-      <article className="overflow-hidden rounded-[inherit] border border-vantix-cyan/20 bg-vantix-surface-raised transition-colors group-hover:border-vantix-cyan/40">
-      <div className="relative h-40 overflow-hidden sm:h-48">
+    <div className="group relative h-full rounded-2xl transition-shadow duration-300 hover:shadow-card-hover sm:rounded-3xl sm:hover:shadow-card-hover-lg">
+      <article className="flex h-full flex-col overflow-hidden rounded-[inherit] border border-vantix-cyan/20 bg-vantix-surface-raised transition-colors group-hover:border-vantix-cyan/40">
+      <div className="relative aspect-[2/1] w-full shrink-0 overflow-hidden sm:aspect-[16/9]">
         {heroImage ? (
           <img
             src={heroImage}
@@ -71,39 +71,39 @@ export const RestaurantCard = ({
         )}
       </div>
 
-      <div className="space-y-2 p-4 sm:space-y-3 sm:p-5">
-        <header className="flex items-start justify-between gap-2 sm:gap-3">
+      <div className="flex min-h-[6.75rem] flex-1 flex-col justify-between p-3.5 sm:min-h-[7.25rem] sm:p-4">
+        <header className="flex min-h-0 items-start justify-between gap-2 sm:gap-3">
           <div className="min-w-0 flex-1">
-            <h3 className="font-display text-lg text-vantix-fg sm:text-xl">{name}</h3>
+            <h3 className="truncate font-display text-lg text-vantix-fg sm:text-xl">{name}</h3>
             <p className="truncate text-xs text-vantix-fg-muted sm:text-sm">{cuisine}</p>
           </div>
-          <div className="shrink-0 rounded-full border border-vantix-cyan/25 bg-vantix-cyan/10 px-2.5 py-1 text-[11px] font-semibold text-vantix-cyan sm:px-3 sm:py-1 sm:text-xs">
+          <div className="max-w-[42%] shrink-0 truncate rounded-full border border-vantix-cyan/25 bg-vantix-cyan/10 px-2.5 py-1 text-[11px] font-semibold text-vantix-cyan sm:px-3 sm:py-1 sm:text-xs">
             {eta}
           </div>
         </header>
 
-        <div className="flex flex-wrap items-center gap-2 text-[11px] text-vantix-fg-muted sm:gap-3 sm:text-xs">
-          <span className="rounded-full border border-vantix-cyan/20 px-3 py-1">
+        <div className="flex min-h-0 items-center gap-2 overflow-hidden text-[11px] text-vantix-fg-muted sm:gap-3 sm:text-xs">
+          <span className="truncate rounded-full border border-vantix-cyan/20 px-3 py-1">
             {priceLevel}
           </span>
-          <span className="flex items-center gap-1">
+          <span className="flex shrink-0 items-center gap-1">
             <MapPin className="h-3 w-3 text-vantix-cyan" />
             {distance}
           </span>
         </div>
 
-        {tags.length > 0 && (
-          <div className="flex flex-wrap gap-2">
+        {tags.length > 0 ? (
+          <div className="flex gap-2 overflow-hidden">
             {tags.map((tag) => (
               <span
                 key={tag}
-                className="rounded-full bg-vantix-cyan/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-vantix-fg-muted"
+                className="truncate rounded-full bg-vantix-cyan/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-vantix-fg-muted"
               >
                 {tag}
               </span>
             ))}
           </div>
-        )}
+        ) : null}
       </div>
       </article>
     </div>

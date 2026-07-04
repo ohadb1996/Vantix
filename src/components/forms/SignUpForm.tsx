@@ -1,52 +1,75 @@
-import { type FormEvent, useState } from 'react'
-import { CheckCircle, Eye, EyeOff, Loader2 } from 'lucide-react'
-import { signUpCustomer } from '../../services/auth'
-import { getAuthErrorMessage } from '../../utils/authErrors'
+import { type FormEvent, useState } from "react";
+import { CheckCircle, Eye, EyeOff, Loader2 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
+import { GoogleAuthButton } from "../auth/GoogleAuthButton";
+import { signUpCustomer } from "../../services/auth";
+import { getAuthErrorMessage } from "../../utils/authErrors";
 
 type FormState = {
-  fullName: string
-  email: string
-  password: string
-  marketingOptIn: boolean
-}
+  fullName: string;
+  email: string;
+  password: string;
+  marketingOptIn: boolean;
+};
 
 const INITIAL_STATE: FormState = {
-  fullName: '',
-  email: '',
-  password: '',
+  fullName: "",
+  email: "",
+  password: "",
   marketingOptIn: true,
-}
+};
 
 type SignUpFormProps = {
-  onSuccess?: () => void
-}
+  onSuccess?: () => void;
+  redirectTo?: string;
+};
 
-export const SignUpForm = ({ onSuccess }: SignUpFormProps = {}) => {
-  const [form, setForm] = useState<FormState>(INITIAL_STATE)
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [success, setSuccess] = useState(false)
-  const [showPassword, setShowPassword] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+export const SignUpForm = ({ onSuccess, redirectTo }: SignUpFormProps = {}) => {
+  const { loginWithGoogle, authError, clearAuthError } = useAuth();
+  const navigate = useNavigate();
+  const [form, setForm] = useState<FormState>(INITIAL_STATE);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const to = redirectTo || "/";
+  const displayError = error ?? authError;
+
+  const handleGoogleSignUp = async () => {
+    setError(null);
+    clearAuthError();
+    setIsGoogleLoading(true);
+    try {
+      await loginWithGoogle();
+      navigate(to);
+    } catch (err) {
+      setError(getAuthErrorMessage(err, "google"));
+    } finally {
+      setIsGoogleLoading(false);
+    }
+  };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    setIsSubmitting(true)
-    setError(null)
+    event.preventDefault();
+    setIsSubmitting(true);
+    setError(null);
 
     try {
-      await signUpCustomer(form)
-      setForm(INITIAL_STATE)
+      await signUpCustomer(form);
+      setForm(INITIAL_STATE);
       if (onSuccess) {
-        onSuccess()
+        onSuccess();
       } else {
-        setSuccess(true)
+        setSuccess(true);
       }
     } catch (err) {
-      setError(getAuthErrorMessage(err, 'signup'))
+      setError(getAuthErrorMessage(err, "signup"));
     } finally {
-      setIsSubmitting(false)
+      setIsSubmitting(false);
     }
-  }
+  };
 
   if (success) {
     return (
@@ -56,8 +79,8 @@ export const SignUpForm = ({ onSuccess }: SignUpFormProps = {}) => {
           ברוך הבא ל-Vantix!
         </h3>
         <p className="max-w-sm text-sm text-vantix-fg-muted">
-          החוויה הפרסונלית בדרך אליך. חפש במסעדות, שמור טעמים וסנכרן את ההעדפות שלך
-          בין המכשירים.
+          החוויה הפרסונלית בדרך אליך. חפש במסעדות, שמור טעמים וסנכרן את ההעדפות
+          שלך בין המכשירים.
         </p>
         <button
           type="button"
@@ -67,7 +90,7 @@ export const SignUpForm = ({ onSuccess }: SignUpFormProps = {}) => {
           להירשם למשתמש נוסף
         </button>
       </div>
-    )
+    );
   }
 
   return (
@@ -121,7 +144,7 @@ export const SignUpForm = ({ onSuccess }: SignUpFormProps = {}) => {
         </span>
         <div className="relative">
           <input
-            type={showPassword ? 'text' : 'password'}
+            type={showPassword ? "text" : "password"}
             required
             minLength={6}
             value={form.password}
@@ -135,7 +158,7 @@ export const SignUpForm = ({ onSuccess }: SignUpFormProps = {}) => {
             type="button"
             onClick={() => setShowPassword((p) => !p)}
             className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-vantix-fg-subtle transition hover:bg-vantix-cyan/10 hover:text-vantix-cyan"
-            aria-label={showPassword ? 'הסתר סיסמה' : 'הצג סיסמה'}
+            aria-label={showPassword ? "הסתר סיסמה" : "הצג סיסמה"}
             tabIndex={-1}
           >
             {showPassword ? (
@@ -145,6 +168,23 @@ export const SignUpForm = ({ onSuccess }: SignUpFormProps = {}) => {
             )}
           </button>
         </div>
+
+        <div className="relative my-1 text-center text-xs text-vantix-fg-subtle">
+          <span className="relative z-10 bg-vantix-surface-raised px-2">
+            או
+          </span>
+          <span
+            aria-hidden
+            className="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-vantix-cyan/15"
+          />
+        </div>
+        
+        <GoogleAuthButton
+          label="הרשמה מהירה עם Google"
+          loading={isGoogleLoading}
+          disabled={isSubmitting}
+          onClick={handleGoogleSignUp}
+        />
       </label>
 
       <label className="flex items-center gap-3 rounded-2xl border border-vantix-cyan/20 bg-vantix-cyan/10/60 px-4 py-3 text-sm text-vantix-fg-muted">
@@ -152,22 +192,26 @@ export const SignUpForm = ({ onSuccess }: SignUpFormProps = {}) => {
           type="checkbox"
           checked={form.marketingOptIn}
           onChange={(event) =>
-            setForm((prev) => ({ ...prev, marketingOptIn: event.target.checked }))
+            setForm((prev) => ({
+              ...prev,
+              marketingOptIn: event.target.checked,
+            }))
           }
           className="h-4 w-4 rounded border-vantix-cyan/40 text-vantix-cyan focus:ring-vantix-cyan/20"
         />
-        קחו אותי למסע הטעמים של Vantix – עדכוני בונוסים, מנות חדשות והטבות מיוחדות.
+        קחו אותי למסע הטעמים של Vantix – עדכוני בונוסים, מנות חדשות והטבות
+        מיוחדות.
       </label>
 
-      {error && (
+      {displayError && (
         <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
-          {error}
+          {displayError}
         </div>
       )}
 
       <button
         type="submit"
-        disabled={isSubmitting}
+        disabled={isSubmitting || isGoogleLoading}
         className="inline-flex items-center justify-center gap-2 rounded-full bg-vantix-orange dark:bg-vantix-cyan px-5 py-3 text-sm font-semibold text-white dark:text-black shadow-vantix transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
       >
         {isSubmitting ? (
@@ -176,10 +220,9 @@ export const SignUpForm = ({ onSuccess }: SignUpFormProps = {}) => {
             נרשם...
           </>
         ) : (
-          'הצטרפות חינמית'
+          "הצטרפות חינמית"
         )}
       </button>
     </form>
-  )
-}
-
+  );
+};

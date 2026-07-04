@@ -642,8 +642,7 @@ export const RestaurantMenuPage = () => {
                             />
                           )}
                           <div className="min-w-0 flex-1">
-                            <p className="font-medium text-vantix-fg">{item.name}</p>
-                            {item.description && <p className="text-sm text-vantix-fg-muted mt-0.5">{item.description}</p>}
+                            <p className="truncate font-medium text-vantix-fg">{item.name}</p>
                             {item.sections && item.sections.length > 0 && (
                               <p className="text-xs text-vantix-cyan/80 mt-1">יש אפשרויות לבחירה</p>
                             )}
@@ -689,8 +688,7 @@ export const RestaurantMenuPage = () => {
                       />
                     )}
                     <div className="min-w-0 flex-1">
-                      <p className="font-medium text-vantix-fg">{item.name}</p>
-                      {item.description && <p className="text-sm text-vantix-fg-muted">{item.description}</p>}
+                      <p className="truncate font-medium text-vantix-fg">{item.name}</p>
                       {item.sections && item.sections.length > 0 && (
                         <p className="text-xs text-vantix-cyan/80 mt-1">יש אפשרויות לבחירה</p>
                       )}
