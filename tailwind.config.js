@@ -63,9 +63,13 @@ export default {
         body: ['Rubik', 'system-ui', 'sans-serif'],
       },
       boxShadow: {
-        glow: '0 20px 60px rgb(var(--vantix-cyan) / 0.22)',
-        'glow-orange': '0 22px 65px rgba(249, 115, 22, 0.18)',
-        vantix: '0 18px 50px rgb(var(--vantix-cyan) / 0.12)',
+        glow: '0 0 28px rgb(var(--vantix-cyan) / 0.18), 0 0 56px rgb(var(--vantix-cyan) / 0.10)',
+        'glow-orange': '0 0 28px rgba(249, 115, 22, 0.18), 0 0 56px rgba(249, 115, 22, 0.10)',
+        vantix: '0 0 24px rgb(var(--vantix-cyan) / 0.12)',
+        'card-hover':
+          '0 0 24px rgb(var(--vantix-cyan) / 0.18), 0 0 48px rgb(var(--vantix-cyan) / 0.10), 0 0 80px rgb(var(--vantix-cyan) / 0.06)',
+        'card-hover-lg':
+          '0 0 32px rgb(var(--vantix-cyan) / 0.22), 0 0 64px rgb(var(--vantix-cyan) / 0.12), 0 0 96px rgb(var(--vantix-cyan) / 0.07)',
       },
       keyframes: {
         marquee: {

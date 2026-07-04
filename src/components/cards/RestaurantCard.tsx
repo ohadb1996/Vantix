@@ -30,7 +30,8 @@ export const RestaurantCard = ({
   onLikeClick,
 }: RestaurantCardProps) => {
   return (
-    <article className="group overflow-hidden rounded-2xl border border-vantix-cyan/20 bg-vantix-surface-raised transition hover:border-vantix-cyan/40 hover:shadow-[0_20px_50px_rgba(255,107,53,0.12)] sm:rounded-3xl sm:hover:shadow-[0_26px_70px_rgba(255,107,53,0.15)]">
+    <div className="group relative rounded-2xl transition-shadow duration-300 hover:shadow-card-hover sm:rounded-3xl sm:hover:shadow-card-hover-lg">
+      <article className="overflow-hidden rounded-[inherit] border border-vantix-cyan/20 bg-vantix-surface-raised transition-colors group-hover:border-vantix-cyan/40">
       <div className="relative h-40 overflow-hidden sm:h-48">
         {heroImage ? (
           <img
@@ -104,6 +105,7 @@ export const RestaurantCard = ({
           </div>
         )}
       </div>
-    </article>
+      </article>
+    </div>
   )
 }

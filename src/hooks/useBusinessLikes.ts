@@ -4,15 +4,16 @@ import { useAuth } from '../context/AuthContext'
 import { getUserLikedBusinessIds, toggleBusinessLike } from '../services/businessLikes'
 
 const QUERY_KEY = ['userLikedBusinesses'] as const
+const EMPTY_LIKED_SET = new Set<string>()
 
 export function useBusinessLikes() {
   const { user } = useAuth()
   const queryClient = useQueryClient()
   const [togglingId, setTogglingId] = useState<string | null>(null)
 
-  const { data: likedIds = new Set<string>(), isLoading } = useQuery({
+  const { data: likedIds = EMPTY_LIKED_SET, isLoading } = useQuery({
     queryKey: [...QUERY_KEY, user?.uid],
-    queryFn: () => (user ? getUserLikedBusinessIds(user.uid) : Promise.resolve(new Set<string>())),
+    queryFn: () => (user ? getUserLikedBusinessIds(user.uid) : Promise.resolve(EMPTY_LIKED_SET)),
     enabled: !!user,
     staleTime: 60 * 1000,
   })

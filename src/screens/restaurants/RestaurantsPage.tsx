@@ -151,11 +151,17 @@ export const RestaurantsPage = () => {
     }
   }
 
-  const renderBusinessCard = (b: BusinessWithMenu, matchedTags?: string[]) => (
+  const renderBusinessCard = (b: BusinessWithMenu, matchedTags?: string[]) => {
+    const menuPath = ROUTES.RESTAURANT_MENU(b.businessId)
+    const to = isLoggedIn ? menuPath : ROUTES.AUTH_LOGIN
+    const linkState = isLoggedIn ? undefined : { from: { pathname: menuPath } }
+
+    return (
     <Link
       key={b.businessId}
-      to={ROUTES.RESTAURANT_MENU(b.businessId)}
-      className="block w-[78%] shrink-0 snap-start rounded-2xl focus:outline-none focus:ring-2 focus:ring-vantix-cyan focus:ring-offset-2 sm:w-[320px] sm:rounded-3xl"
+      to={to}
+      state={linkState}
+      className="block w-[78%] shrink-0 snap-start rounded-2xl px-1 py-4 outline-none focus-visible:ring-2 focus-visible:ring-vantix-cyan focus-visible:ring-offset-2 sm:w-[320px] sm:rounded-3xl"
     >
       <RestaurantCard
         name={b.businessName}
@@ -171,7 +177,8 @@ export const RestaurantsPage = () => {
         onLikeClick={() => void handleLike(b.businessId)}
       />
     </Link>
-  )
+    )
+  }
 
   return (
     <div className="space-y-6 sm:space-y-10">
@@ -283,7 +290,12 @@ export const RestaurantsPage = () => {
             transition={{ duration: 0.3 }}
             className="grid gap-4 sm:gap-6 md:grid-cols-2"
           >
-            {filteredBusinesses.map((b, index) => (
+            {filteredBusinesses.map((b, index) => {
+              const menuPath = ROUTES.RESTAURANT_MENU(b.businessId)
+              const to = isLoggedIn ? menuPath : ROUTES.AUTH_LOGIN
+              const linkState = isLoggedIn ? undefined : { from: { pathname: menuPath } }
+
+              return (
               <motion.div
                 key={b.businessId}
                 initial={{ opacity: 0, y: 16 }}
@@ -291,8 +303,9 @@ export const RestaurantsPage = () => {
                 transition={{ duration: 0.35, delay: index * 0.05 }}
               >
                 <Link
-                  to={ROUTES.RESTAURANT_MENU(b.businessId)}
-                  className="block focus:outline-none focus:ring-2 focus:ring-vantix-cyan focus:ring-offset-2 rounded-2xl sm:rounded-3xl"
+                  to={to}
+                  state={linkState}
+                  className="block rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-vantix-cyan focus-visible:ring-offset-2 sm:rounded-3xl"
                 >
                   <RestaurantCard
                     name={b.businessName}
@@ -309,7 +322,8 @@ export const RestaurantsPage = () => {
                   />
                 </Link>
               </motion.div>
-            ))}
+              )
+            })}
           </motion.section>
         )}
       </AnimatePresence>
@@ -374,7 +388,7 @@ function CategoryCarousel({
 
       <div
         ref={scrollRef}
-        className="flex snap-x snap-mandatory gap-4 overflow-x-auto pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="flex snap-x snap-mandatory gap-4 overflow-x-auto py-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         {section.businesses.map((b) => renderCard(b))}
       </div>
