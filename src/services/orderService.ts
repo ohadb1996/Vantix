@@ -40,6 +40,15 @@ export interface BusinessWithMenu {
   likeCount?: number
   /** שמות המנות בתפריט – לשימוש בחיפוש כללי של מאכלים בין כל המסעדות */
   menuItemNames?: string[]
+  /** שמות קטגוריות בתפריט – לפילטור לפי נישה */
+  menuCategoryNames?: string[]
+  /** מחיר מנה מינימלי/מקסימלי בתפריט (מנות זמינות בלבד) */
+  minMenuPrice?: number
+  maxMenuPrice?: number
+  /** סוג העסק מפרופיל ההרשמה (Businesses/{id}/business_type) */
+  businessType?: string
+  /** האם הוגדרו שעות פעילות בפועל */
+  hasConfiguredHours?: boolean
   /** כתובת העסק – להצגה בעת איסוף עצמי */
   pickupAddress?: string
   /** שעות פעילות – Businesses/{id}/business_hours */
@@ -74,12 +83,27 @@ export async function getBusinessesWithMenus(): Promise<BusinessWithMenu[]> {
             .filter(Boolean)
         : []
 
+      const menuCategoryNames: string[] = menu?.categories
+        ? Object.values(menu.categories as Record<string, { name?: string; available?: boolean }>)
+            .filter((c) => c?.available !== false)
+            .map((c) => c?.name || '')
+            .filter(Boolean)
+        : []
+
+      const menuPrices: number[] = menu?.items
+        ? Object.values(menu.items as Record<string, { price?: number; available?: boolean }>)
+            .filter((it) => it?.available !== false && typeof it.price === 'number' && it.price > 0)
+            .map((it) => it.price as number)
+        : []
+
       let businessName = ''
       let logoUrl: string | undefined
       let isRecommended = false
       let likeCount = 0
       let pickupAddress: string | undefined
+      let businessType: string | undefined
       let businessHours: BusinessHours | null = null
+      let hasConfiguredHours = false
       try {
         const bizSnap = await get(ref(db(), `Businesses/${businessId}`))
         if (bizSnap.exists()) {
@@ -94,6 +118,8 @@ export async function getBusinessesWithMenus(): Promise<BusinessWithMenu[]> {
             [streetLine, data?.business_city].filter(Boolean).join(', ') ||
             undefined
           businessHours = normalizeBusinessHours(data?.business_hours)
+          hasConfiguredHours = data?.business_hours != null && typeof data.business_hours === 'object'
+          businessType = typeof data?.business_type === 'string' ? data.business_type : undefined
         }
       } catch {
         businessName = `עסק ${businessId.slice(0, 6)}`
@@ -108,6 +134,11 @@ export async function getBusinessesWithMenus(): Promise<BusinessWithMenu[]> {
         isRecommended,
         likeCount,
         menuItemNames,
+        menuCategoryNames,
+        minMenuPrice: menuPrices.length ? Math.min(...menuPrices) : undefined,
+        maxMenuPrice: menuPrices.length ? Math.max(...menuPrices) : undefined,
+        businessType,
+        hasConfiguredHours,
         pickupAddress,
         businessHours,
         isOpenNow: isBusinessOpenNow(businessHours),
