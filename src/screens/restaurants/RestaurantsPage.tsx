@@ -15,8 +15,6 @@ import { ROUTES } from '../../constants/app'
 import {
   FAVORITES_CATEGORY_ID,
   FAVORITES_CATEGORY_NAME,
-  RECOMMENDED_CATEGORY_NAME,
-  TOP_LIKED_COUNT,
 } from '../../services/restaurantCategories'
 import type { BusinessWithMenu } from '../../services/orderService'
 
@@ -67,21 +65,6 @@ export const RestaurantsPage = () => {
 
     const sections: CategorySection[] = []
     const assigned = new Set<string>()
-
-    const topLiked = [...businesses]
-      .filter((b) => (b.likeCount ?? 0) > 0)
-      .sort((a, b) => (b.likeCount ?? 0) - (a.likeCount ?? 0))
-      .slice(0, TOP_LIKED_COUNT)
-
-    if (topLiked.length > 0) {
-      sections.push({
-        id: '__recommended__',
-        title: RECOMMENDED_CATEGORY_NAME,
-        businesses: topLiked,
-        isSystem: true,
-      })
-      for (const b of topLiked) assigned.add(b.businessId)
-    }
 
     if (isLoggedIn && likedBusinessIds.size > 0) {
       const favorites = [...likedBusinessIds]
@@ -163,6 +146,7 @@ export const RestaurantsPage = () => {
         isLiked={isLiked(b.businessId)}
         likeDisabled={togglingId === b.businessId}
         onLikeClick={() => void handleLike(b.businessId)}
+        isClosed={b.isOpenNow === false}
       />
     </Link>
     )

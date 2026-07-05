@@ -10,6 +10,8 @@ type RestaurantCardProps = {
   isLiked?: boolean
   likeDisabled?: boolean
   onLikeClick?: () => void
+  /** העסק סגור כעת לפי שעות הפעילות */
+  isClosed?: boolean
 }
 
 export const RestaurantCard = ({
@@ -22,21 +24,29 @@ export const RestaurantCard = ({
   isLiked = false,
   likeDisabled = false,
   onLikeClick,
+  isClosed = false,
 }: RestaurantCardProps) => {
   return (
-    <div className="group relative h-full rounded-2xl transition-shadow duration-300 hover:shadow-card-hover sm:rounded-3xl sm:hover:shadow-card-hover-lg">
-      <article className="flex h-full flex-col overflow-hidden rounded-[inherit] border border-vantix-cyan/20 bg-vantix-surface-raised transition-colors group-hover:border-vantix-cyan/40">
+    <div className={`group relative h-full rounded-2xl transition-shadow duration-300 hover:shadow-card-hover sm:rounded-3xl sm:hover:shadow-card-hover-lg ${isClosed ? 'opacity-95' : ''}`}>
+      <article className={`flex h-full flex-col overflow-hidden rounded-[inherit] border bg-vantix-surface-raised transition-colors ${isClosed ? 'border-vantix-fg-muted/25' : 'border-vantix-cyan/20 group-hover:border-vantix-cyan/40'}`}>
       <div className="relative aspect-[5/2] w-full shrink-0 overflow-hidden lg:aspect-[2/1]">
         {heroImage ? (
           <img
             src={heroImage}
             alt=""
-            className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
+            className={`h-full w-full object-cover transition duration-700 group-hover:scale-105 ${isClosed ? 'grayscale-[0.35] brightness-75' : ''}`}
           />
         ) : (
           <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-gradient-to-br from-vantix-cyan/8 via-brand-skySoft to-vantix-orange/5">
             <UtensilsCrossed className="h-10 w-10 text-vantix-cyan/40 sm:h-12 sm:w-12" />
             <span className="text-[10px] font-medium text-vantix-fg-subtle sm:text-xs">לוגו העסק</span>
+          </div>
+        )}
+        {isClosed && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/45 backdrop-blur-[1px]">
+            <span className="rounded-full border border-white/25 bg-black/55 px-4 py-2 text-sm font-bold text-white shadow-lg">
+              סגור כעת להזמנות
+            </span>
           </div>
         )}
         {onLikeClick && (
@@ -69,8 +79,12 @@ export const RestaurantCard = ({
           <div className="min-w-0 flex-1">
             <h3 className="truncate font-display text-base text-vantix-fg lg:text-lg">{name}</h3>
           </div>
-          <div className="max-w-[42%] shrink-0 truncate rounded-full border border-vantix-cyan/25 bg-vantix-cyan/10 px-2.5 py-1 text-[11px] font-semibold text-vantix-cyan lg:px-3 lg:py-1 lg:text-xs">
-            {eta}
+          <div className={`max-w-[42%] shrink-0 truncate rounded-full border px-2.5 py-1 text-[11px] font-semibold lg:px-3 lg:py-1 lg:text-xs ${
+            isClosed
+              ? 'border-red-400/35 bg-red-500/10 text-red-600 dark:text-red-300'
+              : 'border-vantix-cyan/25 bg-vantix-cyan/10 text-vantix-cyan'
+          }`}>
+            {isClosed ? 'סגור כעת' : eta}
           </div>
         </header>
 

@@ -7,6 +7,8 @@ import { getRealtimeDb, getFirebaseAuth, getFirebaseApp } from '../lib/firebase'
 import { normalizeIsraeliPhone } from '../utils/phone'
 import type { Order, OrderCreate } from '../types/order'
 import type { BusinessMenu } from '../types/menu'
+import type { BusinessHours } from '../types/businessHours'
+import { isBusinessOpenNow, normalizeBusinessHours } from '../utils/businessHours'
 import type { BusinessLocationInfo, CourierLocation, TrackedDelivery } from '../types/tracking'
 
 const db = () => getRealtimeDb()
@@ -40,6 +42,10 @@ export interface BusinessWithMenu {
   menuItemNames?: string[]
   /** כתובת העסק – להצגה בעת איסוף עצמי */
   pickupAddress?: string
+  /** שעות פעילות – Businesses/{id}/business_hours */
+  businessHours?: BusinessHours | null
+  /** האם העסק פתוח כעת לקבלת הזמנות */
+  isOpenNow?: boolean
 }
 
 /**
@@ -73,6 +79,7 @@ export async function getBusinessesWithMenus(): Promise<BusinessWithMenu[]> {
       let isRecommended = false
       let likeCount = 0
       let pickupAddress: string | undefined
+      let businessHours: BusinessHours | null = null
       try {
         const bizSnap = await get(ref(db(), `Businesses/${businessId}`))
         if (bizSnap.exists()) {
@@ -86,6 +93,7 @@ export async function getBusinessesWithMenus(): Promise<BusinessWithMenu[]> {
             data?.business_address ||
             [streetLine, data?.business_city].filter(Boolean).join(', ') ||
             undefined
+          businessHours = normalizeBusinessHours(data?.business_hours)
         }
       } catch {
         businessName = `עסק ${businessId.slice(0, 6)}`
@@ -101,6 +109,8 @@ export async function getBusinessesWithMenus(): Promise<BusinessWithMenu[]> {
         likeCount,
         menuItemNames,
         pickupAddress,
+        businessHours,
+        isOpenNow: isBusinessOpenNow(businessHours),
       })
     }
 

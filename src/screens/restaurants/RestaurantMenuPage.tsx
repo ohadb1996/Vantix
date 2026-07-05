@@ -61,10 +61,12 @@ function MenuItemRow({
   item,
   onOpen,
   onAdd,
+  orderingClosed = false,
 }: {
   item: MenuItem
   onOpen: () => void
   onAdd: (e: React.MouseEvent) => void
+  orderingClosed?: boolean
 }) {
   const hasImage = Boolean(item.imageUrl)
 
@@ -103,7 +105,8 @@ function MenuItemRow({
         <button
           type="button"
           onClick={onAdd}
-          className="rounded-full bg-vantix-cyan p-2.5 text-white hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-vantix-cyan/50"
+          disabled={orderingClosed}
+          className="rounded-full bg-vantix-cyan p-2.5 text-white hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-vantix-cyan/50 disabled:opacity-40 disabled:cursor-not-allowed"
           aria-label={`הוסף ${item.name} לעגלה`}
         >
           <Plus className="h-5 w-5" />
@@ -116,7 +119,7 @@ function MenuItemRow({
 export const RestaurantMenuPage = () => {
   const { businessId } = useParams<{ businessId: string }>()
   const navigate = useNavigate()
-  const { menu, businessName, businessLogoUrl, businessPickupAddress, isLoading: loading } = useMenu(businessId)
+  const { menu, businessName, businessLogoUrl, businessPickupAddress, isOpenNow, isLoading: loading } = useMenu(businessId)
   const { cart, addToCart, removeFromCart, updateLineOptions, clearCart, totalItems, totalPrice } = useCart(businessId, menu?.items ?? null)
   const { user } = useAuth()
   const toast = useToast()
@@ -134,6 +137,10 @@ export const RestaurantMenuPage = () => {
   /** פתיחת מסך התשלום — דורש התחברות; אחרת מפנה להתחברות ומחזיר לכאן. */
   const openCheckout = useCallback(() => {
     if (!businessId) return
+    if (!isOpenNow) {
+      toast.info('העסק סגור כעת ולא מקבל הזמנות חדשות')
+      return
+    }
     if (!user) {
       toast.info('כדי להשלים הזמנה צריך להתחבר')
       navigate(ROUTES.AUTH_LOGIN, {
@@ -143,7 +150,7 @@ export const RestaurantMenuPage = () => {
     }
     void haptic.medium()
     setShowCheckout(true)
-  }, [businessId, user, toast, navigate])
+  }, [businessId, isOpenNow, user, toast, navigate])
 
   const [placing, setPlacing] = useState(false)
   const [showCheckout, setShowCheckout] = useState(false)
@@ -396,6 +403,10 @@ export const RestaurantMenuPage = () => {
     }
   }, [visibleCategoriesForNav, isMenuSearching, syncActiveCategoryFromScroll])
 
+  const notifyClosed = useCallback(() => {
+    toast.info('העסק סגור כעת ולא מקבל הזמנות חדשות')
+  }, [toast])
+
   useEffect(() => {
     if (!activeCategoryId || !categoryTabsRef.current) return
     const tabsContainer = categoryTabsRef.current
@@ -560,7 +571,13 @@ export const RestaurantMenuPage = () => {
     return sel
   }
 
+  const orderingClosed = !isOpenNow
+
   const handleAddItem = (item: MenuItem) => {
+    if (orderingClosed) {
+      notifyClosed()
+      return
+    }
     if (item.sections && item.sections.length > 0) {
       setEditingOldOptions(null)
       setAddItemModal(item)
@@ -572,6 +589,10 @@ export const RestaurantMenuPage = () => {
 
   // פתיחת כרטיסיית המנה (לחיצה על כל הכרטיס בתפריט) – מציג פרטים ותמונה לכל מנה
   const openItemDetails = (item: MenuItem) => {
+    if (orderingClosed) {
+      notifyClosed()
+      return
+    }
     setEditingOldOptions(null)
     setSectionSelections({})
     setAddItemModal(item)
@@ -606,6 +627,10 @@ export const RestaurantMenuPage = () => {
 
   const handleAddItemConfirm = () => {
     if (!addItemModal) return
+    if (orderingClosed) {
+      notifyClosed()
+      return
+    }
     const missingSectionId = getFirstIncompleteRequiredSectionId(addItemModal, sectionSelections)
     if (missingSectionId) {
       scrollToItemModalSection(missingSectionId)
@@ -732,7 +757,8 @@ export const RestaurantMenuPage = () => {
               <button
                 type="button"
                 onClick={() => { setShowCartPanel(false); openCheckout() }}
-                className="w-full flex items-center justify-center gap-2 rounded-xl bg-vantix-orange dark:bg-vantix-cyan text-white dark:text-black py-3.5 font-semibold hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-vantix-cyan focus:ring-offset-2"
+                disabled={orderingClosed}
+                className="w-full flex items-center justify-center gap-2 rounded-xl bg-vantix-orange dark:bg-vantix-cyan text-white dark:text-black py-3.5 font-semibold hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-vantix-cyan focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 להזמנה
                 <ArrowRight className="h-4 w-4" />
@@ -758,6 +784,12 @@ export const RestaurantMenuPage = () => {
           <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent pointer-events-none" />
         </div>
       </header>
+
+      {orderingClosed && (
+        <div className="rounded-xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-center text-sm font-medium text-red-700 dark:text-red-300">
+          {businessName ? `${businessName} סגור/ה כעת` : 'העסק סגור כעת'} — לא ניתן לבצע הזמנה חדשה
+        </div>
+      )}
 
       <div className="grid min-w-0 gap-8 lg:grid-cols-3">
         <div className="min-w-0 space-y-4 lg:col-span-2">
@@ -854,6 +886,7 @@ export const RestaurantMenuPage = () => {
                         <MenuItemRow
                           key={item.id}
                           item={item}
+                          orderingClosed={orderingClosed}
                           onOpen={() => openItemDetails(item)}
                           onAdd={(e) => {
                             e.stopPropagation()
@@ -871,6 +904,7 @@ export const RestaurantMenuPage = () => {
                   <MenuItemRow
                     key={item.id}
                     item={item}
+                    orderingClosed={orderingClosed}
                     onOpen={() => openItemDetails(item)}
                     onAdd={(e) => {
                       e.stopPropagation()
@@ -944,7 +978,8 @@ export const RestaurantMenuPage = () => {
                 <button
                   type="button"
                   onClick={openCheckout}
-                  className="mt-3 w-full flex items-center justify-center gap-2 rounded-xl bg-vantix-orange dark:bg-vantix-cyan text-white dark:text-black py-3.5 font-semibold hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-vantix-cyan focus:ring-offset-2"
+                  disabled={orderingClosed}
+                  className="mt-3 w-full flex items-center justify-center gap-2 rounded-xl bg-vantix-orange dark:bg-vantix-cyan text-white dark:text-black py-3.5 font-semibold hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-vantix-cyan focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   להזמנה
                   <ArrowRight className="h-4 w-4" />
@@ -1304,7 +1339,8 @@ export const RestaurantMenuPage = () => {
             <button
               type="button"
               onClick={handleAddItemConfirm}
-              className="w-full flex items-center justify-center gap-2 rounded-xl bg-vantix-orange dark:bg-vantix-cyan text-white dark:text-black py-3.5 font-semibold hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-vantix-cyan"
+              disabled={orderingClosed}
+              className="w-full flex items-center justify-center gap-2 rounded-xl bg-vantix-orange dark:bg-vantix-cyan text-white dark:text-black py-3.5 font-semibold hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-vantix-cyan disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {editingOldOptions !== null ? <Check className="h-5 w-5" /> : <Plus className="h-5 w-5" />}
               {editingOldOptions !== null ? 'שמור שינויים' : 'הוסף לעגלה'}

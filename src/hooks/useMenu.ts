@@ -23,6 +23,8 @@ export function useMenu(businessId: string | undefined) {
     businessName: business?.businessName ?? '',
     businessLogoUrl: business?.logoUrl ?? null,
     businessPickupAddress: business?.pickupAddress ?? null,
+    isOpenNow: business?.isOpenNow !== false,
+    businessHours: business?.businessHours ?? null,
     isLoading: menuQuery.isLoading,
     error: menuQuery.error,
     refetch: menuQuery.refetch,

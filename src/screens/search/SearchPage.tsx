@@ -101,6 +101,7 @@ export const SearchPage = () => {
           isLiked={isLiked(b.businessId)}
           likeDisabled={togglingId === b.businessId}
           onLikeClick={() => void handleLike(b.businessId)}
+          isClosed={b.isOpenNow === false}
         />
       </Link>
     )
