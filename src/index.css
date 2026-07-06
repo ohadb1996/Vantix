@@ -228,7 +228,8 @@ body {
 
   @media (hover: hover) and (pointer: fine) {
     .vantix-btn-google:hover:not(:disabled) {
-      @apply -translate-y-0.5 border-vantix-cyan/50 shadow-card-hover;
+      @apply -translate-y-0.5 border-vantix-cyan/50;
+      box-shadow: theme('boxShadow.card-hover');
     }
 
     .vantix-btn-google:hover:not(:disabled) .vantix-btn-google-shimmer {
