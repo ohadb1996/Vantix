@@ -59,6 +59,10 @@ export function Field({
   inputMode,
   optional,
   disabled,
+  id,
+  name,
+  autoComplete,
+  maxLength,
 }: {
   label: string
   value: string
@@ -69,19 +73,29 @@ export function Field({
   inputMode?: 'text' | 'numeric' | 'tel'
   optional?: boolean
   disabled?: boolean
+  id?: string
+  name?: string
+  autoComplete?: string
+  maxLength?: number
 }) {
+  const inputId = id ?? name
   return (
     <div>
-      <label className="mb-1 block text-sm font-medium text-vantix-fg">
+      <label htmlFor={inputId} className="mb-1 block text-sm font-medium text-vantix-fg">
         {label}
         {optional ? <span className="text-vantix-fg-subtle"> (אופציונלי)</span> : ' *'}
       </label>
       <input
+        id={inputId}
+        name={name}
         type={type}
         inputMode={inputMode}
+        autoComplete={autoComplete}
+        maxLength={maxLength}
         value={value}
         placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
+        onInput={(e) => onChange(e.currentTarget.value)}
         disabled={disabled}
         className={`w-full rounded-xl border bg-vantix-surface px-3 py-2.5 text-vantix-fg outline-none transition placeholder:text-vantix-fg-subtle focus:ring-2 focus:ring-vantix-cyan/20 disabled:opacity-60 ${
           error ? 'border-red-400' : 'border-vantix-cyan/25 focus:border-vantix-cyan/50'

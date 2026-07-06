@@ -117,55 +117,74 @@ export function SavedPaymentFormModal({
         נשמרים 4 ספרות אחרונות, ת.ז ותוקף. מספר כרטיס מלא ו-CVV לא נשמרים — נוצר טוקן מאובטח
         ב-PayPlus, ובהזמנה הבאה יספיק להזין CVV בלבד.
       </p>
-      <Field label="כינוי" placeholder="לדוגמה: ויזה אישית" value={label} onChange={setLabel} optional />
-
-      {isEdit ? (
-        <Field
-          label="4 ספרות אחרונות"
-          value={initial?.last4 ? formatMaskedCardNumber(initial.last4) : ''}
-          onChange={() => {}}
-          disabled
-        />
-      ) : (
-        <Field
-          label="מספר כרטיס"
-          placeholder="1234 5678 9012 3456"
-          inputMode="numeric"
-          value={cardNumber}
-          onChange={(v) => setCardNumber(formatCardNumberInput(v))}
-          error={errors.cardNumber}
-        />
-      )}
-
       <Field
-        label="ת.ז"
-        placeholder="123456789"
-        inputMode="numeric"
-        value={holderId}
-        onChange={(v) => setHolderId(v.replace(/\D/g, '').slice(0, 9))}
-        error={errors.holderId}
+        label="כינוי"
+        placeholder="לדוגמה: ויזה אישית"
+        value={label}
+        onChange={setLabel}
+        optional
+        name="card-label"
+        autoComplete="off"
       />
 
-      {!isEdit && (
-        <Field
-          label="CVV"
-          placeholder="123"
-          inputMode="numeric"
-          type="password"
-          value={cvv}
-          onChange={(v) => setCvv(v.replace(/\D/g, '').slice(0, 4))}
-          error={errors.cvv}
-        />
-      )}
+      <form autoComplete="on" onSubmit={(e) => e.preventDefault()} className="space-y-4">
+        {isEdit ? (
+          <Field
+            label="4 ספרות אחרונות"
+            value={initial?.last4 ? formatMaskedCardNumber(initial.last4) : ''}
+            onChange={() => {}}
+            disabled
+          />
+        ) : (
+          <Field
+            label="מספר כרטיס"
+            placeholder="1234 5678 9012 3456"
+            inputMode="numeric"
+            name="cc-number"
+            autoComplete="cc-number"
+            value={cardNumber}
+            onChange={(v) => setCardNumber(formatCardNumberInput(v))}
+            error={errors.cardNumber}
+          />
+        )}
 
-      <Field
-        label="תוקף"
-        placeholder="MM/YY"
-        inputMode="numeric"
-        value={expiry}
-        onChange={(v) => setExpiry(formatExpiryInput(v))}
-        error={errors.expiry}
-      />
+        <Field
+          label="תוקף"
+          placeholder="MM/YY"
+          inputMode="numeric"
+          name="cc-exp"
+          autoComplete="cc-exp"
+          value={expiry}
+          onChange={(v) => setExpiry(formatExpiryInput(v))}
+          error={errors.expiry}
+        />
+
+        {!isEdit && (
+          <Field
+            label="CVV"
+            placeholder="123"
+            inputMode="numeric"
+            type="tel"
+            name="cc-csc"
+            autoComplete="cc-csc"
+            maxLength={4}
+            value={cvv}
+            onChange={(v) => setCvv(v.replace(/\D/g, '').slice(0, 4))}
+            error={errors.cvv}
+          />
+        )}
+
+        <Field
+          label="ת.ז"
+          placeholder="123456789"
+          inputMode="numeric"
+          name="holder-id"
+          autoComplete="off"
+          value={holderId}
+          onChange={(v) => setHolderId(v.replace(/\D/g, '').slice(0, 9))}
+          error={errors.holderId}
+        />
+      </form>
     </ProfileFormModal>
   )
 }
