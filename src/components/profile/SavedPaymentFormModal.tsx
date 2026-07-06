@@ -35,7 +35,10 @@ export function SavedPaymentFormModal({
 }: {
   initial?: SavedPayment | null
   saving?: boolean
-  onSubmit: (data: SavedPaymentInput) => void | Promise<void | string>
+  onSubmit: (
+    data: SavedPaymentInput,
+    capturedSecrets?: { cardNumber: string; cvv: string },
+  ) => void | Promise<void | string>
   onClose: () => void
   zIndexClass?: string
 }) {
@@ -80,7 +83,10 @@ export function SavedPaymentFormModal({
       isDefault: initial?.isDefault,
     }
 
-    const savedId = await onSubmit(paymentInput)
+    const capturedSecrets =
+      !isEdit && digits && cvv ? { cardNumber: digits, cvv: cvv.trim() } : undefined
+
+    const savedId = await onSubmit(paymentInput, capturedSecrets)
 
     if (!isEdit && typeof savedId === 'string' && digits && cvv) {
       setTokenizing(true)

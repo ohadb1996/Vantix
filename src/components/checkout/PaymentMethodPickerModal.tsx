@@ -23,6 +23,7 @@ export function PaymentMethodPickerModal({
   onAddCard,
   onUpdateCard,
   onDeleteCard,
+  onCardCaptured,
 }: {
   cards: SavedPayment[]
   selectedType?: PaymentMethodType
@@ -33,6 +34,7 @@ export function PaymentMethodPickerModal({
   onAddCard: (data: SavedPaymentInput) => Promise<SavedPayment>
   onUpdateCard: (id: string, data: SavedPaymentInput) => Promise<void>
   onDeleteCard: (id: string) => Promise<void>
+  onCardCaptured?: (paymentId: string, secrets: { cardNumber: string; cvv: string }) => void
 }) {
   const [step, setStep] = useState<Step>(selectedType === 'credit' ? 'cards' : 'methods')
   const [cardModal, setCardModal] = useState<SavedPayment | null | undefined>(undefined)
@@ -164,7 +166,7 @@ export function PaymentMethodPickerModal({
           saving={saving}
           zIndexClass="z-[80]"
           onClose={() => setCardModal(undefined)}
-          onSubmit={async (data) => {
+          onSubmit={async (data, capturedSecrets) => {
             try {
               if (cardModal) {
                 await onUpdateCard(cardModal.id, data)
@@ -175,6 +177,7 @@ export function PaymentMethodPickerModal({
               }
               const created = await onAddCard(data)
               onSelectMethod('credit', created)
+              if (capturedSecrets) onCardCaptured?.(created.id, capturedSecrets)
               setCardModal(undefined)
               onClose()
               return created.id

@@ -28,7 +28,6 @@ export function CourierTipSelector({ value, onChange }: CourierTipSelectorProps)
 
   const shownTip = dragTip ?? value
   const tipRatio = Math.min(1, Math.max(0, shownTip / COURIER_TIP_MAX))
-  const thumbSizeRatio = Math.min(1, Math.max(0, value / COURIER_TIP_MAX))
 
   const selectPreset = (amount: PresetValue) => {
     setMode('preset')
@@ -150,12 +149,7 @@ export function CourierTipSelector({ value, onChange }: CourierTipSelectorProps)
             isDraggingRef.current = false
           }}
           className="courier-tip-slider w-full cursor-pointer"
-          style={
-            {
-              '--tip-ratio': tipRatio,
-              '--thumb-size-ratio': thumbSizeRatio,
-            } as React.CSSProperties
-          }
+          style={{ '--tip-ratio': tipRatio } as React.CSSProperties}
         />
         <div className="flex justify-between text-[11px] text-vantix-fg-subtle">
           <span>₪0</span>

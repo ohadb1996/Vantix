@@ -21,11 +21,11 @@ import { useMainScrollPast } from '../../hooks/useScrolled'
 import { incrementMenuItemOrderCounts } from '../../services/menuItemStats'
 import {
   CheckoutCvvOnlyField,
+  CheckoutCreditSecurityFields,
   validateCheckoutCreditSecurity,
 } from '../../components/checkout/CheckoutCreditSecurityFields'
-import { CheckoutCardAuthModal } from '../../components/checkout/CheckoutCardAuthModal'
 import { useSavedPayments } from '../../hooks/useCustomerProfile'
-import { stripCardNumber } from '../../utils/cardNumber'
+import { stripCardNumber, formatCardNumberInput } from '../../utils/cardNumber'
 import { PAYMENT_METHOD_LABELS, type SavedAddress, type SavedContact, type SavedPayment, type PaymentMethodType } from '../../types/customerProfile'
 import { paymentSummary } from '../../components/profile/savedDisplay'
 
@@ -161,7 +161,7 @@ export const RestaurantMenuPage = () => {
 
   const [placing, setPlacing] = useState(false)
   const [showCheckout, setShowCheckout] = useState(false)
-  const [showCardAuthModal, setShowCardAuthModal] = useState(false)
+  const [sessionCardPaymentId, setSessionCardPaymentId] = useState<string | undefined>()
   const [showCartPanel, setShowCartPanel] = useState(false)
   // אופן מימוש ההזמנה: משלוח או איסוף עצמי
   const [fulfillment, setFulfillment] = useState<'delivery' | 'pickup'>('delivery')
@@ -208,6 +208,14 @@ export const RestaurantMenuPage = () => {
     [savedPayments, selectedPaymentId],
   )
   const requireFullCard = selectedPaymentType === 'credit' && !selectedSavedCard?.hasPayplusToken
+  const hasSessionSecrets =
+    sessionCardPaymentId === selectedPaymentId &&
+    /^\d{3,4}$/.test(creditCvv) &&
+    (!requireFullCard || stripCardNumber(creditCardNumber).length === 16)
+  const needsInlineCardFields =
+    selectedPaymentType === 'credit' && !!selectedPaymentId && requireFullCard && !hasSessionSecrets
+  const needsCvvField =
+    selectedPaymentType === 'credit' && !!selectedPaymentId && !requireFullCard && !hasSessionSecrets
   const checkoutTotal = useMemo(() => roundMoney(totalPrice + courierTip), [totalPrice, courierTip])
 
   const applyContact = useCallback((c: SavedContact) => {
@@ -236,6 +244,10 @@ export const RestaurantMenuPage = () => {
 
   const applyPaymentMethod = useCallback((type: PaymentMethodType, card?: SavedPayment) => {
     setSelectedPaymentType(type)
+    setCreditCvv('')
+    setCreditCardNumber('')
+    setSessionCardPaymentId(undefined)
+    setCreditSecurityErrors({})
     if (type === 'credit' && card) {
       setSelectedPaymentId(card.id)
       const label = card.label ? `${card.label} · ` : ''
@@ -245,6 +257,16 @@ export const RestaurantMenuPage = () => {
       setPaymentMethod(PAYMENT_METHOD_LABELS[type])
     }
   }, [])
+
+  const captureCardSecrets = useCallback(
+    (paymentId: string, secrets: { cardNumber: string; cvv: string }) => {
+      setSessionCardPaymentId(paymentId)
+      setCreditCardNumber(formatCardNumberInput(secrets.cardNumber))
+      setCreditCvv(secrets.cvv)
+      setCreditSecurityErrors({})
+    },
+    [],
+  )
 
   const validate = useCallback((): boolean => {
     const err: Record<string, string> = {}
@@ -264,15 +286,21 @@ export const RestaurantMenuPage = () => {
       err._submit = 'נא לבחור כרטיס אשראי'
     } else if (selectedPaymentType === 'gpay' || selectedPaymentType === 'apay') {
       err._submit = 'תשלום Google Pay / Apple Pay ישירות מהאפליקציה יתמך בקרוב – בחרו כרטיס אשראי או מזומן'
-    } else if (selectedPaymentType === 'credit' && !requireFullCard) {
+    } else if (selectedPaymentType === 'credit' && needsCvvField) {
       if (!/^\d{3,4}$/.test(creditCvv)) {
         setCreditSecurityErrors({ cvv: 'נא להזין CVV תקין' })
         err._submit = 'נא להזין CVV לפני שליחת ההזמנה'
       }
+    } else if (selectedPaymentType === 'credit' && needsInlineCardFields) {
+      const creditErr = validateCheckoutCreditSecurity(creditCvv, creditCardNumber, true)
+      if (Object.keys(creditErr).length) {
+        setCreditSecurityErrors(creditErr)
+        err._submit = creditErr.cardNumber || creditErr.cvv || 'נא להשלים פרטי אשראי'
+      }
     }
     setFormErrors(err)
     return Object.keys(err).length === 0
-  }, [form, fulfillment, selectedPaymentType, selectedPaymentId, creditCvv, requireFullCard])
+  }, [form, fulfillment, selectedPaymentType, selectedPaymentId, creditCvv, creditCardNumber, needsCvvField, needsInlineCardFields])
 
   const categoriesList = useMemo(() => {
     if (!menu?.categories) return []
@@ -439,13 +467,6 @@ export const RestaurantMenuPage = () => {
       })
       return
     }
-
-    if (selectedPaymentType === 'credit' && requireFullCard) {
-      setCreditSecurityErrors({})
-      setShowCardAuthModal(true)
-      return
-    }
-
     await submitOrderWithPayment()
   }
 
@@ -500,14 +521,15 @@ export const RestaurantMenuPage = () => {
           savedPaymentId: selectedPaymentId,
           cvv: selectedPaymentType === 'credit' ? creditCvv : undefined,
           cardNumber:
-            selectedPaymentType === 'credit' && requireFullCard
+            selectedPaymentType === 'credit' &&
+            (requireFullCard || stripCardNumber(creditCardNumber).length === 16)
               ? stripCardNumber(creditCardNumber)
               : undefined,
         },
       )
       clearCart()
       setShowCheckout(false)
-      setShowCardAuthModal(false)
+      setSessionCardPaymentId(undefined)
       setCreditCvv('')
       setCreditCardNumber('')
       setCourierTip(0)
@@ -526,8 +548,9 @@ export const RestaurantMenuPage = () => {
         err?.code === 'PERMISSION_DENIED' ||
         err?.message?.includes('PERMISSION_DENIED') ||
         err?.message?.includes('permission_denied')
-      if (err?.requiresCardNumber && selectedPaymentType === 'credit') {
-        setShowCardAuthModal(true)
+      if (err?.requiresCardNumber && selectedPaymentType === 'credit' && !needsInlineCardFields) {
+        setCreditSecurityErrors({ cardNumber: 'נא להזין מספר כרטיס מלא' })
+        setFormErrors({ _submit: 'נא להשלים את פרטי הכרטיס למטה' })
         setPlacing(false)
         return
       }
@@ -539,16 +562,6 @@ export const RestaurantMenuPage = () => {
     } finally {
       setPlacing(false)
     }
-  }
-
-  const handleCardAuthConfirm = async () => {
-    const creditErr = validateCheckoutCreditSecurity(creditCvv, creditCardNumber, requireFullCard)
-    if (Object.keys(creditErr).length) {
-      setCreditSecurityErrors(creditErr)
-      return
-    }
-    setCreditSecurityErrors({})
-    await submitOrderWithPayment()
   }
 
   if (!businessId) return null
@@ -1159,14 +1172,26 @@ export const RestaurantMenuPage = () => {
               onSelectContact={applyContact}
               onSelectAddress={applyAddress}
               onSelectPaymentMethod={applyPaymentMethod}
+              onCardCaptured={captureCardSecrets}
               hideAddress={fulfillment === 'pickup'}
             />
 
-            {selectedPaymentType === 'credit' && selectedPaymentId && !requireFullCard ? (
+            {needsCvvField ? (
               <CheckoutCvvOnlyField
                 cvv={creditCvv}
                 onCvvChange={setCreditCvv}
                 error={creditSecurityErrors.cvv}
+              />
+            ) : null}
+
+            {needsInlineCardFields ? (
+              <CheckoutCreditSecurityFields
+                cvv={creditCvv}
+                onCvvChange={setCreditCvv}
+                cardNumber={creditCardNumber}
+                onCardNumberChange={setCreditCardNumber}
+                requireFullCard
+                errors={creditSecurityErrors}
               />
             ) : null}
 
@@ -1386,21 +1411,6 @@ export const RestaurantMenuPage = () => {
         </AnimatePresence>,
         document.body
       )}
-
-      <CheckoutCardAuthModal
-        open={showCardAuthModal}
-        onClose={() => {
-          if (!placing) setShowCardAuthModal(false)
-        }}
-        cvv={creditCvv}
-        onCvvChange={setCreditCvv}
-        cardNumber={creditCardNumber}
-        onCardNumberChange={setCreditCardNumber}
-        requireFullCard={requireFullCard}
-        errors={creditSecurityErrors}
-        placing={placing}
-        onConfirm={handleCardAuthConfirm}
-      />
 
     </div>
   )

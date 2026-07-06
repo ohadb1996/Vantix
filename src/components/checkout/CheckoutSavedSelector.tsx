@@ -33,6 +33,8 @@ type SelectorProps = {
   onSelectPaymentMethod: (type: PaymentMethodType, card?: SavedPayment) => void
   /** הסתרת בלוק הכתובות (באיסוף עצמי אין צורך בכתובת) */
   hideAddress?: boolean
+  /** פרטי כרטיס מהוספה בצ'קאאוט — לחיוב בלחיצה על שליחת הזמנה בלי מודל נוסף */
+  onCardCaptured?: (paymentId: string, secrets: { cardNumber: string; cvv: string }) => void
 }
 
 function paymentSelectionLabel(
@@ -137,6 +139,7 @@ export function CheckoutSavedSelector({
   onSelectAddress,
   onSelectPaymentMethod,
   hideAddress = false,
+  onCardCaptured,
 }: SelectorProps) {
   const contacts = useSavedContacts()
   const addresses = useSavedAddresses()
@@ -298,6 +301,7 @@ export function CheckoutSavedSelector({
               onSelectPaymentMethod('credit')
             }
           }}
+          onCardCaptured={onCardCaptured}
         />
       )}
     </div>
