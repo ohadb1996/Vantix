@@ -14,7 +14,6 @@ import type { SearchFilterDef } from '../../constants/searchFilterDefs'
 import type { BusinessWithMenu } from '../../services/orderService'
 import {
   adminCategoriesToFilters,
-  countBusinessesForFilter,
   filterBusinesses,
   getAvailableFilters,
   getMatchedDishesForQuery,
@@ -45,6 +44,8 @@ export const SearchPage = () => {
   })
   const [selectedAdminCategoryIds, setSelectedAdminCategoryIds] = useState<Set<string>>(new Set())
   const inputRef = useRef<HTMLInputElement>(null)
+  const resultsRef = useRef<HTMLElement>(null)
+  const shouldScrollToResultsRef = useRef(false)
   const toast = useToast()
   const { data: businesses, isLoading, error } = useRestaurants()
   const { data: adminCategoriesRaw } = useRestaurantCategories()
@@ -90,6 +91,7 @@ export const SearchPage = () => {
 
   const toggleFilter = useCallback((id: string) => {
     void haptic.light()
+    shouldScrollToResultsRef.current = true
     setSelectedFilterIds((prev) => {
       const next = new Set(prev)
       if (next.has(id)) next.delete(id)
@@ -100,6 +102,7 @@ export const SearchPage = () => {
 
   const toggleAdminCategory = useCallback((id: string) => {
     void haptic.light()
+    shouldScrollToResultsRef.current = true
     setSelectedAdminCategoryIds((prev) => {
       const next = new Set(prev)
       if (next.has(id)) next.delete(id)
@@ -138,6 +141,27 @@ export const SearchPage = () => {
     selectedAdminCategoryIds.size > 0
 
   const activeFilterCount = selectedFilterIds.size + selectedAdminCategoryIds.size
+
+  const scrollToResults = useCallback(() => {
+    requestAnimationFrame(() => {
+      resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    })
+  }, [])
+
+  useEffect(() => {
+    if (!shouldScrollToResultsRef.current) return
+    shouldScrollToResultsRef.current = false
+    if (!hasActiveCriteria || isLoading || filteredBusinesses.length === 0) return
+    const timer = window.setTimeout(scrollToResults, 180)
+    return () => window.clearTimeout(timer)
+  }, [
+    filteredBusinesses.length,
+    hasActiveCriteria,
+    isLoading,
+    selectedFilterIds,
+    selectedAdminCategoryIds,
+    scrollToResults,
+  ])
 
   const handleLike = async (businessId: string) => {
     if (!isLoggedIn) {
@@ -180,7 +204,7 @@ export const SearchPage = () => {
   }
 
   const renderFilterGrid = (filters: SearchFilterDef[]) => (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+    <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 sm:gap-2 md:grid-cols-5 lg:grid-cols-6">
       {filters.map((f) => (
         <FilterTile
           key={f.id}
@@ -188,7 +212,6 @@ export const SearchPage = () => {
           emoji={f.emoji}
           gradient={f.gradient}
           selected={selectedFilterIds.has(f.id)}
-          count={countBusinessesForFilter(allBusinesses, f)}
           onClick={() => toggleFilter(f.id)}
         />
       ))}
@@ -196,7 +219,7 @@ export const SearchPage = () => {
   )
 
   const renderAdminCategoryGrid = (categories: AdminCategoryFilter[]) => (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+    <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 sm:gap-2 md:grid-cols-5 lg:grid-cols-6">
       {categories.map((c) => (
         <FilterTile
           key={c.id}
@@ -204,7 +227,6 @@ export const SearchPage = () => {
           emoji={c.emoji}
           gradient={c.gradient}
           selected={selectedAdminCategoryIds.has(c.id)}
-          count={c.businessIds.length}
           onClick={() => toggleAdminCategory(c.id)}
         />
       ))}
@@ -337,11 +359,12 @@ export const SearchPage = () => {
 
       {hasActiveCriteria && !isLoading && filteredBusinesses.length > 0 ? (
         <motion.section
+          ref={resultsRef}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.3 }}
           aria-label="תוצאות חיפוש"
-          className="space-y-4"
+          className="scroll-mt-24 space-y-4"
         >
           <p className="text-sm text-vantix-fg-muted">
             {filteredBusinesses.length} תוצאות

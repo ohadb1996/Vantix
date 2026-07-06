@@ -20,27 +20,7 @@ export interface SearchFilterDef {
 
 /** פילטרים לפי סטטוס / מחיר */
 export const STATUS_FILTER_DEFS: SearchFilterDef[] = [
-  {
-    id: 'open_now',
-    label: 'פתוח עכשיו',
-    emoji: '🟢',
-    gradient: 'from-emerald-500/90 to-teal-600/90',
-    group: 'status',
-  },
-  {
-    id: 'closed_now',
-    label: 'סגור עכשיו',
-    emoji: '🔴',
-    gradient: 'from-rose-500/90 to-red-700/90',
-    group: 'status',
-  },
-  {
-    id: 'budget_60',
-    label: 'תקציב עד ₪60',
-    emoji: '💰',
-    gradient: 'from-amber-400/90 to-orange-500/90',
-    group: 'status',
-  },
+
   {
     id: 'recommended',
     label: 'מומלץ',
