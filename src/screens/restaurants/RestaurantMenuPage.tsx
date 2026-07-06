@@ -15,6 +15,7 @@ import { haptic } from '../../lib/native'
 import { ROUTES } from '../../constants/app'
 import { CheckoutSavedSelector } from '../../components/checkout/CheckoutSavedSelector'
 import { CourierTipSelector } from '../../components/checkout/CourierTipSelector'
+import { DeliveryNotesInput } from '../../components/checkout/DeliveryNotesInput'
 import { PopularDishesRow } from '../../components/menu/PopularDishesRow'
 import { useMenuItemStats } from '../../hooks/useMenuItemStats'
 import { useMainScrollPast } from '../../hooks/useScrolled'
@@ -1192,6 +1193,13 @@ export const RestaurantMenuPage = () => {
                 onCardNumberChange={setCreditCardNumber}
                 requireFullCard
                 errors={creditSecurityErrors}
+              />
+            ) : null}
+
+            {fulfillment === 'delivery' ? (
+              <DeliveryNotesInput
+                value={form.delivery_notes}
+                onChange={(delivery_notes) => setForm((f) => ({ ...f, delivery_notes }))}
               />
             ) : null}
 
