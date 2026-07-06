@@ -6,7 +6,7 @@ import { chargeAndPlaceOrder } from '../../services/paymentService'
 import type { OrderCreate, OrderItem } from '../../types/order'
 import type { MenuItem } from '../../types/menu'
 import { isValidIsraeliPhone } from '../../utils/phone'
-import { ShoppingCart, Plus, Minus, Loader2, Check, ArrowRight, X, User, MapPin, CreditCard, Pencil, Search, Truck, Store } from 'lucide-react'
+import { ShoppingCart, Plus, Minus, Loader2, Check, ArrowRight, X, Pencil, Search, Truck, Store } from 'lucide-react'
 import { useMenu } from '../../hooks/useMenu'
 import { useCart, type CartLine, type CartSelectedOption } from '../../hooks/useCart'
 import { useAuth } from '../../context/AuthContext'
@@ -15,10 +15,15 @@ import { haptic } from '../../lib/native'
 import { ROUTES } from '../../constants/app'
 import { CheckoutSavedSelector } from '../../components/checkout/CheckoutSavedSelector'
 import { CourierTipSelector } from '../../components/checkout/CourierTipSelector'
+import { PopularDishesRow } from '../../components/menu/PopularDishesRow'
+import { useMenuItemStats } from '../../hooks/useMenuItemStats'
+import { useMainScrollPast } from '../../hooks/useScrolled'
+import { incrementMenuItemOrderCounts } from '../../services/menuItemStats'
 import {
-  CheckoutCreditSecurityFields,
+  CheckoutCvvOnlyField,
   validateCheckoutCreditSecurity,
 } from '../../components/checkout/CheckoutCreditSecurityFields'
+import { CheckoutCardAuthModal } from '../../components/checkout/CheckoutCardAuthModal'
 import { useSavedPayments } from '../../hooks/useCustomerProfile'
 import { stripCardNumber } from '../../utils/cardNumber'
 import { PAYMENT_METHOD_LABELS, type SavedAddress, type SavedContact, type SavedPayment, type PaymentMethodType } from '../../types/customerProfile'
@@ -121,6 +126,8 @@ export const RestaurantMenuPage = () => {
   const navigate = useNavigate()
   const { menu, businessName, businessLogoUrl, businessPickupAddress, isOpenNow, isLoading: loading } = useMenu(businessId)
   const { cart, addToCart, removeFromCart, updateLineOptions, clearCart, totalItems, totalPrice } = useCart(businessId, menu?.items ?? null)
+  const { orderCounts, bumpLocalCounts } = useMenuItemStats(businessId)
+  const compactStickyNav = useMainScrollPast(72)
   const { user } = useAuth()
   const toast = useToast()
   const { items: savedPayments } = useSavedPayments()
@@ -154,6 +161,7 @@ export const RestaurantMenuPage = () => {
 
   const [placing, setPlacing] = useState(false)
   const [showCheckout, setShowCheckout] = useState(false)
+  const [showCardAuthModal, setShowCardAuthModal] = useState(false)
   const [showCartPanel, setShowCartPanel] = useState(false)
   // אופן מימוש ההזמנה: משלוח או איסוף עצמי
   const [fulfillment, setFulfillment] = useState<'delivery' | 'pickup'>('delivery')
@@ -256,16 +264,15 @@ export const RestaurantMenuPage = () => {
       err._submit = 'נא לבחור כרטיס אשראי'
     } else if (selectedPaymentType === 'gpay' || selectedPaymentType === 'apay') {
       err._submit = 'תשלום Google Pay / Apple Pay ישירות מהאפליקציה יתמך בקרוב – בחרו כרטיס אשראי או מזומן'
-    } else if (selectedPaymentType === 'credit') {
-      const creditErr = validateCheckoutCreditSecurity(creditCvv, creditCardNumber, requireFullCard)
-      if (Object.keys(creditErr).length) {
-        setCreditSecurityErrors(creditErr)
-        err._submit = creditErr.cardNumber || creditErr.cvv || 'נא להשלים פרטי אשראי מאובטחים'
+    } else if (selectedPaymentType === 'credit' && !requireFullCard) {
+      if (!/^\d{3,4}$/.test(creditCvv)) {
+        setCreditSecurityErrors({ cvv: 'נא להזין CVV תקין' })
+        err._submit = 'נא להזין CVV לפני שליחת ההזמנה'
       }
     }
     setFormErrors(err)
     return Object.keys(err).length === 0
-  }, [form, fulfillment, selectedPaymentType, selectedPaymentId, creditCvv, creditCardNumber, requireFullCard])
+  }, [form, fulfillment, selectedPaymentType, selectedPaymentId, creditCvv, requireFullCard])
 
   const categoriesList = useMemo(() => {
     if (!menu?.categories) return []
@@ -305,6 +312,14 @@ export const RestaurantMenuPage = () => {
     const sourceItems = isMenuSearching ? filteredItemsList : itemsList
     return categoriesList.filter((cat) => sourceItems.some((i) => i.categoryId === cat.id))
   }, [categoriesList, itemsList, filteredItemsList, isMenuSearching])
+
+  const popularDishes = useMemo(() => {
+    return itemsList
+      .map((item) => ({ item, orderCount: orderCounts[item.id] ?? 0 }))
+      .filter((entry) => entry.orderCount > 0)
+      .sort((a, b) => b.orderCount - a.orderCount)
+      .slice(0, 15)
+  }, [itemsList, orderCounts])
 
   const scrollToCategory = useCallback((catId: string) => {
     isTabClickScrolling.current = true
@@ -424,9 +439,20 @@ export const RestaurantMenuPage = () => {
       })
       return
     }
+
+    if (selectedPaymentType === 'credit' && requireFullCard) {
+      setCreditSecurityErrors({})
+      setShowCardAuthModal(true)
+      return
+    }
+
+    await submitOrderWithPayment()
+  }
+
+  const submitOrderWithPayment = async () => {
+    if (!businessId || cart.length === 0) return
     setPlacing(true)
     setFormErrors({})
-    setCreditSecurityErrors({})
     try {
       const items: OrderItem[] = cart.map((l) => ({
         menuItemId: l.item.id,
@@ -481,9 +507,13 @@ export const RestaurantMenuPage = () => {
       )
       clearCart()
       setShowCheckout(false)
+      setShowCardAuthModal(false)
       setCreditCvv('')
       setCreditCardNumber('')
       setCourierTip(0)
+      const statsLines = cart.map((l) => ({ menuItemId: l.item.id, quantity: l.quantity }))
+      bumpLocalCounts(statsLines)
+      void incrementMenuItemOrderCounts(businessId, statsLines).catch(() => {})
       toast.success(
         paymentStatus === 'paid'
           ? 'התשלום בוצע וההזמנה נשלחה!'
@@ -491,11 +521,16 @@ export const RestaurantMenuPage = () => {
       )
       navigate(ROUTES.ORDER_TRACKING(orderId))
     } catch (e: unknown) {
-      const err = e as { code?: string; message?: string }
+      const err = e as { code?: string; message?: string; requiresCardNumber?: boolean }
       const isPermissionDenied =
         err?.code === 'PERMISSION_DENIED' ||
         err?.message?.includes('PERMISSION_DENIED') ||
         err?.message?.includes('permission_denied')
+      if (err?.requiresCardNumber && selectedPaymentType === 'credit') {
+        setShowCardAuthModal(true)
+        setPlacing(false)
+        return
+      }
       const message = isPermissionDenied
         ? 'אין הרשאה לשלוח הזמנה. ודאו שהתחברתם לחשבון ונסו שוב.'
         : 'שגיאה בשליחת ההזמנה. נסו שוב.'
@@ -504,6 +539,16 @@ export const RestaurantMenuPage = () => {
     } finally {
       setPlacing(false)
     }
+  }
+
+  const handleCardAuthConfirm = async () => {
+    const creditErr = validateCheckoutCreditSecurity(creditCvv, creditCardNumber, requireFullCard)
+    if (Object.keys(creditErr).length) {
+      setCreditSecurityErrors(creditErr)
+      return
+    }
+    setCreditSecurityErrors({})
+    await submitOrderWithPayment()
   }
 
   if (!businessId) return null
@@ -585,6 +630,11 @@ export const RestaurantMenuPage = () => {
     } else {
       addLine(item)
     }
+  }
+
+  const handlePopularRemove = (item: MenuItem) => {
+    const line = cart.find((l) => l.item.id === item.id)
+    if (line) removeFromCart(item.id, line.selectedOptions)
   }
 
   // פתיחת כרטיסיית המנה (לחיצה על כל הכרטיס בתפריט) – מציג פרטים ותמונה לכל מנה
@@ -793,9 +843,29 @@ export const RestaurantMenuPage = () => {
 
       <div className="grid min-w-0 gap-8 lg:grid-cols-3">
         <div className="min-w-0 space-y-4 lg:col-span-2">
+          {!isMenuSearching && popularDishes.length > 0 && (
+            <PopularDishesRow
+              dishes={popularDishes}
+              cart={cart}
+              orderingClosed={orderingClosed}
+              onOpenItem={openItemDetails}
+              onAddItem={handleAddItem}
+              onRemoveItem={handlePopularRemove}
+            />
+          )}
+
           {/* שורת חיפוש – נדבקת לראש המסך מתחת לסרגל העליון בזמן גלילה */}
-          <div ref={stickyNavRef} className="sticky top-0 z-30 -mx-3 px-3 pb-2 bg-vantix-surface/95 backdrop-blur-md sm:-mx-6 sm:px-6">
-            <div className="flex items-center gap-3 rounded-xl border border-vantix-cyan/25 bg-vantix-surface-raised px-3 py-2.5 shadow-sm">
+          <div
+            ref={stickyNavRef}
+            className={`sticky top-0 z-30 -mx-3 bg-vantix-surface/95 px-3 backdrop-blur-md transition-[padding] duration-200 sm:-mx-6 sm:px-6 ${
+              compactStickyNav ? 'pb-0.5 pt-0' : 'pb-2 pt-1'
+            }`}
+          >
+            <div
+              className={`flex items-center gap-3 rounded-xl border border-vantix-cyan/25 bg-vantix-surface-raised px-3 shadow-sm transition-[padding] duration-200 ${
+                compactStickyNav ? 'py-1.5' : 'py-2.5'
+              }`}
+            >
               <Search className="h-4 w-4 shrink-0 text-vantix-cyan" />
               <input
                 value={menuSearch}
@@ -820,7 +890,9 @@ export const RestaurantMenuPage = () => {
             {!isMenuSearching && visibleCategoriesForNav.length > 1 && (
               <div
                 ref={categoryTabsRef}
-                className="mt-2 overflow-x-auto -mx-1 px-1 border-b border-vantix-cyan/15 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+                className={`overflow-x-auto -mx-1 border-b border-vantix-cyan/15 px-1 transition-[margin] duration-200 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden ${
+                  compactStickyNav ? 'mt-1' : 'mt-2'
+                }`}
                 role="tablist"
                 aria-label="קטגוריות בתפריט"
               >
@@ -835,7 +907,9 @@ export const RestaurantMenuPage = () => {
                         data-cat-tab={cat.id}
                         aria-selected={isActive}
                         onClick={() => scrollToCategory(cat.id)}
-                        className={`relative shrink-0 px-4 py-3 text-sm transition-colors ${
+                        className={`relative shrink-0 px-4 text-sm transition-colors ${
+                          compactStickyNav ? 'py-2' : 'py-3'
+                        } ${
                           isActive
                             ? 'font-bold text-vantix-fg'
                             : 'font-medium text-vantix-fg-muted hover:text-vantix-fg'
@@ -1088,14 +1162,11 @@ export const RestaurantMenuPage = () => {
               hideAddress={fulfillment === 'pickup'}
             />
 
-            {selectedPaymentType === 'credit' && selectedPaymentId ? (
-              <CheckoutCreditSecurityFields
+            {selectedPaymentType === 'credit' && selectedPaymentId && !requireFullCard ? (
+              <CheckoutCvvOnlyField
                 cvv={creditCvv}
                 onCvvChange={setCreditCvv}
-                cardNumber={creditCardNumber}
-                onCardNumberChange={setCreditCardNumber}
-                requireFullCard={requireFullCard}
-                errors={creditSecurityErrors}
+                error={creditSecurityErrors.cvv}
               />
             ) : null}
 
@@ -1120,45 +1191,7 @@ export const RestaurantMenuPage = () => {
               </div>
             </div>
 
-            {form.customer_name || form.delivery_city ? (
-              <div className="space-y-2.5 rounded-2xl border border-vantix-cyan/20 bg-vantix-surface p-4 text-sm">
-                {form.customer_name && (
-                  <div className="flex items-start gap-2">
-                    <User className="mt-0.5 h-4 w-4 shrink-0 text-vantix-cyan" />
-                    <span className="text-vantix-fg">
-                      {form.customer_name} · {form.customer_phone}
-                      {form.customer_phone_secondary ? ` · ${form.customer_phone_secondary}` : ''}
-                    </span>
-                  </div>
-                )}
-                {fulfillment === 'delivery' && form.delivery_city && (
-                  <div className="flex items-start gap-2">
-                    <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-vantix-cyan" />
-                    <span className="text-vantix-fg">
-                      {[form.delivery_street, form.delivery_building_number].filter(Boolean).join(' ')}, {form.delivery_city}
-                      {form.delivery_apartment ? ` · דירה ${form.delivery_apartment}` : ''}
-                      {form.delivery_floor ? ` · קומה ${form.delivery_floor}` : ''}
-                      {form.delivery_building_code ? ` · קוד ${form.delivery_building_code}` : ''}
-                    </span>
-                  </div>
-                )}
-                {paymentMethod && (
-                  <div className="flex items-start gap-2">
-                    <CreditCard className="mt-0.5 h-4 w-4 shrink-0 text-vantix-cyan" />
-                    <span className="text-vantix-fg">{paymentMethod}</span>
-                  </div>
-                )}
-                {form.delivery_notes && (
-                  <p className="border-t border-vantix-cyan/15 pt-2 text-xs text-vantix-fg-muted">
-                    הערה לשליח: {form.delivery_notes}
-                  </p>
-                )}
-              </div>
-            ) : (
-              <p className="py-2 text-center text-sm text-vantix-fg-subtle">
-                בחר פרטים אישיים וכתובת מהחלק העליון, או הוסף חדשים בלחיצה על &quot;חדש&quot;.
-              </p>
-            )}
+            
             <div className="mt-6 flex flex-col gap-3">
               {formErrors._submit && (
                 <p
@@ -1353,6 +1386,21 @@ export const RestaurantMenuPage = () => {
         </AnimatePresence>,
         document.body
       )}
+
+      <CheckoutCardAuthModal
+        open={showCardAuthModal}
+        onClose={() => {
+          if (!placing) setShowCardAuthModal(false)
+        }}
+        cvv={creditCvv}
+        onCvvChange={setCreditCvv}
+        cardNumber={creditCardNumber}
+        onCardNumberChange={setCreditCardNumber}
+        requireFullCard={requireFullCard}
+        errors={creditSecurityErrors}
+        placing={placing}
+        onConfirm={handleCardAuthConfirm}
+      />
 
     </div>
   )

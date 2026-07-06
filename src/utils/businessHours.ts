@@ -37,6 +37,7 @@ export function getIsraelNowParts(date = new Date()): { dayKey: DayKey; time: st
 /** אם לא הוגדרו שעות – העסק נחשב פתוח (תאימות לאחור). */
 export function isBusinessOpenNow(hours: BusinessHours | null | undefined, now = new Date()): boolean {
   if (!hours) return true;
+  if (hours.is24_7 === true) return true;
   const { dayKey, time } = getIsraelNowParts(now);
   const today = hours[dayKey];
   if (!today?.isOpen) return false;
@@ -56,6 +57,7 @@ export function isBusinessOpenNow(hours: BusinessHours | null | undefined, now =
 export function normalizeBusinessHours(raw: unknown): BusinessHours | null {
   if (!raw || typeof raw !== "object") return null;
   const obj = raw as Record<string, unknown>;
+  const is24_7 = obj.is24_7 === true;
   const keys: DayKey[] = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
   const out = {} as BusinessHours;
   for (const key of keys) {
@@ -65,5 +67,6 @@ export function normalizeBusinessHours(raw: unknown): BusinessHours | null {
     if (typeof d.isOpen !== "boolean" || typeof d.open !== "string" || typeof d.close !== "string") return null;
     out[key] = { isOpen: d.isOpen, open: d.open, close: d.close };
   }
+  if (is24_7) out.is24_7 = true;
   return out;
 }

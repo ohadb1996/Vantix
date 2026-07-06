@@ -10,8 +10,12 @@ export const AppLayout = () => {
   const isRestaurantMenu = /^\/restaurants\/[^/]+$/.test(location.pathname)
 
   const headerPadding = scrolled
-    ? 'px-3 py-3 sm:px-6 sm:py-4 lg:px-10 lg:py-6'
-    : 'px-3 py-1.5 sm:px-6 sm:py-2 lg:px-10 lg:py-3'
+    ? isRestaurantMenu
+      ? 'px-3 py-1 sm:px-6 sm:py-1.5 lg:px-10 lg:py-2'
+      : 'px-3 py-3 sm:px-6 sm:py-4 lg:px-10 lg:py-6'
+    : isRestaurantMenu
+      ? 'px-3 py-1.5 sm:px-6 sm:py-2 lg:px-10 lg:py-3'
+      : 'px-3 py-1.5 sm:px-6 sm:py-2 lg:px-10 lg:py-3'
 
   return (
     <div className="vantix-page-bg relative flex h-full min-h-0 flex-col overflow-hidden text-vantix-fg">

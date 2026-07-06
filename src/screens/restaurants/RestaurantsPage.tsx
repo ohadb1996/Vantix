@@ -135,7 +135,7 @@ export const RestaurantsPage = () => {
       key={b.businessId}
       to={to}
       state={linkState}
-      className="block h-full w-[min(94vw,420px)] shrink-0 snap-start rounded-2xl px-1 py-2 outline-none focus-visible:ring-2 focus-visible:ring-vantix-cyan focus-visible:ring-offset-2 sm:w-[400px] sm:rounded-3xl"
+      className="block h-full w-[min(72vw,315px)] shrink-0 snap-start rounded-2xl px-1 py-2 outline-none focus-visible:ring-2 focus-visible:ring-vantix-cyan focus-visible:ring-offset-2 sm:w-[300px] sm:rounded-3xl"
     >
       <RestaurantCard
         name={b.businessName}

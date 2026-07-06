@@ -64,12 +64,16 @@ export const SearchPage = () => {
     () => availableFilters.filter((f) => f.group === 'status' || f.group === 'featured'),
     [availableFilters]
   )
-  const dietaryFilters = useMemo(
-    () => availableFilters.filter((f) => f.group === 'dietary'),
+  const kitchenFilters = useMemo(
+    () => availableFilters.filter((f) => f.group === 'kitchen'),
     [availableFilters]
   )
-  const nicheFilters = useMemo(
-    () => availableFilters.filter((f) => f.group === 'niche'),
+  const foodFilters = useMemo(
+    () => availableFilters.filter((f) => f.group === 'food'),
+    [availableFilters]
+  )
+  const kashrutFilters = useMemo(
+    () => availableFilters.filter((f) => f.group === 'kashrut'),
     [availableFilters]
   )
 
@@ -308,15 +312,21 @@ export const SearchPage = () => {
             </FilterSection>
           ) : null}
 
-          {nicheFilters.length > 0 ? (
-            <FilterSection title="גלו לפי נישה">
-              {renderFilterGrid(nicheFilters)}
+          {kitchenFilters.length > 0 ? (
+            <FilterSection title="🍽️ סוג המטבח">
+              {renderFilterGrid(kitchenFilters)}
             </FilterSection>
           ) : null}
 
-          {dietaryFilters.length > 0 ? (
-            <FilterSection title="העדפות תזונה">
-              {renderFilterGrid(dietaryFilters)}
+          {foodFilters.length > 0 ? (
+            <FilterSection title="🍔 סוג האוכל">
+              {renderFilterGrid(foodFilters)}
+            </FilterSection>
+          ) : null}
+
+          {kashrutFilters.length > 0 ? (
+            <FilterSection title="✡️ סוג כשרות">
+              {renderFilterGrid(kashrutFilters)}
             </FilterSection>
           ) : null}
 
@@ -327,8 +337,9 @@ export const SearchPage = () => {
           ) : null}
 
           {statusFilters.length === 0 &&
-          nicheFilters.length === 0 &&
-          dietaryFilters.length === 0 &&
+          kitchenFilters.length === 0 &&
+          foodFilters.length === 0 &&
+          kashrutFilters.length === 0 &&
           adminCategoryFilters.length === 0 ? (
             <div className="rounded-2xl border border-vantix-cyan/20 bg-vantix-surface-raised p-8 text-center">
               <UtensilsCrossed className="mx-auto h-10 w-10 text-vantix-cyan/40" />

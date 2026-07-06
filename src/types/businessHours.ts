@@ -15,6 +15,8 @@ export type DayKey =
   | "saturday";
 
 export interface BusinessHours {
+  /** העסק פתוח 24 שעות ביממה, 7 ימים בשבוע */
+  is24_7?: boolean;
   sunday: DayHours;
   monday: DayHours;
   tuesday: DayHours;

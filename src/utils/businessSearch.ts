@@ -15,26 +15,6 @@ export interface AdminCategoryFilter {
   businessIds: string[]
 }
 
-function businessSearchText(b: BusinessWithMenu): string {
-  const parts = [
-    b.businessName,
-    b.businessType ?? '',
-    ...(b.menuItemNames ?? []),
-    ...(b.menuCategoryNames ?? []),
-  ]
-  return parts.join(' ').toLowerCase()
-}
-
-function matchesKeywords(b: BusinessWithMenu, keywords: string[]): boolean {
-  const hay = businessSearchText(b)
-  return keywords.some((kw) => hay.includes(kw.toLowerCase()))
-}
-
-function matchesBusinessTypes(b: BusinessWithMenu, types: string[]): boolean {
-  if (!b.businessType) return false
-  return types.some((t) => b.businessType!.includes(t) || t.includes(b.businessType!))
-}
-
 export function businessMatchesFilter(b: BusinessWithMenu, filter: SearchFilterDef): boolean {
   switch (filter.id) {
     case 'open_now':
@@ -46,8 +26,9 @@ export function businessMatchesFilter(b: BusinessWithMenu, filter: SearchFilterD
     case 'recommended':
       return b.isRecommended === true
     default:
-      if (filter.businessTypes?.length && matchesBusinessTypes(b, filter.businessTypes)) return true
-      if (filter.keywords?.length) return matchesKeywords(b, filter.keywords)
+      if (filter.group === 'kitchen') return b.kitchenType === filter.id
+      if (filter.group === 'food') return b.foodTypes?.includes(filter.id) ?? false
+      if (filter.group === 'kashrut') return b.kashrutType === filter.id
       return false
   }
 }
@@ -73,7 +54,7 @@ export function countBusinessesForFilter(
   return businesses.filter((b) => businessMatchesFilter(b, filter)).length
 }
 
-/** פילטרים שיש להם לפחות עסק אחד תואם */
+/** פילטרים שיש להם לפחות עסק אחד שבחר אותם בפרופיל */
 export function getAvailableFilters(businesses: BusinessWithMenu[]): SearchFilterDef[] {
   return ALL_SEARCH_FILTER_DEFS.filter((f) => countBusinessesForFilter(businesses, f) > 0)
 }

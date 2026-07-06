@@ -1,0 +1,73 @@
+export interface BusinessFilterOption {
+  id: string
+  label: string
+}
+
+export const KITCHEN_TYPE_OPTIONS: BusinessFilterOption[] = [
+  { id: 'italian', label: 'איטלקי' },
+  { id: 'asian', label: 'אסייתי' },
+  { id: 'japanese', label: 'יפני' },
+  { id: 'chinese', label: 'סיני' },
+  { id: 'thai', label: 'תאילנדי' },
+  { id: 'vietnamese', label: 'וייטנאמי' },
+  { id: 'korean', label: 'קוריאני' },
+  { id: 'indian', label: 'הודי' },
+  { id: 'mexican', label: 'מקסיקני' },
+  { id: 'american', label: 'אמריקאי' },
+  { id: 'mediterranean', label: 'ים תיכוני' },
+  { id: 'greek', label: 'יווני' },
+  { id: 'turkish', label: 'טורקי' },
+  { id: 'arabic', label: 'ערבי' },
+  { id: 'israeli', label: 'ישראלי' },
+  { id: 'french', label: 'צרפתי' },
+  { id: 'spanish', label: 'ספרדי' },
+  { id: 'brazilian', label: 'ברזילאי' },
+  { id: 'argentinian', label: 'ארגנטינאי' },
+  { id: 'ethiopian', label: 'אתיופי' },
+  { id: 'russian', label: 'רוסי' },
+  { id: 'georgian', label: 'גרוזיני' },
+]
+
+export const FOOD_TYPE_OPTIONS: BusinessFilterOption[] = [
+  { id: 'burgers', label: 'המבורגרים' },
+  { id: 'pizza', label: 'פיצה' },
+  { id: 'sushi', label: 'סושי' },
+  { id: 'shawarma', label: 'שווארמה' },
+  { id: 'falafel', label: 'פלאפל' },
+  { id: 'hummus', label: 'חומוס' },
+  { id: 'steaks', label: 'סטייקים' },
+  { id: 'smoked_meats', label: 'בשרים מעושנים' },
+  { id: 'grill', label: 'גריל' },
+  { id: 'chicken', label: 'עוף' },
+  { id: 'fish', label: 'דגים' },
+  { id: 'pasta', label: 'פסטה' },
+  { id: 'salads', label: 'סלטים' },
+  { id: 'sandwiches', label: 'כריכים' },
+  { id: 'tortillas', label: 'טורטיות' },
+  { id: 'tacos', label: 'טאקוס' },
+  { id: 'stir_fry', label: 'מוקפצים' },
+  { id: 'soups', label: 'מרקים' },
+  { id: 'breakfast', label: 'ארוחות בוקר' },
+  { id: 'brunch', label: "בראנץ'" },
+  { id: 'desserts', label: 'קינוחים' },
+  { id: 'ice_cream', label: 'גלידות' },
+  { id: 'pastries', label: 'מאפים' },
+  { id: 'coffee_drinks', label: 'קפה ומשקאות' },
+]
+
+export const KASHRUT_TYPE_OPTIONS: BusinessFilterOption[] = [
+  { id: 'not_kosher', label: 'לא כשר' },
+  { id: 'kosher', label: 'כשר' },
+  { id: 'kosher_mehadrin', label: 'כשר למהדרין' },
+  { id: 'badatz', label: 'בד"ץ' },
+  { id: 'rabbinate', label: 'רבנות' },
+  { id: 'glatt', label: 'גלאט' },
+  { id: 'dairy', label: 'חלבי' },
+  { id: 'meat', label: 'בשרי' },
+  { id: 'parve', label: 'פרווה' },
+  { id: 'pat_israel', label: 'פת ישראל' },
+  { id: 'chalav_israel', label: 'חלב ישראל' },
+  { id: 'pesach', label: 'פסח' },
+  { id: 'mehadrin_jerusalem', label: 'מהדרין ירושלים' },
+  { id: 'certifying_body', label: 'כשרות לפי גוף הכשרות' },
+]

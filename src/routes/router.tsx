@@ -1,4 +1,4 @@
-import { createBrowserRouter } from 'react-router-dom'
+import { createBrowserRouter, Navigate } from 'react-router-dom'
 import { AppLayout } from '../layouts/AppLayout'
 import { HomePage } from '../screens/home/HomePage'
 import { RestaurantsPage } from '../screens/restaurants/RestaurantsPage'
@@ -12,11 +12,23 @@ import { LoginPage } from '../screens/auth/LoginPage'
 import { RegisterPage } from '../screens/auth/RegisterPage'
 import { AuthGuard } from '../components/auth/AuthGuard'
 import { GuestOnlyGuard } from '../components/auth/GuestOnlyGuard'
+import { NotFoundPage } from '../screens/errors/NotFoundPage'
+import { RouteErrorPage } from '../screens/errors/RouteErrorPage'
+import { ROUTES } from '../constants/app'
 
 export const router = createBrowserRouter([
   {
+    path: '/live',
+    element: <Navigate to={ROUTES.RESTAURANTS} replace />,
+  },
+  {
+    path: '/experiences',
+    element: <Navigate to={ROUTES.RESTAURANTS} replace />,
+  },
+  {
     path: '/',
     element: <AppLayout />,
+    errorElement: <RouteErrorPage />,
     children: [
       {
         index: true,
@@ -51,11 +63,16 @@ export const router = createBrowserRouter([
         path: 'profile',
         element: <AuthGuard><ProfilePage /></AuthGuard>,
       },
+      {
+        path: '*',
+        element: <NotFoundPage />,
+      },
     ],
   },
   {
     path: '/auth',
     element: <AuthLanding />,
+    errorElement: <RouteErrorPage />,
     children: [
       {
         path: 'login',
@@ -69,7 +86,15 @@ export const router = createBrowserRouter([
         index: true,
         element: <LoginPage />,
       },
+      {
+        path: '*',
+        element: <Navigate to={ROUTES.AUTH_LOGIN} replace />,
+      },
     ],
+  },
+  {
+    path: '*',
+    element: <NotFoundPage />,
   },
 ])
 

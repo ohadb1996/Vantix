@@ -1,4 +1,4 @@
-import { ChevronRight, UtensilsCrossed, History, Search } from 'lucide-react'
+import { ChevronRight, UtensilsCrossed, History, Search, User } from 'lucide-react'
 import { Link, NavLink, useLocation, useMatch } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { useAuth } from '../../context/AuthContext'
@@ -17,6 +17,13 @@ const NAV_LINKS = [
 const linkClasses =
   'relative text-sm font-semibold text-vantix-fg-muted transition hover:text-vantix-cyan'
 
+function formatNavGreetingName(user: { displayName?: string | null; email?: string | null }): string {
+  const raw = user.displayName?.trim() || user.email?.trim() || ''
+  if (!raw) return ''
+  const at = raw.indexOf('@')
+  return at > 0 ? raw.slice(0, at) : raw
+}
+
 export const MainNav = () => {
   const { user, loading } = useAuth()
   const location = useLocation()
@@ -25,9 +32,13 @@ export const MainNav = () => {
   const menuMatch = useMatch('/restaurants/:businessId')
   const businessId = isRestaurantMenu ? menuMatch?.params.businessId : undefined
   const { businessName } = useMenu(businessId)
-  const displayName = user?.displayName?.trim() || user?.email || ''
+  const displayName = user ? formatNavGreetingName(user) : ''
   const greetingLabel = displayName ? `שלום, ${displayName}` : ''
   const navTitle = isRestaurantMenu ? businessName || 'תפריט' : null
+
+  const desktopNavLinks = user
+    ? [...NAV_LINKS, { to: ROUTES.PROFILE, label: 'פרופיל', end: true, icon: User }]
+    : NAV_LINKS
 
   const baseBorderBg = isRestaurantMenu
     ? 'border-vantix-cyan/25 bg-vantix-surface-raised/80 backdrop-blur-md'
@@ -67,7 +78,7 @@ export const MainNav = () => {
 
       {!isRestaurantMenu ? (
       <div className="hidden shrink-0 items-center gap-2 sm:flex sm:gap-6 lg:gap-8">
-        {NAV_LINKS.map((link) => {
+        {desktopNavLinks.map((link) => {
           const Icon = link.icon
           return (
             <NavLink
@@ -108,15 +119,27 @@ export const MainNav = () => {
           </Link>
         ) : loading ? null : user ? (
           greetingLabel ? (
-            <span
-              title={displayName}
-              className={`hidden max-w-[100px] shrink overflow-hidden text-ellipsis whitespace-nowrap rounded-full border border-vantix-cyan/20 bg-vantix-surface-raised px-2.5 py-1.5 text-xs font-semibold text-vantix-fg-muted sm:block sm:max-w-[140px] md:max-w-[200px] ${
+            <Link
+              to={ROUTES.PROFILE}
+              title={user.email ?? displayName}
+              className={`hidden max-w-[100px] shrink overflow-hidden text-ellipsis whitespace-nowrap rounded-full border border-vantix-cyan/20 bg-vantix-surface-raised px-2.5 py-1.5 text-xs font-semibold text-vantix-fg-muted transition hover:border-vantix-cyan/35 hover:text-vantix-fg sm:block sm:max-w-[140px] md:max-w-[180px] ${
                 scrolled ? 'px-3 py-2 text-sm' : ''
               }`}
             >
               {greetingLabel}
-            </span>
-          ) : null
+            </Link>
+          ) : (
+            <Link
+              to={ROUTES.PROFILE}
+              className={`vantix-btn-ghost hidden items-center gap-1.5 sm:inline-flex ${
+                scrolled ? 'px-3 py-2 text-sm' : 'px-2.5 py-1.5 text-xs'
+              }`}
+              aria-label="פרופיל"
+            >
+              <User className="h-4 w-4 shrink-0" />
+              <span>פרופיל</span>
+            </Link>
+          )
         ) : (
           <Link
             to={ROUTES.AUTH_LOGIN}

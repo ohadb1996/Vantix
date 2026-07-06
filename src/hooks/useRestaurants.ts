@@ -7,6 +7,7 @@ export function useRestaurants() {
   return useQuery({
     queryKey: QUERY_KEY,
     queryFn: getBusinessesWithMenus,
-    staleTime: 2 * 60 * 1000,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
   })
 }
