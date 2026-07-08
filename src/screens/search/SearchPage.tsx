@@ -3,7 +3,6 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Search, SlidersHorizontal, UtensilsCrossed, X } from 'lucide-react'
 import { RestaurantCard } from '../../components/cards/RestaurantCard'
-import { FilterTile } from '../../components/search/FilterTile'
 import { useToast } from '../../components/ui/Toast'
 import { haptic } from '../../lib/native'
 import { useRestaurants } from '../../hooks/useRestaurants'
@@ -19,21 +18,6 @@ import {
   getMatchedDishesForQuery,
   type AdminCategoryFilter,
 } from '../../utils/businessSearch'
-
-function FilterSection({
-  title,
-  children,
-}: {
-  title: string
-  children: React.ReactNode
-}) {
-  return (
-    <section className="space-y-3">
-      <h2 className="text-sm font-semibold text-vantix-fg">{title}</h2>
-      {children}
-    </section>
-  )
-}
 
 export const SearchPage = () => {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -75,6 +59,10 @@ export const SearchPage = () => {
   const kashrutFilters = useMemo(
     () => availableFilters.filter((f) => f.group === 'kashrut'),
     [availableFilters]
+  )
+  const generalFilters = useMemo(
+    () => [...statusFilters, ...kashrutFilters, ...adminCategoryFilters],
+    [statusFilters, kashrutFilters, adminCategoryFilters]
   )
 
   useEffect(() => {
@@ -190,7 +178,7 @@ export const SearchPage = () => {
         key={b.businessId}
         to={to}
         state={linkState}
-        className="block rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-vantix-cyan focus-visible:ring-offset-2 sm:rounded-3xl"
+        className="block w-full min-w-0 rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-vantix-cyan focus-visible:ring-offset-2 sm:rounded-3xl"
       >
         <RestaurantCard
           name={b.businessName}
@@ -207,35 +195,43 @@ export const SearchPage = () => {
     )
   }
 
-  const renderFilterGrid = (filters: SearchFilterDef[]) => (
-    <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 sm:gap-2 md:grid-cols-5 lg:grid-cols-6">
-      {filters.map((f) => (
-        <FilterTile
-          key={f.id}
-          label={f.label}
-          emoji={f.emoji}
-          gradient={f.gradient}
-          selected={selectedFilterIds.has(f.id)}
-          onClick={() => toggleFilter(f.id)}
-        />
-      ))}
-    </div>
-  )
+  const renderChipRow = (title: string, chips: Array<SearchFilterDef | AdminCategoryFilter>) => {
+    if (chips.length === 0) return null
 
-  const renderAdminCategoryGrid = (categories: AdminCategoryFilter[]) => (
-    <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 sm:gap-2 md:grid-cols-5 lg:grid-cols-6">
-      {categories.map((c) => (
-        <FilterTile
-          key={c.id}
-          label={c.label}
-          emoji={c.emoji}
-          gradient={c.gradient}
-          selected={selectedAdminCategoryIds.has(c.id)}
-          onClick={() => toggleAdminCategory(c.id)}
-        />
-      ))}
-    </div>
-  )
+    return (
+      <section className="space-y-2">
+        <h2 className="text-sm font-semibold text-vantix-fg">{title}</h2>
+        <div className="scrollbar-hide -mx-1 flex items-center gap-2 overflow-x-auto px-1 pb-1">
+          {chips.map((chip) => {
+            const isSearchFilter = 'group' in chip
+            const isSelected = isSearchFilter
+              ? selectedFilterIds.has(chip.id)
+              : selectedAdminCategoryIds.has(chip.id)
+            const onClick = isSearchFilter
+              ? () => toggleFilter(chip.id)
+              : () => toggleAdminCategory(chip.id)
+
+            return (
+              <button
+                key={`${isSearchFilter ? 'search' : 'admin'}-${chip.id}`}
+                type="button"
+                onClick={onClick}
+                className={`inline-flex shrink-0 items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-semibold transition ${
+                  isSelected
+                    ? 'border-vantix-cyan/70 bg-vantix-cyan/15 text-vantix-cyan'
+                    : 'border-vantix-line/15 bg-vantix-surface-raised text-vantix-fg-muted hover:border-vantix-cyan/35 hover:text-vantix-fg'
+                }`}
+                aria-pressed={isSelected}
+              >
+                <span aria-hidden>{chip.emoji}</span>
+                <span>{chip.label}</span>
+              </button>
+            )
+          })}
+        </div>
+      </section>
+    )
+  }
 
   return (
     <div className="space-y-6 pb-8 sm:space-y-8">
@@ -282,6 +278,12 @@ export const SearchPage = () => {
             </button>
           ) : null}
         </div>
+
+        <div className="space-y-3">
+          {renderChipRow('🍔 סוג אוכל', foodFilters)}
+          {renderChipRow('🍽️ סוג מטבח', kitchenFilters)}
+          {renderChipRow('✨ כללי', generalFilters)}
+        </div>
       </motion.header>
 
       {activeFilterCount > 0 ? (
@@ -298,55 +300,6 @@ export const SearchPage = () => {
             נקה הכל
           </button>
         </div>
-      ) : null}
-
-      {!isLoading ? (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="space-y-8"
-        >
-          {statusFilters.length > 0 ? (
-            <FilterSection title="מה מחפשים עכשיו?">
-              {renderFilterGrid(statusFilters)}
-            </FilterSection>
-          ) : null}
-
-          {kitchenFilters.length > 0 ? (
-            <FilterSection title="🍽️ סוג המטבח">
-              {renderFilterGrid(kitchenFilters)}
-            </FilterSection>
-          ) : null}
-
-          {foodFilters.length > 0 ? (
-            <FilterSection title="🍔 סוג האוכל">
-              {renderFilterGrid(foodFilters)}
-            </FilterSection>
-          ) : null}
-
-          {kashrutFilters.length > 0 ? (
-            <FilterSection title="✡️ סוג כשרות">
-              {renderFilterGrid(kashrutFilters)}
-            </FilterSection>
-          ) : null}
-
-          {adminCategoryFilters.length > 0 ? (
-            <FilterSection title="קטגוריות מומלצות">
-              {renderAdminCategoryGrid(adminCategoryFilters)}
-            </FilterSection>
-          ) : null}
-
-          {statusFilters.length === 0 &&
-          kitchenFilters.length === 0 &&
-          foodFilters.length === 0 &&
-          kashrutFilters.length === 0 &&
-          adminCategoryFilters.length === 0 ? (
-            <div className="rounded-2xl border border-vantix-cyan/20 bg-vantix-surface-raised p-8 text-center">
-              <UtensilsCrossed className="mx-auto h-10 w-10 text-vantix-cyan/40" />
-              <p className="mt-3 text-sm text-vantix-fg-muted">הקלידו שם מסעדה או מנה כדי להתחיל.</p>
-            </div>
-          ) : null}
-        </motion.div>
       ) : null}
 
       {isLoading ? (
@@ -380,12 +333,12 @@ export const SearchPage = () => {
           <p className="text-sm text-vantix-fg-muted">
             {filteredBusinesses.length} תוצאות
           </p>
-          <div className="grid gap-4 sm:gap-6 md:grid-cols-2">
-            <AnimatePresence mode="popLayout">
+          <div className="grid w-full min-w-0 gap-4 sm:gap-6 md:grid-cols-2">
+            <AnimatePresence mode="sync">
               {filteredBusinesses.map((b, index) => (
                 <motion.div
                   key={b.businessId}
-                  layout
+                  className="w-full min-w-0"
                   initial={{ opacity: 0, y: 16 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.98 }}

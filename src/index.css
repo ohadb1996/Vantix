@@ -113,7 +113,7 @@ body {
 
   .courier-tip-slider {
     --tip-ratio: 0;
-    --thumb-size: calc(1.125rem + var(--tip-ratio) * 0.875rem);
+    --thumb-size: calc(1.75rem + var(--tip-ratio) * 1rem);
     -webkit-appearance: none;
     appearance: none;
     height: 0.5rem;

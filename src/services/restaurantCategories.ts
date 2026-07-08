@@ -59,3 +59,7 @@ export async function getRestaurantCategories(): Promise<RestaurantCategory[]> {
 /** מזהה וירטואלי לקטגוריית "המועדפים שלי" – לא נשמר ב-RTDB */
 export const FAVORITES_CATEGORY_ID = '__favorites__'
 export const FAVORITES_CATEGORY_NAME = 'המועדפים שלי ❤️'
+
+/** מזהה וירטואלי לקרוסלת מסעדות שסומנו ע"י אדמין – לא נשמר ב-RTDB */
+export const RECOMMENDED_CATEGORY_ID = '__recommended__'
+export const RECOMMENDED_CATEGORY_NAME = 'המומלצות שלנו ⭐⭐⭐'

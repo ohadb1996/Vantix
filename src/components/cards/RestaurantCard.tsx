@@ -3,6 +3,7 @@ import { Heart, MapPin, Star, UtensilsCrossed } from 'lucide-react'
 type RestaurantCardProps = {
   name: string
   eta: string
+  deliveryMeta?: string
   rating?: number | null
   address: string
   heroImage?: string | null
@@ -17,6 +18,7 @@ type RestaurantCardProps = {
 export const RestaurantCard = ({
   name,
   eta,
+  deliveryMeta,
   rating,
   address,
   heroImage,
@@ -34,7 +36,7 @@ export const RestaurantCard = ({
           <img
             src={heroImage}
             alt=""
-            className={`h-full w-full object-cover transition duration-700 group-hover:scale-105 ${isClosed ? 'grayscale-[0.35] brightness-75' : ''}`}
+            className={`absolute inset-0 h-full w-full object-cover transition duration-700 group-hover:scale-105 ${isClosed ? 'grayscale-[0.35] brightness-75' : ''}`}
           />
         ) : (
           <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-gradient-to-br from-vantix-cyan/8 via-brand-skySoft to-vantix-orange/5">
@@ -94,6 +96,9 @@ export const RestaurantCard = ({
             <span className="truncate">{address}</span>
           </span>
         </div>
+        {deliveryMeta ? (
+          <p className="text-[11px] text-vantix-fg-muted lg:text-xs">{deliveryMeta}</p>
+        ) : null}
 
         {tags.length > 0 ? (
           <div className="flex gap-2 overflow-hidden">

@@ -22,6 +22,7 @@ import type {
 } from '../../types/customerProfile'
 import { PAYMENT_METHOD_LABELS } from '../../types/customerProfile'
 import { PaymentMethodPickerModal } from './PaymentMethodPickerModal'
+import { PaymentMethodIcon } from './PaymentMethodIcon'
 
 type SelectorProps = {
   selectedContactId?: string
@@ -236,12 +237,21 @@ export function CheckoutSavedSelector({
         <button
           type="button"
           onClick={() => setPaymentPickerOpen(true)}
-          className="flex w-full items-center justify-between rounded-xl border border-vantix-cyan/20 bg-vantix-surface px-4 py-3 text-right transition hover:border-vantix-cyan/40"
+          className="flex w-full items-center justify-between gap-3 rounded-xl border border-vantix-cyan/20 bg-vantix-surface px-4 py-3 text-right transition hover:border-vantix-cyan/40"
         >
-          <span className={`text-sm ${selectedPaymentType ? 'text-vantix-fg' : 'text-vantix-fg-subtle'}`}>
-            {paymentSelectionLabel(selectedPaymentType, selectedCard)}
+          <span className="flex min-w-0 items-center gap-3">
+            {selectedPaymentType ? (
+              <PaymentMethodIcon type={selectedPaymentType} />
+            ) : (
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-vantix-cyan/15 bg-vantix-surface">
+                <CreditCard className="h-5 w-5 text-vantix-fg-muted" />
+              </span>
+            )}
+            <span className={`truncate text-sm ${selectedPaymentType ? 'text-vantix-fg' : 'text-vantix-fg-subtle'}`}>
+              {paymentSelectionLabel(selectedPaymentType, selectedCard)}
+            </span>
           </span>
-          <span className="text-xs text-vantix-cyan">שינוי</span>
+          <span className="shrink-0 text-xs text-vantix-cyan">שינוי</span>
         </button>
       </div>
 

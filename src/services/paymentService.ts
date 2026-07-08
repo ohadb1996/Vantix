@@ -69,6 +69,7 @@ export async function chargeAndPlaceOrder(
   order: OrderCreate,
   courierTip: number,
   payment: CheckoutPaymentPayload,
+  deliveryFee = 0,
 ): Promise<ChargeOrderResult> {
   const auth = getFirebaseAuth()
   const user = auth.currentUser
@@ -81,7 +82,7 @@ export async function chargeAndPlaceOrder(
       'Content-Type': 'application/json',
       Authorization: `Bearer ${idToken}`,
     },
-    body: JSON.stringify({ order, courierTip, payment }),
+    body: JSON.stringify({ order, courierTip, deliveryFee, payment }),
   })
 
   const data = (await res.json()) as {

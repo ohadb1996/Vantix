@@ -15,6 +15,8 @@ export interface MenuItemOption {
   label: string
   /** תוספת מחיר באגורות (אופציונלי) */
   priceCents?: number
+  /** מקסימום יחידות מאותה אפשרות (ברירת מחדל 1) */
+  maxQuantity?: number
 }
 
 /** סקשן אופציונלי לפריט – כותרת ייחודית ובחירה יחידה או מרובה */
@@ -27,6 +29,8 @@ export interface MenuItemSection {
   required?: boolean
   /** בבחירה מרובה + חובה – מינימום בחירות (ברירת מחדל 1) */
   minSelections?: number
+  /** בבחירה מרובה – כמה יחידות ראשונות בחינם (למשל 2 רטבים ראשונים) */
+  freeQuantity?: number
 }
 
 export interface MenuItem {

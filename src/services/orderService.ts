@@ -82,6 +82,33 @@ async function callPublicBusinessesFunction(): Promise<BusinessWithMenu[]> {
   return res.data?.data ?? []
 }
 
+async function getRecommendedBusinessIds(): Promise<Set<string>> {
+  try {
+    const snap = await get(ref(db(), 'Businesses'))
+    if (!snap.exists()) return new Set()
+
+    const val = snap.val() as Record<string, { is_recommended?: boolean } | null>
+    const ids = new Set<string>()
+    for (const [businessId, data] of Object.entries(val)) {
+      if (data?.is_recommended === true) ids.add(businessId)
+    }
+    return ids
+  } catch {
+    return new Set()
+  }
+}
+
+function applyRecommendedFlags(
+  businesses: BusinessWithMenu[],
+  recommendedIds: Set<string>
+): BusinessWithMenu[] {
+  if (recommendedIds.size === 0) return businesses
+  return businesses.map((b) => ({
+    ...b,
+    isRecommended: recommendedIds.has(b.businessId) || b.isRecommended === true,
+  }))
+}
+
 /**
  * רשימת עסקים – מנסה אינדקס דק, משלים/נופל לתפריטים מלאים, ואז Cloud Function.
  */
@@ -98,14 +125,34 @@ export async function getBusinessesWithMenus(): Promise<BusinessWithMenu[]> {
   try {
     const legacy = await getBusinessesWithMenusLegacy()
     if (fromIndex && fromIndex.length > 0) {
-      if (legacy.length === 0) return fromIndex
-      const indexedIds = new Set(fromIndex.map((b) => b.businessId))
+      if (legacy.length === 0) {
+        const recommendedIds = await getRecommendedBusinessIds()
+        return applyRecommendedFlags(fromIndex, recommendedIds)
+      }
+      const legacyById = new Map(legacy.map((b) => [b.businessId, b]))
+      const mergedIndexed = fromIndex.map((indexed) => {
+        const fresh = legacyById.get(indexed.businessId)
+        if (!fresh) return indexed
+
+        const merged: BusinessWithMenu = {
+          ...indexed,
+          ...(Object.fromEntries(
+            Object.entries(fresh).filter(([, v]) => v !== undefined),
+          ) as Partial<BusinessWithMenu>),
+        }
+        return merged
+      })
+
+      const indexedIds = new Set(mergedIndexed.map((b) => b.businessId))
       const missing = legacy.filter((b) => !indexedIds.has(b.businessId))
-      return missing.length > 0 ? [...fromIndex, ...missing] : fromIndex
+      return missing.length > 0 ? [...mergedIndexed, ...missing] : mergedIndexed
     }
     return legacy
   } catch (e: unknown) {
-    if (fromIndex && fromIndex.length > 0) return fromIndex
+    if (fromIndex && fromIndex.length > 0) {
+      const recommendedIds = await getRecommendedBusinessIds()
+      return applyRecommendedFlags(fromIndex, recommendedIds)
+    }
     if (isPermissionDeniedError(e)) {
       try {
         return await callPublicBusinessesFunction()

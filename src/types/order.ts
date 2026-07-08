@@ -13,6 +13,8 @@ export interface OrderItem {
   name: string
   price: number
   quantity: number
+  /** תמונת המנה (אם קיימת בתפריט) */
+  imageUrl?: string
   /** מה הלקוח בחר בסקשנים של המנה (גודל, תוספות וכו') */
   selectedOptions?: OrderItemSelectedOption[]
 }

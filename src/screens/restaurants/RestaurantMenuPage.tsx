@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { useParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence, useDragControls, type PanInfo } from 'framer-motion'
 import { chargeAndPlaceOrder } from '../../services/paymentService'
+import { buildDestinationAddress, quoteDeliveryFee } from '../../services/deliveryQuoteService'
 import type { OrderCreate, OrderItem } from '../../types/order'
 import type { MenuItem } from '../../types/menu'
 import { isValidIsraeliPhone } from '../../utils/phone'
@@ -200,6 +201,11 @@ export const RestaurantMenuPage = () => {
   const [selectedPaymentType, setSelectedPaymentType] = useState<PaymentMethodType>()
   const [paymentMethod, setPaymentMethod] = useState<string>('')
   const [courierTip, setCourierTip] = useState(0)
+  const [deliveryFee, setDeliveryFee] = useState(0)
+  const [deliveryDistanceKm, setDeliveryDistanceKm] = useState<number | null>(null)
+  const [deliveryWithinRange, setDeliveryWithinRange] = useState(true)
+  const [deliveryQuoteLoading, setDeliveryQuoteLoading] = useState(false)
+  const [deliveryQuoteError, setDeliveryQuoteError] = useState<string | null>(null)
   const [creditCvv, setCreditCvv] = useState('')
   const [creditCardNumber, setCreditCardNumber] = useState('')
   const [creditSecurityErrors, setCreditSecurityErrors] = useState<{ cvv?: string; cardNumber?: string }>({})
@@ -217,7 +223,70 @@ export const RestaurantMenuPage = () => {
     selectedPaymentType === 'credit' && !!selectedPaymentId && requireFullCard && !hasSessionSecrets
   const needsCvvField =
     selectedPaymentType === 'credit' && !!selectedPaymentId && !requireFullCard && !hasSessionSecrets
-  const checkoutTotal = useMemo(() => roundMoney(totalPrice + courierTip), [totalPrice, courierTip])
+  const checkoutTotal = useMemo(
+    () => roundMoney(totalPrice + (fulfillment === 'delivery' ? deliveryFee : 0) + courierTip),
+    [totalPrice, courierTip, deliveryFee, fulfillment],
+  )
+
+  useEffect(() => {
+    if (fulfillment !== 'delivery' || !businessId) {
+      setDeliveryFee(0)
+      setDeliveryDistanceKm(null)
+      setDeliveryWithinRange(true)
+      setDeliveryQuoteError(null)
+      return
+    }
+
+    const destination = buildDestinationAddress({
+      delivery_street: form.delivery_street,
+      delivery_building_number: form.delivery_building_number,
+      delivery_city: form.delivery_city,
+    })
+    if (!destination || !form.delivery_street.trim() || !form.delivery_city.trim()) {
+      setDeliveryFee(0)
+      setDeliveryDistanceKm(null)
+      setDeliveryQuoteError(null)
+      return
+    }
+
+    let cancelled = false
+    const timer = setTimeout(() => {
+      setDeliveryQuoteLoading(true)
+      setDeliveryQuoteError(null)
+      void quoteDeliveryFee(businessId, destination)
+        .then((quote) => {
+          if (cancelled) return
+          setDeliveryFee(quote.delivery_fee)
+          setDeliveryDistanceKm(quote.distance_km)
+          setDeliveryWithinRange(quote.within_range)
+          if (!quote.within_range) {
+            setDeliveryQuoteError(null)
+          }
+        })
+        .catch((e: unknown) => {
+          if (cancelled) return
+          const err = e as { message?: string }
+          setDeliveryFee(0)
+          setDeliveryDistanceKm(null)
+          setDeliveryWithinRange(false)
+          setDeliveryQuoteError(err.message || 'לא ניתן לחשב דמי משלוח')
+        })
+        .finally(() => {
+          if (!cancelled) setDeliveryQuoteLoading(false)
+        })
+    }, 500)
+
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+    }
+  }, [
+    fulfillment,
+    businessId,
+    form.delivery_street,
+    form.delivery_building_number,
+    form.delivery_city,
+  ])
 
   const applyContact = useCallback((c: SavedContact) => {
     setSelectedContactId(c.id)
@@ -281,6 +350,13 @@ export const RestaurantMenuPage = () => {
       err._submit = 'מספר הטלפון בפרטים שנבחרו אינו תקין – ערוך אותו למעלה'
     } else if (fulfillment === 'delivery' && (!city || !street)) {
       err._submit = 'נא לבחור או להוסיף כתובת מלאה למשלוח למעלה'
+    } else if (fulfillment === 'delivery' && deliveryQuoteLoading) {
+      err._submit = 'מחשבים דמי משלוח – נא להמתין רגע'
+    } else if (fulfillment === 'delivery' && !deliveryWithinRange) {
+      setFormErrors(err)
+      return false
+    } else if (fulfillment === 'delivery' && deliveryFee <= 0) {
+      err._submit = deliveryQuoteError || 'לא ניתן לחשב דמי משלוח – בדקו את הכתובת'
     } else if (!selectedPaymentType) {
       err._submit = 'נא לבחור אמצעי תשלום'
     } else if (selectedPaymentType === 'credit' && !selectedPaymentId) {
@@ -301,7 +377,12 @@ export const RestaurantMenuPage = () => {
     }
     setFormErrors(err)
     return Object.keys(err).length === 0
-  }, [form, fulfillment, selectedPaymentType, selectedPaymentId, creditCvv, creditCardNumber, needsCvvField, needsInlineCardFields])
+  }, [form, fulfillment, selectedPaymentType, selectedPaymentId, creditCvv, creditCardNumber, needsCvvField, needsInlineCardFields, deliveryQuoteLoading, deliveryWithinRange, deliveryFee, deliveryQuoteError])
+
+  const submitOrderBlocked =
+    placing ||
+    (fulfillment === 'delivery' &&
+      (deliveryQuoteLoading || !deliveryWithinRange || deliveryFee <= 0))
 
   const categoriesList = useMemo(() => {
     if (!menu?.categories) return []
@@ -347,7 +428,7 @@ export const RestaurantMenuPage = () => {
       .map((item) => ({ item, orderCount: orderCounts[item.id] ?? 0 }))
       .filter((entry) => entry.orderCount > 0)
       .sort((a, b) => b.orderCount - a.orderCount)
-      .slice(0, 15)
+      .slice(0, 10)
   }, [itemsList, orderCounts])
 
   const scrollToCategory = useCallback((catId: string) => {
@@ -481,6 +562,7 @@ export const RestaurantMenuPage = () => {
         name: l.item.name,
         price: l.item.price,
         quantity: l.quantity,
+        ...(l.item.imageUrl ? { imageUrl: l.item.imageUrl } : {}),
         selectedOptions: l.selectedOptions?.map((o) => ({
           sectionTitle: o.sectionTitle,
           optionLabel: o.optionLabel,
@@ -527,6 +609,7 @@ export const RestaurantMenuPage = () => {
               ? stripCardNumber(creditCardNumber)
               : undefined,
         },
+        fulfillment === 'delivery' ? deliveryFee : 0,
       )
       clearCart()
       setShowCheckout(false)
@@ -534,6 +617,8 @@ export const RestaurantMenuPage = () => {
       setCreditCvv('')
       setCreditCardNumber('')
       setCourierTip(0)
+      setDeliveryFee(0)
+      setDeliveryDistanceKm(null)
       const statsLines = cart.map((l) => ({ menuItemId: l.item.id, quantity: l.quantity }))
       bumpLocalCounts(statsLines)
       void incrementMenuItemOrderCounts(businessId, statsLines).catch(() => {})
@@ -1207,11 +1292,36 @@ export const RestaurantMenuPage = () => {
               <CourierTipSelector value={courierTip} onChange={setCourierTip} />
             ) : null}
 
+            {fulfillment === 'delivery' ? (
+              <div className="rounded-2xl border border-vantix-cyan/15 bg-vantix-surface-raised px-4 py-3 text-sm">
+                {deliveryQuoteLoading ? (
+                  <p className="text-vantix-fg-muted">מחשבים דמי משלוח...</p>
+                ) : deliveryQuoteError ? (
+                  <p className="text-red-400">{deliveryQuoteError}</p>
+                ) : deliveryDistanceKm != null ? (
+                  <p className="text-vantix-fg-muted">
+                    מרחק מהמסעדה: <span className="font-medium text-vantix-fg">{deliveryDistanceKm} ק&quot;מ</span>
+                    {!deliveryWithinRange ? (
+                      <span className="ms-1 text-vantix-fg-muted">(מחוץ לטווח משלוח)</span>
+                    ) : null}
+                  </p>
+                ) : (
+                  <p className="text-vantix-fg-muted">הזינו כתובת מלאה לחישוב דמי משלוח</p>
+                )}
+              </div>
+            ) : null}
+
             <div className="rounded-2xl border border-vantix-cyan/15 bg-vantix-surface-raised px-4 py-3 text-sm">
               <div className="flex items-center justify-between text-vantix-fg-muted">
                 <span>סכום מנות</span>
                 <span>₪{totalPrice.toFixed(2)}</span>
               </div>
+              {fulfillment === 'delivery' && deliveryFee > 0 ? (
+                <div className="mt-1 flex items-center justify-between text-vantix-fg-muted">
+                  <span>דמי משלוח</span>
+                  <span>₪{deliveryFee.toFixed(2)}</span>
+                </div>
+              ) : null}
               {fulfillment === 'delivery' && courierTip > 0 ? (
                 <div className="mt-1 flex items-center justify-between text-vantix-fg-muted">
                   <span>טיפ לשליח</span>
@@ -1226,14 +1336,14 @@ export const RestaurantMenuPage = () => {
 
             
             <div className="mt-6 flex flex-col gap-3">
-              {formErrors._submit && (
+              {formErrors._submit && !submitOrderBlocked ? (
                 <p
                   ref={submitErrorRef}
                   className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-400"
                 >
                   {formErrors._submit}
                 </p>
-              )}
+              ) : null}
               <div className="flex gap-3">
               <button
                 type="button"
@@ -1246,8 +1356,12 @@ export const RestaurantMenuPage = () => {
               <button
                 type="button"
                 onClick={handlePlaceOrder}
-                disabled={placing}
-                className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-vantix-orange dark:bg-vantix-cyan text-white dark:text-black py-3 font-semibold hover:brightness-110 disabled:opacity-70"
+                disabled={submitOrderBlocked}
+                className={`flex-1 flex items-center justify-center gap-2 rounded-xl py-3 font-semibold transition ${
+                  submitOrderBlocked
+                    ? 'cursor-not-allowed bg-gray-300 text-gray-500 dark:bg-gray-700 dark:text-gray-400'
+                    : 'bg-vantix-orange text-white hover:brightness-110 dark:bg-vantix-cyan dark:text-black'
+                }`}
               >
                 {placing ? <Loader2 className="h-5 w-5 animate-spin" /> : <Check className="h-5 w-5" />}
                 שליחת הזמנה

@@ -3,10 +3,6 @@ import { ALL_SEARCH_FILTER_DEFS } from '../constants/searchFilterDefs'
 import type { BusinessWithMenu } from '../services/orderService'
 import type { RestaurantCategory } from '../services/restaurantCategories'
 
-function filterGroupKey(filter: SearchFilterDef): string {
-  return filter.group
-}
-
 export interface AdminCategoryFilter {
   id: string
   label: string
@@ -119,23 +115,10 @@ export function filterBusinesses(
   return businesses.filter((b) => {
     if (hasNameQuery && !businessMatchesNameQuery(b, nameQuery)) return false
 
-    if (activeFilters.length > 0) {
-      const byGroup = new Map<string, SearchFilterDef[]>()
-      for (const f of activeFilters) {
-        const key = filterGroupKey(f)
-        const list = byGroup.get(key) ?? []
-        list.push(f)
-        byGroup.set(key, list)
-      }
-      for (const groupFilters of byGroup.values()) {
-        const matchesGroup = groupFilters.some((f) => businessMatchesFilter(b, f))
-        if (!matchesGroup) return false
-      }
-    }
-
-    if (activeAdminCats.length > 0) {
-      const matchesAnyCat = activeAdminCats.some((c) => businessMatchesAdminCategory(b, c))
-      if (!matchesAnyCat) return false
+    if (hasTileFilters) {
+      const matchesSearchFilter = activeFilters.some((f) => businessMatchesFilter(b, f))
+      const matchesAdminCategory = activeAdminCats.some((c) => businessMatchesAdminCategory(b, c))
+      if (!matchesSearchFilter && !matchesAdminCategory) return false
     }
 
     return true

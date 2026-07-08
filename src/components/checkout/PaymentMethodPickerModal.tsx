@@ -10,6 +10,7 @@ import {
 import { paymentSummary } from '../profile/savedDisplay'
 import { SavedPaymentFormModal } from '../profile/SavedPaymentFormModal'
 import type { SavedPaymentInput } from '../../types/customerProfile'
+import { PaymentMethodIcon } from './PaymentMethodIcon'
 
 type Step = 'methods' | 'cards'
 
@@ -89,7 +90,10 @@ export function PaymentMethodPickerModal({
                       : 'border-vantix-cyan/20 text-vantix-fg hover:border-vantix-cyan/40'
                   }`}
                 >
-                  <span>{opt.label}</span>
+                  <span className="flex items-center gap-3">
+                    <PaymentMethodIcon type={opt.type} />
+                    <span>{opt.label}</span>
+                  </span>
                   {opt.type === 'credit' && cards.length > 0 && (
                     <span className="text-xs font-normal text-vantix-fg-muted">{cards.length} שמורים</span>
                   )}
@@ -125,9 +129,12 @@ export function PaymentMethodPickerModal({
                         }}
                         className="min-w-0 flex-1 text-right"
                       >
-                        <p className="text-sm font-semibold text-vantix-fg">
-                          {card.label || PAYMENT_METHOD_LABELS.credit}
-                        </p>
+                        <div className="flex items-center gap-2">
+                          <PaymentMethodIcon type="credit" boxed={false} className="h-4 w-4 text-vantix-cyan" />
+                          <p className="text-sm font-semibold text-vantix-fg">
+                            {card.label || PAYMENT_METHOD_LABELS.credit}
+                          </p>
+                        </div>
                         <p className="text-xs text-vantix-fg-muted">{paymentSummary(card)}</p>
                       </button>
                       <button

@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, Navigate, useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ChevronLeft, ChevronRight, Heart, UtensilsCrossed } from 'lucide-react'
+import { ChevronLeft, ChevronRight, UtensilsCrossed } from 'lucide-react'
 import { RestaurantCard } from '../../components/cards/RestaurantCard'
 import { WalletBalanceBanner } from '../../components/wallet/WalletBalanceBanner'
 import { useToast } from '../../components/ui/Toast'
@@ -11,12 +11,16 @@ import { useRestaurants } from '../../hooks/useRestaurants'
 import { useReels } from '../../hooks/useReels'
 import { useRestaurantCategories } from '../../hooks/useRestaurantCategories'
 import { useBusinessLikes } from '../../hooks/useBusinessLikes'
+import { useSavedAddresses } from '../../hooks/useCustomerProfile'
 import { ROUTES } from '../../constants/app'
 import {
   FAVORITES_CATEGORY_ID,
   FAVORITES_CATEGORY_NAME,
+  RECOMMENDED_CATEGORY_ID,
+  RECOMMENDED_CATEGORY_NAME,
 } from '../../services/restaurantCategories'
 import type { BusinessWithMenu } from '../../services/orderService'
+import { buildDestinationAddress, quoteDeliveryFee } from '../../services/deliveryQuoteService'
 
 function RestaurantCardSkeleton() {
   return (
@@ -49,10 +53,79 @@ export const RestaurantsPage = () => {
   const { data: reels } = useReels()
   const { data: categories } = useRestaurantCategories()
   const { isLiked, likedBusinessIds, toggleLike, togglingId, isLoggedIn } = useBusinessLikes()
+  const { items: savedAddresses } = useSavedAddresses()
+  const [quoteDestination, setQuoteDestination] = useState<string | null>(null)
+  const [deliveryMetaByBusiness, setDeliveryMetaByBusiness] = useState<Record<string, string>>({})
 
   useEffect(() => {
     if (error) toast.error('לא הצלחנו לטעון את המסעדות. בדקו את החיבור לאינטרנט ונסו שוב.')
   }, [error, toast])
+
+  useEffect(() => {
+    if (!isLoggedIn) {
+      setQuoteDestination(null)
+      return
+    }
+    let cancelled = false
+    if (typeof navigator !== 'undefined' && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          if (cancelled) return
+          const { latitude, longitude } = pos.coords
+          setQuoteDestination(`${latitude},${longitude}`)
+        },
+        () => {
+          if (cancelled) return
+          const primary =
+            savedAddresses.find((a) => a.isDefault) ||
+            savedAddresses[0]
+          if (!primary) {
+            setQuoteDestination(null)
+            return
+          }
+          const destination = buildDestinationAddress(primary)
+          setQuoteDestination(destination || null)
+        },
+        { maximumAge: 120000, timeout: 6000, enableHighAccuracy: false },
+      )
+      return () => {
+        cancelled = true
+      }
+    }
+    const primary = savedAddresses.find((a) => a.isDefault) || savedAddresses[0]
+    setQuoteDestination(primary ? buildDestinationAddress(primary) : null)
+    return () => {
+      cancelled = true
+    }
+  }, [isLoggedIn, savedAddresses])
+
+  useEffect(() => {
+    if (!isLoggedIn || !quoteDestination || !businesses?.length) {
+      setDeliveryMetaByBusiness({})
+      return
+    }
+    let cancelled = false
+    const uniqueBusinesses = Array.from(new Set(businesses.map((b) => b.businessId)))
+    ;(async () => {
+      const next: Record<string, string> = {}
+      await Promise.all(
+        uniqueBusinesses.map(async (businessId) => {
+          try {
+            const quote = await quoteDeliveryFee(businessId, quoteDestination)
+            next[businessId] = quote.within_range
+              ? `${quote.distance_km} ק"מ • דמי משלוח ₪${quote.delivery_fee.toFixed(0)}`
+              : `מחוץ לטווח משלוח (${quote.max_delivery_km} ק"מ)`
+          } catch {
+            // שומרים שקט אם חישוב נכשל למסעדה ספציפית.
+          }
+        }),
+      )
+      if (!cancelled) setDeliveryMetaByBusiness(next)
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [isLoggedIn, quoteDestination, businesses])
 
   const businessById = useMemo(() => {
     const map = new Map<string, BusinessWithMenu>()
@@ -65,6 +138,16 @@ export const RestaurantsPage = () => {
 
     const sections: CategorySection[] = []
     const assigned = new Set<string>()
+
+    const recommended = businesses.filter((b) => b.isRecommended === true)
+    if (recommended.length > 0) {
+      sections.push({
+        id: RECOMMENDED_CATEGORY_ID,
+        title: RECOMMENDED_CATEGORY_NAME,
+        businesses: recommended,
+        isSystem: true,
+      })
+    }
 
     if (isLoggedIn && likedBusinessIds.size > 0) {
       const favorites = [...likedBusinessIds]
@@ -140,6 +223,7 @@ export const RestaurantsPage = () => {
       <RestaurantCard
         name={b.businessName}
         eta="הזמנה ומשלוח"
+        deliveryMeta={deliveryMetaByBusiness[b.businessId]}
         address={b.pickupAddress ?? '—'}
         heroImage={b.logoUrl ?? undefined}
         tags={matchedTags ?? []}
@@ -262,11 +346,6 @@ function CategoryCarousel({
     >
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          {section.isSystem ? (
-            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-red-400/15 text-red-400">
-              <Heart className="h-4 w-4 fill-red-400" />
-            </span>
-          ) : null}
           <h2 className="font-display text-xl text-vantix-fg sm:text-2xl">
             {section.title}
           </h2>

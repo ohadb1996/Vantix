@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react'
 import type { MenuItem } from '../types/menu'
 import { CART_STORAGE_KEY } from '../constants/app'
+import { calculateLineOptionsTotalShekels } from '../utils/menuSectionPricing'
 
 /** בחירה של הלקוח באופציה אחת מתוך סקשן */
 export interface CartSelectedOption {
@@ -9,6 +10,8 @@ export interface CartSelectedOption {
   optionId: string
   optionLabel: string
   priceCents?: number
+  /** כמות מאותה אפשרות (ברירת מחדל 1) */
+  quantity?: number
 }
 
 export interface CartLine {
@@ -54,7 +57,7 @@ function optionsFingerprint(opts: CartSelectedOption[] | undefined): string {
   return opts
     .slice()
     .sort((a, b) => a.sectionId.localeCompare(b.sectionId) || a.optionId.localeCompare(b.optionId))
-    .map((o) => `${o.sectionId}:${o.optionId}`)
+    .map((o) => `${o.sectionId}:${o.optionId}:${o.quantity ?? 1}`)
     .join(',')
 }
 
@@ -169,9 +172,10 @@ export function useCart(businessId: string | undefined, menuItems: Record<string
   const totalItems = cart.reduce((s, l) => s + l.quantity, 0)
   const totalPrice = cart.reduce((s, l) => {
     const lineTotal = l.item.price * l.quantity
-    const optionsTotal = (l.selectedOptions ?? []).reduce(
-      (sum, o) => sum + ((o.priceCents ?? 0) / 100) * l.quantity,
-      0
+    const optionsTotal = calculateLineOptionsTotalShekels(
+      l.item.sections,
+      l.selectedOptions,
+      l.quantity,
     )
     return s + lineTotal + optionsTotal
   }, 0)
