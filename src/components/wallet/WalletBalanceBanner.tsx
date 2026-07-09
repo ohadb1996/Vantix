@@ -1,12 +1,14 @@
 import { Link } from 'react-router-dom'
 import { ChevronLeft, Loader2, Wallet } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
+import { useAuthSheet } from '../../context/AuthSheetContext'
 import { useWalletBalance } from '../../hooks/useWalletBalance'
 import { ROUTES } from '../../constants/app'
 import { formatShekel } from '../../utils/currency'
 
 export function WalletBalanceBanner() {
   const { user, loading: authLoading } = useAuth()
+  const { openAuthSheet } = useAuthSheet()
   const { data: balance, isLoading: balanceLoading } = useWalletBalance()
 
   if (authLoading) {
@@ -20,10 +22,10 @@ export function WalletBalanceBanner() {
 
   if (!user) {
     return (
-      <Link
-        to={ROUTES.AUTH_LOGIN}
-        state={{ from: { pathname: ROUTES.RESTAURANTS } }}
-        className="group flex items-center justify-between gap-3 rounded-2xl border border-vantix-cyan/20 bg-vantix-surface-raised px-4 py-4 shadow-sm transition hover:border-vantix-cyan/40 hover:shadow-md"
+      <button
+        type="button"
+        onClick={() => openAuthSheet('login', ROUTES.RESTAURANTS)}
+        className="group flex w-full items-center justify-between gap-3 rounded-2xl border border-vantix-cyan/20 bg-vantix-surface-raised px-4 py-4 text-right shadow-sm transition hover:border-vantix-cyan/40 hover:shadow-md"
       >
         <div className="flex items-center gap-3">
           <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-vantix-cyan/10">
@@ -35,7 +37,7 @@ export function WalletBalanceBanner() {
           </div>
         </div>
         <ChevronLeft className="h-5 w-5 rotate-180 text-vantix-fg-subtle transition group-hover:text-vantix-cyan" />
-      </Link>
+      </button>
     )
   }
 

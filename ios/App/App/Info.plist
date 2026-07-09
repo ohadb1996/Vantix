@@ -118,5 +118,7 @@
 		<string>googlegmail</string>
 		<string>googlechrome</string>
 	</array>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Vantix משתמשת במיקום שלך כדי להציג מסעדות ודמי משלוח רלוונטיים לאזור שלך.</string>
 </dict>
 </plist>

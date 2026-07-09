@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { resolveMinDeliveryTotal } from '../constants/deliveryPricing'
 import { getBusinessMenu, getBusinessesWithMenus } from '../services/orderService'
 
 export function useMenu(businessId: string | undefined) {
@@ -22,6 +23,7 @@ export function useMenu(businessId: string | undefined) {
     menu: menuQuery.data ?? null,
     businessName: business?.businessName ?? '',
     businessLogoUrl: business?.logoUrl ?? null,
+    businessMinDeliveryTotal: resolveMinDeliveryTotal(business?.minDeliveryTotal),
     businessPickupAddress: business?.pickupAddress ?? null,
     isOpenNow: business?.isOpenNow !== false,
     businessHours: business?.businessHours ?? null,

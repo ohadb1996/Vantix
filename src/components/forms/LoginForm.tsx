@@ -15,9 +15,13 @@ const INITIAL_STATE: FormState = {
   password: '',
 }
 
-type LoginFormProps = { redirectTo?: string }
+type LoginFormProps = {
+  redirectTo?: string
+  onSuccess?: () => void
+  variant?: 'page' | 'sheet'
+}
 
-export const LoginForm = ({ redirectTo }: LoginFormProps) => {
+export const LoginForm = ({ redirectTo, onSuccess, variant = 'page' }: LoginFormProps) => {
   const { login, loginWithGoogle, authError, clearAuthError } = useAuth()
   const navigate = useNavigate()
   const [form, setForm] = useState<FormState>(INITIAL_STATE)
@@ -27,6 +31,18 @@ export const LoginForm = ({ redirectTo }: LoginFormProps) => {
   const [error, setError] = useState<string | null>(null)
   const to = redirectTo || '/'
   const displayError = error ?? authError
+  const shellClass =
+    variant === 'sheet'
+      ? 'flex flex-col gap-4 rounded-3xl border border-vantix-cyan/20 bg-vantix-surface-raised p-5 shadow-[0_18px_65px_rgba(0,0,0,0.05)] sm:p-6'
+      : 'flex flex-col gap-4 rounded-3xl border border-vantix-cyan/20 bg-vantix-surface-raised p-8 shadow-[0_18px_65px_rgba(0,0,0,0.05)]'
+
+  const finish = () => {
+    if (onSuccess) {
+      onSuccess()
+      return
+    }
+    navigate(to)
+  }
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -37,7 +53,7 @@ export const LoginForm = ({ redirectTo }: LoginFormProps) => {
     try {
       await login(form.email, form.password)
       setForm(INITIAL_STATE)
-      navigate(to)
+      finish()
     } catch (err) {
       setError(getAuthErrorMessage(err, 'login'))
     } finally {
@@ -51,7 +67,7 @@ export const LoginForm = ({ redirectTo }: LoginFormProps) => {
     setIsGoogleLoading(true)
     try {
       await loginWithGoogle()
-      navigate(to)
+      finish()
     } catch (err) {
       setError(getAuthErrorMessage(err, 'google'))
     } finally {
@@ -62,8 +78,9 @@ export const LoginForm = ({ redirectTo }: LoginFormProps) => {
   return (
     <form
       onSubmit={handleSubmit}
-      className="flex flex-col gap-4 rounded-3xl border border-vantix-cyan/20 bg-vantix-surface-raised p-8 shadow-[0_18px_65px_rgba(0,0,0,0.05)]"
+      className={shellClass}
     >
+      {variant === 'page' ? (
       <div className="space-y-2">
         <p className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.32em] text-vantix-cyan">
           <LogIn className="h-4 w-4" />
@@ -75,6 +92,22 @@ export const LoginForm = ({ redirectTo }: LoginFormProps) => {
         <p className="text-sm text-vantix-fg-muted">
           התחברו לחשבון Vantix שלכם כדי לראות הזמנות, המלצות ומועדון ההפתעות.
         </p>
+      </div>
+      ) : null}
+
+      <GoogleAuthButton
+        label="התחבר עם Google"
+        loading={isGoogleLoading}
+        disabled={isSubmitting}
+        onClick={handleGoogleLogin}
+      />
+
+      <div className="relative my-2 text-center text-xs text-vantix-fg-subtle">
+        <span className="relative z-10 bg-vantix-surface-raised px-2">או</span>
+        <span
+          aria-hidden
+          className="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-vantix-cyan/15"
+        />
       </div>
 
       <label className="space-y-1">
@@ -142,17 +175,6 @@ export const LoginForm = ({ redirectTo }: LoginFormProps) => {
           'כניסה'
         )}
       </button>
-
-      <div className="relative my-2 text-center text-xs text-vantix-fg-subtle">
-        <span className="bg-vantix-surface-raised px-2">או</span>
-      </div>
-
-      <GoogleAuthButton
-        label="התחבר עם Google"
-        loading={isGoogleLoading}
-        disabled={isSubmitting}
-        onClick={handleGoogleLogin}
-      />
     </form>
   )
 }

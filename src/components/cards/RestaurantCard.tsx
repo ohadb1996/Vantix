@@ -1,9 +1,12 @@
-import { Heart, MapPin, Star, UtensilsCrossed } from 'lucide-react'
+import { Bike, Heart, MapPin, Star, UtensilsCrossed } from 'lucide-react'
+import { resolveMinDeliveryTotal } from '../../constants/deliveryPricing'
 
 type RestaurantCardProps = {
   name: string
   eta: string
-  deliveryMeta?: string
+  distanceKm?: number
+  deliveryFee?: number
+  minDeliveryTotal?: number
   rating?: number | null
   address: string
   heroImage?: string | null
@@ -18,7 +21,9 @@ type RestaurantCardProps = {
 export const RestaurantCard = ({
   name,
   eta,
-  deliveryMeta,
+  distanceKm,
+  deliveryFee,
+  minDeliveryTotal,
   rating,
   address,
   heroImage,
@@ -96,8 +101,19 @@ export const RestaurantCard = ({
             <span className="truncate">{address}</span>
           </span>
         </div>
-        {deliveryMeta ? (
-          <p className="text-[11px] text-vantix-fg-muted lg:text-xs">{deliveryMeta}</p>
+        {typeof distanceKm === 'number' && typeof deliveryFee === 'number' ? (
+          <p className="flex flex-wrap items-center gap-x-1 text-[11px] text-vantix-fg-muted lg:text-xs">
+            <span>{distanceKm} ק&quot;מ</span>
+            <span aria-hidden>•</span>
+            <span className="inline-flex items-center gap-0.5">
+              <Bike className="h-3 w-3 shrink-0 text-vantix-cyan" aria-hidden />
+              <span>₪{deliveryFee.toFixed(0)}</span>
+            </span>
+            <span aria-hidden>•</span>
+            <span className="text-vantix-fg-subtle">
+              מינ׳ לחיוב ₪{resolveMinDeliveryTotal(minDeliveryTotal).toFixed(0)}
+            </span>
+          </p>
         ) : null}
 
         {tags.length > 0 ? (

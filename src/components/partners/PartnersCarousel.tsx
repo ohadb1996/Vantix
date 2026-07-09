@@ -2,24 +2,36 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useRestaurants } from '../../hooks/useRestaurants'
 import { useAuth } from '../../context/AuthContext'
+import { useAuthSheet } from '../../context/AuthSheetContext'
 import { ROUTES } from '../../constants/app'
 import type { BusinessWithMenu } from '../../services/orderService'
 
 const CARD_WIDTH = 160
 const CARD_GAP = 12
 
-const BusinessCard = ({ business, isLoggedIn }: { business: BusinessWithMenu; isLoggedIn: boolean }) => {
+const BusinessCard = ({
+  business,
+  isLoggedIn,
+  onRequireAuth,
+}: {
+  business: BusinessWithMenu
+  isLoggedIn: boolean
+  onRequireAuth: (menuPath: string) => void
+}) => {
   const [logoError, setLogoError] = useState(false)
   const showLogo = business.logoUrl && !logoError
 
   const menuPath = ROUTES.RESTAURANT_MENU(business.businessId)
-  const to = isLoggedIn ? menuPath : ROUTES.AUTH_LOGIN
-  const linkState = isLoggedIn ? undefined : { from: { pathname: menuPath } }
 
   return (
     <Link
-      to={to}
-      state={linkState}
+      to={menuPath}
+      onClick={(event) => {
+        if (!isLoggedIn) {
+          event.preventDefault()
+          onRequireAuth(menuPath)
+        }
+      }}
       className="flex flex-shrink-0 flex-col rounded-2xl border border-vantix-cyan/20 bg-vantix-surface-raised p-4 shadow-vantix transition hover:border-vantix-cyan/40 hover:shadow-glow focus:outline-none focus:ring-2 focus:ring-vantix-cyan focus:ring-offset-2"
       style={{ width: `${CARD_WIDTH}px`, height: '160px' }}
     >
@@ -55,6 +67,7 @@ const BusinessCard = ({ business, isLoggedIn }: { business: BusinessWithMenu; is
 
 export const PartnersCarousel = () => {
   const { user } = useAuth()
+  const { openAuthSheet } = useAuthSheet()
   const { data: businesses, isLoading } = useRestaurants()
   const list = businesses ?? []
   const isLoggedIn = !!user
@@ -117,6 +130,7 @@ export const PartnersCarousel = () => {
                   key={`${business.businessId}-${index}`}
                   business={business}
                   isLoggedIn={isLoggedIn}
+                  onRequireAuth={(menuPath) => openAuthSheet('login', menuPath)}
                 />
               ))}
             </div>

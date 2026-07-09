@@ -62,4 +62,4 @@ export const FAVORITES_CATEGORY_NAME = 'המועדפים שלי ❤️'
 
 /** מזהה וירטואלי לקרוסלת מסעדות שסומנו ע"י אדמין – לא נשמר ב-RTDB */
 export const RECOMMENDED_CATEGORY_ID = '__recommended__'
-export const RECOMMENDED_CATEGORY_NAME = 'המומלצות שלנו ⭐⭐⭐'
+export const RECOMMENDED_CATEGORY_NAME = 'המומלצות שלנו ⭐'

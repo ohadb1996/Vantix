@@ -1,4 +1,23 @@
+import { ALL_SEARCH_FILTER_DEFS } from '../constants/searchFilterDefs'
 import type { MoodCollection, SmartFilter, SpotlightCampaign } from '../types/discovery'
+
+const HOME_SMART_FILTER_IDS = [
+  'open_now',
+  'recommended',
+  'pizza',
+  'sushi',
+  'italian',
+  'kosher',
+] as const
+
+const HOME_FILTER_TONES: SmartFilter['tone'][] = [
+  'neutral',
+  'primary',
+  'elevated',
+  'neutral',
+  'primary',
+  'elevated',
+]
 
 export const mockMoodCollections: MoodCollection[] = [
   {
@@ -24,14 +43,16 @@ export const mockMoodCollections: MoodCollection[] = [
   },
 ]
 
-export const mockSmartFilters: SmartFilter[] = [
-  { id: 'gluten-free', label: 'ללא גלוטן', tone: 'neutral', order: 1 },
-  { id: 'vegan', label: 'טבעוני', tone: 'primary', order: 2 },
-  { id: 'quick-eta', label: 'עד 25 דק׳', tone: 'elevated', order: 3 },
-  { id: 'budget', label: 'תקציב עד 60₪', tone: 'neutral', order: 4 },
-  { id: 'trending-now', label: 'הכי מזמין עכשיו', tone: 'primary', order: 5 },
-  { id: 'new-in-town', label: 'חדש בעיר', tone: 'elevated', order: 6 },
-]
+export const mockSmartFilters: SmartFilter[] = HOME_SMART_FILTER_IDS.map((id, index) => {
+  const def = ALL_SEARCH_FILTER_DEFS.find((f) => f.id === id)
+  if (!def) throw new Error(`Missing search filter def for home chip: ${id}`)
+  return {
+    id: def.id,
+    label: def.label,
+    tone: HOME_FILTER_TONES[index],
+    order: index + 1,
+  }
+})
 
 export const mockSpotlightCampaign: SpotlightCampaign = {
   id: 'smart-handoff',

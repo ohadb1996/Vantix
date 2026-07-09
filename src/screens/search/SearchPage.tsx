@@ -3,9 +3,12 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Search, SlidersHorizontal, UtensilsCrossed, X } from 'lucide-react'
 import { RestaurantCard } from '../../components/cards/RestaurantCard'
+import { DeliveryLocationBanner } from '../../components/location/DeliveryLocationBanner'
 import { useToast } from '../../components/ui/Toast'
 import { haptic } from '../../lib/native'
-import { useRestaurants } from '../../hooks/useRestaurants'
+import { useCustomerRestaurantCatalog } from '../../hooks/useCustomerRestaurantCatalog'
+import { useAuthSheet } from '../../context/AuthSheetContext'
+import { useDebouncedValue } from '../../hooks/useDebouncedValue'
 import { useRestaurantCategories } from '../../hooks/useRestaurantCategories'
 import { useBusinessLikes } from '../../hooks/useBusinessLikes'
 import { ROUTES } from '../../constants/app'
@@ -31,11 +34,27 @@ export const SearchPage = () => {
   const resultsRef = useRef<HTMLElement>(null)
   const shouldScrollToResultsRef = useRef(false)
   const toast = useToast()
-  const { data: businesses, isLoading, error } = useRestaurants()
-  const { data: adminCategoriesRaw } = useRestaurantCategories()
+  const { openAuthSheet } = useAuthSheet()
   const { isLiked, toggleLike, togglingId, isLoggedIn } = useBusinessLikes()
+  const debouncedSearchQuery = useDebouncedValue(searchQuery, 300)
+  const {
+    businesses: catalogBusinesses,
+    distanceKmByBusiness,
+    deliveryFeeByBusiness,
+    minDeliveryTotalByBusiness,
+    isLoadingRestaurants,
+    savedAddresses,
+    quoteLocationChoice,
+    setQuoteLocationChoice,
+    isResolvingQuoteLocation,
+    quoteGeoUnavailable,
+    useLocationFilter,
+    listError,
+    discoverError,
+  } = useCustomerRestaurantCatalog(isLoggedIn, { serverSearchQuery: debouncedSearchQuery })
+  const { data: adminCategoriesRaw } = useRestaurantCategories()
 
-  const allBusinesses = businesses ?? []
+  const allBusinesses = catalogBusinesses
 
   const adminCategoryFilters = useMemo(
     () => adminCategoriesToFilters(adminCategoriesRaw ?? []),
@@ -70,8 +89,12 @@ export const SearchPage = () => {
   }, [])
 
   useEffect(() => {
-    if (error) toast.error('לא הצלחנו לטעון את המסעדות. בדקו את החיבור לאינטרנט ונסו שוב.')
-  }, [error, toast])
+    if (listError) toast.error('לא הצלחנו לטעון את המסעדות. בדקו את החיבור לאינטרנט ונסו שוב.')
+  }, [listError, toast])
+
+  useEffect(() => {
+    if (discoverError) toast.error('לא הצלחנו לטעון מסעדות באזור המיקום שנבחר.')
+  }, [discoverError, toast])
 
   useEffect(() => {
     const q = searchQuery.trim()
@@ -113,14 +136,15 @@ export const SearchPage = () => {
   const filteredBusinesses = useMemo(
     () =>
       filterBusinesses(allBusinesses, {
-        nameQuery: searchQuery,
+        nameQuery: useLocationFilter ? '' : debouncedSearchQuery,
         selectedFilterIds,
         selectedAdminCategoryIds,
         adminCategories: adminCategoryFilters,
       }),
     [
       allBusinesses,
-      searchQuery,
+      debouncedSearchQuery,
+      useLocationFilter,
       selectedFilterIds,
       selectedAdminCategoryIds,
       adminCategoryFilters,
@@ -143,13 +167,13 @@ export const SearchPage = () => {
   useEffect(() => {
     if (!shouldScrollToResultsRef.current) return
     shouldScrollToResultsRef.current = false
-    if (!hasActiveCriteria || isLoading || filteredBusinesses.length === 0) return
+    if (!hasActiveCriteria || isLoadingRestaurants || filteredBusinesses.length === 0) return
     const timer = window.setTimeout(scrollToResults, 180)
     return () => window.clearTimeout(timer)
   }, [
     filteredBusinesses.length,
     hasActiveCriteria,
-    isLoading,
+    isLoadingRestaurants,
     selectedFilterIds,
     selectedAdminCategoryIds,
     scrollToResults,
@@ -158,6 +182,7 @@ export const SearchPage = () => {
   const handleLike = async (businessId: string) => {
     if (!isLoggedIn) {
       toast.info('יש להתחבר כדי לסמן לייק')
+      openAuthSheet('login', ROUTES.SEARCH)
       return
     }
     void haptic.light()
@@ -169,20 +194,26 @@ export const SearchPage = () => {
 
   const renderBusinessCard = (b: BusinessWithMenu) => {
     const menuPath = ROUTES.RESTAURANT_MENU(b.businessId)
-    const to = isLoggedIn ? menuPath : ROUTES.AUTH_LOGIN
-    const linkState = isLoggedIn ? undefined : { from: { pathname: menuPath } }
-    const matchedDishes = getMatchedDishesForQuery(b, searchQuery)
+    const matchedDishes = getMatchedDishesForQuery(b, debouncedSearchQuery)
 
     return (
       <Link
         key={b.businessId}
-        to={to}
-        state={linkState}
+        to={menuPath}
+        onClick={(event) => {
+          if (!isLoggedIn) {
+            event.preventDefault()
+            openAuthSheet('login', menuPath)
+          }
+        }}
         className="block w-full min-w-0 rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-vantix-cyan focus-visible:ring-offset-2 sm:rounded-3xl"
       >
         <RestaurantCard
           name={b.businessName}
           eta="הזמנה ומשלוח"
+          distanceKm={distanceKmByBusiness[b.businessId]}
+          deliveryFee={deliveryFeeByBusiness[b.businessId]}
+          minDeliveryTotal={minDeliveryTotalByBusiness[b.businessId]}
           address={b.pickupAddress ?? '—'}
           heroImage={b.logoUrl ?? undefined}
           tags={matchedDishes}
@@ -248,6 +279,14 @@ export const SearchPage = () => {
           </p>
         </div>
 
+        <DeliveryLocationBanner
+          choice={quoteLocationChoice}
+          onChoiceChange={setQuoteLocationChoice}
+          savedAddresses={savedAddresses}
+          isResolving={isResolvingQuoteLocation}
+          geoUnavailable={quoteGeoUnavailable}
+        />
+
         <div
           role="search"
           className="flex items-center gap-3 rounded-2xl border border-vantix-line/10 bg-vantix-surface-raised px-4 py-3 shadow-sm"
@@ -302,11 +341,11 @@ export const SearchPage = () => {
         </div>
       ) : null}
 
-      {isLoading ? (
+      {isLoadingRestaurants ? (
         <p className="text-sm text-vantix-fg-muted">טוען עסקים...</p>
       ) : null}
 
-      {hasActiveCriteria && !isLoading && filteredBusinesses.length === 0 ? (
+      {hasActiveCriteria && !isLoadingRestaurants && filteredBusinesses.length === 0 ? (
         <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-vantix-cyan/20 bg-vantix-surface-raised p-10 text-center">
           <UtensilsCrossed className="h-10 w-10 text-vantix-cyan/40" />
           <p className="text-vantix-fg-muted">לא נמצאו תוצאות לפי הבחירה שלכם</p>
@@ -321,7 +360,7 @@ export const SearchPage = () => {
         </div>
       ) : null}
 
-      {hasActiveCriteria && !isLoading && filteredBusinesses.length > 0 ? (
+      {hasActiveCriteria && !isLoadingRestaurants && filteredBusinesses.length > 0 ? (
         <motion.section
           ref={resultsRef}
           initial={{ opacity: 0 }}

@@ -1,7 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { getMyOrders, getBusinessesWithMenus } from '../../services/orderService'
 import { useAuth } from '../../context/AuthContext'
+import { useAuthSheet } from '../../context/AuthSheetContext'
 import { History, Loader2, Package, UtensilsCrossed } from 'lucide-react'
 import { ROUTES } from '../../constants/app'
 
@@ -13,8 +14,8 @@ const statusLabels: Record<string, string> = {
 }
 
 export const OrderHistoryPage = () => {
-  const navigate = useNavigate()
   const { user } = useAuth()
+  const { openAuthSheet } = useAuthSheet()
   const { data: businesses = [] } = useQuery({
     queryKey: ['businessesWithMenus'],
     queryFn: getBusinessesWithMenus,
@@ -34,7 +35,7 @@ export const OrderHistoryPage = () => {
         <p className="text-center text-vantix-fg-muted">יש להתחבר כדי לראות היסטוריית הזמנות</p>
         <button
           type="button"
-          onClick={() => navigate('/auth/login' as any)}
+          onClick={() => openAuthSheet('login', ROUTES.ORDERS)}
           className="rounded-xl bg-vantix-orange dark:bg-vantix-cyan px-6 py-3 font-semibold text-white dark:text-black hover:brightness-110"
         >
           התחברות

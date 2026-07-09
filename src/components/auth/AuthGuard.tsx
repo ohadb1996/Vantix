@@ -1,14 +1,24 @@
-import { Navigate, useLocation } from 'react-router-dom'
+import { useEffect } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
+import { useAuthSheet } from '../../context/AuthSheetContext'
 import { ROUTES } from '../../constants/app'
 
 /**
  * מגן על נתיבים – רק משתמש מחובר רואה את התוכן.
- * אחרת מפנה להתחברות (אפשר אחר כך להחזיר ל־from).
+ * אחרת פותח כרטיסיית התחברות מלמטה.
  */
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
   const location = useLocation()
+  const { openAuthSheet } = useAuthSheet()
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    if (loading || user) return
+    openAuthSheet('login', location.pathname)
+    navigate(ROUTES.RESTAURANTS, { replace: true })
+  }, [loading, user, location.pathname, openAuthSheet, navigate])
 
   if (loading) {
     return (
@@ -19,7 +29,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   }
 
   if (!user) {
-    return <Navigate to={ROUTES.AUTH_LOGIN} state={{ from: location }} replace />
+    return null
   }
 
   return <>{children}</>

@@ -3,6 +3,7 @@ import { getRealtimeDb } from '../lib/firebase'
 import type { BusinessWithMenu } from './orderService'
 import type { VantixListing } from '../types/vantixListing'
 import { isBusinessOpenNow, normalizeBusinessHours } from '../utils/businessHours'
+import { resolveMinDeliveryTotal } from '../constants/deliveryPricing'
 
 const db = () => getRealtimeDb()
 
@@ -24,6 +25,7 @@ function listingToBusinessWithMenu(raw: VantixListing): BusinessWithMenu {
     kashrutType: raw.kashrut_type ?? null,
     minMenuPrice: raw.minMenuPrice,
     maxMenuPrice: raw.maxMenuPrice,
+    minDeliveryTotal: resolveMinDeliveryTotal(raw.min_delivery_total),
     businessType: raw.businessType,
     hasConfiguredHours,
     pickupAddress: raw.pickupAddress,

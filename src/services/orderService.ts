@@ -9,6 +9,7 @@ import type { Order, OrderCreate } from '../types/order'
 import type { BusinessMenu } from '../types/menu'
 import type { BusinessHours } from '../types/businessHours'
 import { isBusinessOpenNow, normalizeBusinessHours } from '../utils/businessHours'
+import { resolveMinDeliveryTotal } from '../constants/deliveryPricing'
 import type { BusinessLocationInfo, CourierLocation, TrackedDelivery } from '../types/tracking'
 
 const db = () => getRealtimeDb()
@@ -49,6 +50,8 @@ export interface BusinessWithMenu {
   /** מחיר מנה מינימלי/מקסימלי בתפריט (מנות זמינות בלבד) */
   minMenuPrice?: number
   maxMenuPrice?: number
+  /** מינימום לחיוב משלוח ללקוח (אם הוגדר ע"י העסק) */
+  minDeliveryTotal?: number
   /** סוג העסק מפרופיל ההרשמה (Businesses/{id}/business_type) */
   businessType?: string
   /** האם הוגדרו שעות פעילות בפועל */
@@ -213,6 +216,7 @@ async function getBusinessesWithMenusLegacy(): Promise<BusinessWithMenu[]> {
       let kitchenType: string | null = null
       let foodTypes: string[] = []
       let kashrutType: string | null = null
+      let minDeliveryTotal: number | undefined
 
       if (data) {
         businessName = (data.business_name as string) || ''
@@ -240,6 +244,13 @@ async function getBusinessesWithMenusLegacy(): Promise<BusinessWithMenu[]> {
           }
           if (typeof profile.kashrut_type === 'string') kashrutType = profile.kashrut_type
         }
+        const customerPricing = data.customer_pricing as Record<string, unknown> | undefined
+        if (customerPricing && typeof customerPricing === 'object') {
+          const v = Number(customerPricing.min_delivery_total)
+          minDeliveryTotal = resolveMinDeliveryTotal(Number.isFinite(v) ? v : undefined)
+        } else {
+          minDeliveryTotal = resolveMinDeliveryTotal(undefined)
+        }
       } else {
         businessName = `עסק ${businessId.slice(0, 6)}`
       }
@@ -258,6 +269,7 @@ async function getBusinessesWithMenusLegacy(): Promise<BusinessWithMenu[]> {
         kashrutType,
         minMenuPrice: menuPrices.length ? Math.min(...menuPrices) : undefined,
         maxMenuPrice: menuPrices.length ? Math.max(...menuPrices) : undefined,
+        minDeliveryTotal,
         businessType,
         hasConfiguredHours,
         pickupAddress,

@@ -2,8 +2,9 @@
 /**
  * מעדכן את גרסת האפליקציה בכל המקומות בבת אחת:
  *   1. package.json
- *   2. android/app/build.gradle  -> versionName + מקדם versionCode ב-1
- *   3. ios/App/App.xcodeproj/project.pbxproj -> MARKETING_VERSION + CURRENT_PROJECT_VERSION
+ *   2. src/utils/appVersion.ts -> APP_VERSION (מנגנון Force Update משווה לזה)
+ *   3. android/app/build.gradle  -> versionName + מקדם versionCode ב-1
+ *   4. ios/App/App.xcodeproj/project.pbxproj -> MARKETING_VERSION + CURRENT_PROJECT_VERSION
  *
  * שימוש:
  *   npm run bump 1.0.1
@@ -40,6 +41,10 @@ patch('package.json', (s) =>
   s.replace(/("version":\s*")\d+\.\d+\.\d+(")/, `$1${version}$2`),
 )
 
+patch('src/utils/appVersion.ts', (s) =>
+  s.replace(/(APP_VERSION\s*=\s*')\d+\.\d+\.\d+(')/, `$1${version}$2`),
+)
+
 patch('android/app/build.gradle', (s) => {
   let next = s.replace(/(versionName\s+")\d+\.\d+\.\d+(")/, `$1${version}$2`)
   next = next.replace(/versionCode\s+(\d+)/, (_m, code) => {
@@ -63,4 +68,5 @@ console.log(`\n🎉 כל הקבצים עודכנו לגרסה ${version}.`)
 console.log('   הצעדים הבאים:')
 console.log('   1) npm run sync')
 console.log('   2) iOS: Codemagic או npm run ios:release')
-console.log('   3) Android: npm run android:aab (או Android Studio → Signed Bundle)\n')
+console.log('   3) Android: npm run android:aab (או Android Studio → Signed Bundle)')
+console.log(`   4) אחרי שהגרסה זמינה בחנויות — לקבוע ב-Firebase: AppConfig/vantix_min_version = "${version}"\n`)

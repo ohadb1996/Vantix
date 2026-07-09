@@ -11,6 +11,10 @@ import type { ThemeMode } from '../context/ThemeContext'
  */
 const isNative = Capacitor.isNativePlatform()
 
+export const isNativeMobile = (): boolean => Capacitor.isNativePlatform()
+
+export const isIOSNative = (): boolean => Capacitor.getPlatform() === 'ios'
+
 /** אתחול חד-פעמי של ה-UI הנייטיבי (סטטוס בר, מקלדת, הסתרת ספלאש). */
 export async function initNativeUI(): Promise<void> {
   if (!isNative) return

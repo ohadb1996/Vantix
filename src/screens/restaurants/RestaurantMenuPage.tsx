@@ -11,6 +11,7 @@ import { ShoppingCart, Plus, Minus, Loader2, Check, ArrowRight, X, Pencil, Searc
 import { useMenu } from '../../hooks/useMenu'
 import { useCart, type CartLine, type CartSelectedOption } from '../../hooks/useCart'
 import { useAuth } from '../../context/AuthContext'
+import { useAuthSheet } from '../../context/AuthSheetContext'
 import { useToast } from '../../components/ui/Toast'
 import { haptic } from '../../lib/native'
 import { ROUTES } from '../../constants/app'
@@ -126,11 +127,20 @@ function MenuItemRow({
 export const RestaurantMenuPage = () => {
   const { businessId } = useParams<{ businessId: string }>()
   const navigate = useNavigate()
-  const { menu, businessName, businessLogoUrl, businessPickupAddress, isOpenNow, isLoading: loading } = useMenu(businessId)
+  const {
+    menu,
+    businessName,
+    businessLogoUrl,
+    businessPickupAddress,
+    businessMinDeliveryTotal,
+    isOpenNow,
+    isLoading: loading,
+  } = useMenu(businessId)
   const { cart, addToCart, removeFromCart, updateLineOptions, clearCart, totalItems, totalPrice } = useCart(businessId, menu?.items ?? null)
   const { orderCounts, bumpLocalCounts } = useMenuItemStats(businessId)
   const compactStickyNav = useMainScrollPast(72)
   const { user } = useAuth()
+  const { openAuthSheet } = useAuthSheet()
   const toast = useToast()
   const { items: savedPayments } = useSavedPayments()
 
@@ -152,14 +162,12 @@ export const RestaurantMenuPage = () => {
     }
     if (!user) {
       toast.info('כדי להשלים הזמנה צריך להתחבר')
-      navigate(ROUTES.AUTH_LOGIN, {
-        state: { from: { pathname: ROUTES.RESTAURANT_MENU(businessId) } },
-      })
+      openAuthSheet('login', ROUTES.RESTAURANT_MENU(businessId))
       return
     }
     void haptic.medium()
     setShowCheckout(true)
-  }, [businessId, isOpenNow, user, toast, navigate])
+  }, [businessId, isOpenNow, user, toast, openAuthSheet])
 
   const [placing, setPlacing] = useState(false)
   const [showCheckout, setShowCheckout] = useState(false)
@@ -202,6 +210,7 @@ export const RestaurantMenuPage = () => {
   const [paymentMethod, setPaymentMethod] = useState<string>('')
   const [courierTip, setCourierTip] = useState(0)
   const [deliveryFee, setDeliveryFee] = useState(0)
+  const [minDeliveryTotal, setMinDeliveryTotal] = useState(0)
   const [deliveryDistanceKm, setDeliveryDistanceKm] = useState<number | null>(null)
   const [deliveryWithinRange, setDeliveryWithinRange] = useState(true)
   const [deliveryQuoteLoading, setDeliveryQuoteLoading] = useState(false)
@@ -223,14 +232,21 @@ export const RestaurantMenuPage = () => {
     selectedPaymentType === 'credit' && !!selectedPaymentId && requireFullCard && !hasSessionSecrets
   const needsCvvField =
     selectedPaymentType === 'credit' && !!selectedPaymentId && !requireFullCard && !hasSessionSecrets
+  const checkoutSubtotalBeforeTip = useMemo(() => {
+    const byOrder = roundMoney(totalPrice + (fulfillment === 'delivery' ? deliveryFee : 0))
+    if (fulfillment !== 'delivery') return byOrder
+    return roundMoney(Math.max(byOrder, minDeliveryTotal))
+  }, [totalPrice, deliveryFee, minDeliveryTotal, fulfillment])
+
   const checkoutTotal = useMemo(
-    () => roundMoney(totalPrice + (fulfillment === 'delivery' ? deliveryFee : 0) + courierTip),
-    [totalPrice, courierTip, deliveryFee, fulfillment],
+    () => roundMoney(checkoutSubtotalBeforeTip + courierTip),
+    [checkoutSubtotalBeforeTip, courierTip],
   )
 
   useEffect(() => {
     if (fulfillment !== 'delivery' || !businessId) {
       setDeliveryFee(0)
+      setMinDeliveryTotal(0)
       setDeliveryDistanceKm(null)
       setDeliveryWithinRange(true)
       setDeliveryQuoteError(null)
@@ -244,6 +260,7 @@ export const RestaurantMenuPage = () => {
     })
     if (!destination || !form.delivery_street.trim() || !form.delivery_city.trim()) {
       setDeliveryFee(0)
+      setMinDeliveryTotal(0)
       setDeliveryDistanceKm(null)
       setDeliveryQuoteError(null)
       return
@@ -257,6 +274,7 @@ export const RestaurantMenuPage = () => {
         .then((quote) => {
           if (cancelled) return
           setDeliveryFee(quote.delivery_fee)
+          setMinDeliveryTotal(quote.min_delivery_total || 0)
           setDeliveryDistanceKm(quote.distance_km)
           setDeliveryWithinRange(quote.within_range)
           if (!quote.within_range) {
@@ -267,6 +285,7 @@ export const RestaurantMenuPage = () => {
           if (cancelled) return
           const err = e as { message?: string }
           setDeliveryFee(0)
+          setMinDeliveryTotal(0)
           setDeliveryDistanceKm(null)
           setDeliveryWithinRange(false)
           setDeliveryQuoteError(err.message || 'לא ניתן לחשב דמי משלוח')
@@ -618,6 +637,7 @@ export const RestaurantMenuPage = () => {
       setCreditCardNumber('')
       setCourierTip(0)
       setDeliveryFee(0)
+      setMinDeliveryTotal(0)
       setDeliveryDistanceKm(null)
       const statsLines = cart.map((l) => ({ menuItemId: l.item.id, quantity: l.quantity }))
       bumpLocalCounts(statsLines)
@@ -903,6 +923,11 @@ export const RestaurantMenuPage = () => {
               <p className="font-bold text-vantix-fg text-lg mb-3">
                 סה״כ: ₪{totalPrice.toFixed(2)}
               </p>
+              {fulfillment === 'delivery' && (minDeliveryTotal > 0 || businessMinDeliveryTotal > 0) ? (
+                <p className="mb-3 text-xs text-vantix-fg-muted">
+                  מינימום לחיוב במשלוח: ₪{Math.max(minDeliveryTotal, businessMinDeliveryTotal).toFixed(2)}
+                </p>
+              ) : null}
               <button
                 type="button"
                 onClick={() => { setShowCartPanel(false); openCheckout() }}
@@ -1148,6 +1173,11 @@ export const RestaurantMenuPage = () => {
                 <p className="mt-3 pt-3 border-t border-vantix-cyan/20 font-bold text-vantix-fg text-lg">
                   סה״כ: ₪{totalPrice.toFixed(2)}
                 </p>
+                {fulfillment === 'delivery' && (minDeliveryTotal > 0 || businessMinDeliveryTotal > 0) ? (
+                  <p className="mt-1 text-xs text-vantix-fg-muted">
+                    מינימום לחיוב במשלוח: ₪{Math.max(minDeliveryTotal, businessMinDeliveryTotal).toFixed(2)}
+                  </p>
+                ) : null}
                 <button
                   type="button"
                   onClick={openCheckout}
@@ -1293,14 +1323,14 @@ export const RestaurantMenuPage = () => {
             ) : null}
 
             {fulfillment === 'delivery' ? (
-              <div className="rounded-2xl border border-vantix-cyan/15 bg-vantix-surface-raised px-4 py-3 text-sm">
+              <div className="rounded-2xl bg-vantix-surface-raised px-4 py-3 text-sm">
                 {deliveryQuoteLoading ? (
                   <p className="text-vantix-fg-muted">מחשבים דמי משלוח...</p>
                 ) : deliveryQuoteError ? (
                   <p className="text-red-400">{deliveryQuoteError}</p>
                 ) : deliveryDistanceKm != null ? (
                   <p className="text-vantix-fg-muted">
-                    מרחק מהמסעדה: <span className="font-medium text-vantix-fg">{deliveryDistanceKm} ק&quot;מ</span>
+                    מרחק מהמסעדה: <span className="font-medium text-vantix-fg">תקין</span>
                     {!deliveryWithinRange ? (
                       <span className="ms-1 text-vantix-fg-muted">(מחוץ לטווח משלוח)</span>
                     ) : null}
@@ -1322,10 +1352,22 @@ export const RestaurantMenuPage = () => {
                   <span>₪{deliveryFee.toFixed(2)}</span>
                 </div>
               ) : null}
+              {fulfillment === 'delivery' && minDeliveryTotal > 0 ? (
+                <div className="mt-1 flex items-center justify-between text-[12px] text-vantix-fg-subtle">
+                  <span>מינימום לחיוב במשלוח</span>
+                  <span>₪{minDeliveryTotal.toFixed(2)}</span>
+                </div>
+              ) : null}
               {fulfillment === 'delivery' && courierTip > 0 ? (
                 <div className="mt-1 flex items-center justify-between text-vantix-fg-muted">
                   <span>טיפ לשליח</span>
                   <span>₪{courierTip.toFixed(0)}</span>
+                </div>
+              ) : null}
+              {fulfillment === 'delivery' && checkoutSubtotalBeforeTip > roundMoney(totalPrice + deliveryFee) ? (
+                <div className="mt-1 flex items-center justify-between text-vantix-fg-muted">
+                  <span>ביניים לפני טיפ</span>
+                  <span>₪{checkoutSubtotalBeforeTip.toFixed(2)}</span>
                 </div>
               ) : null}
               <div className="mt-2 flex items-center justify-between border-t border-vantix-cyan/10 pt-2 font-semibold text-vantix-fg">
@@ -1349,7 +1391,7 @@ export const RestaurantMenuPage = () => {
                 type="button"
                 onClick={() => { setShowCheckout(false); setFormErrors({}) }}
                 disabled={placing}
-                className="flex-1 rounded-xl border-2 border-gray-300 py-3 font-medium hover:bg-gray-50 disabled:opacity-50"
+                className="flex-1 rounded-xl border-2 border-gray-300 py-3 font-medium hover:bg-gray-500 disabled:opacity-50"
               >
                 ביטול
               </button>

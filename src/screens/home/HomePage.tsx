@@ -2,11 +2,13 @@ import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useDiscoveryData } from "../../modules/discovery/hooks/useDiscoveryData";
 import { useAuth } from "../../context/AuthContext";
+import { useAuthSheet } from "../../context/AuthSheetContext";
 import { BusinessPartnersCTA } from "../../components/partners/BusinessPartnersCTA";
 import { SpotlightCta } from "../../components/partners/SpotlightCta";
 import { PartnersCarousel } from "../../components/partners/PartnersCarousel";
 import { ROUTES } from "../../constants/app";
 import { haptic } from "../../lib/native";
+import { RotatingVantixLogo } from "../../components/branding/RotatingVantixLogo";
 
 const filtersSkeleton = new Array(6).fill(null);
 
@@ -26,6 +28,7 @@ const FiltersSkeleton = () => (
 
 export const HomePage = () => {
   const { user } = useAuth();
+  const { openAuthSheet } = useAuthSheet();
   const { data, isLoading } = useDiscoveryData();
   const filters = data?.filters ?? [];
   const spotlight = data?.spotlight;
@@ -46,25 +49,7 @@ export const HomePage = () => {
             transition={{ delay: 0.1, duration: 0.5, ease: "easeOut" }}
             className="flex flex-col items-center gap-4 sm:gap-5"
           >
-            <div className="flex flex-col items-center" style={{ perspective: '1000px' }}>
-              <motion.div
-                className="flex flex-col items-center"
-                style={{ transformStyle: 'preserve-3d' }}
-                animate={{ rotateY: 360 }}
-                transition={{ repeat: Infinity, duration: 6, ease: 'linear' }}
-              >
-                <img
-                  src="/assets/logo-white.jpeg"
-                  alt="VANTIX"
-                  className="w-56 rounded-2xl object-contain sm:w-72 dark:hidden"
-                />
-                <img
-                  src="/assets/logo-dark.png"
-                  alt="VANTIX"
-                  className="hidden w-56 object-contain sm:w-72 dark:block"
-                />
-              </motion.div>
-            </div>
+            <RotatingVantixLogo />
 
             {/* כותרת – אותיות קופצות אחת אחרי השנייה */}
             <h1 className="flex flex-wrap justify-center text-center font-display text-2xl font-bold text-vantix-fg sm:text-4xl lg:text-5xl">
@@ -87,12 +72,22 @@ export const HomePage = () => {
           </motion.div>
 
           <div className="mt-6 mx-auto flex w-fit items-center justify-center rounded-2xl border border-vantix-cyan/20 bg-vantix-surface-raised p-2 shadow-vantix sm:mt-8 sm:rounded-3xl">
+            {user ? (
             <Link
-              to={user ? ROUTES.RESTAURANTS : ROUTES.AUTH_LOGIN}
+              to={ROUTES.RESTAURANTS}
               className="vantix-btn-primary flex min-h-[44px] items-center justify-center rounded-xl bg-none bg-vantix-cyan px-5 py-3 text-sm shadow-vantix-cyan/40 sm:min-h-0 sm:rounded-2xl sm:px-6"
             >
-              {user ? "מצא לי את המנה המושלמת" : "התחבר כדי לצפות במסעדות ולהזמין"}
+              מצא לי את המנה המושלמת
             </Link>
+            ) : (
+            <button
+              type="button"
+              onClick={() => openAuthSheet('login', ROUTES.RESTAURANTS)}
+              className="vantix-btn-primary flex min-h-[44px] items-center justify-center rounded-xl bg-none bg-vantix-cyan px-5 py-3 text-sm shadow-vantix-cyan/40 sm:min-h-0 sm:rounded-2xl sm:px-6"
+            >
+              התחבר כדי לצפות במסעדות ולהזמין
+            </button>
+            )}
           </div>
 
           {isLoading ? (
@@ -102,7 +97,7 @@ export const HomePage = () => {
               {filters.map((filter) => (
                 <Link
                   key={filter.id}
-                  to={`${ROUTES.SEARCH}?q=${encodeURIComponent(filter.label)}`}
+                  to={`${ROUTES.SEARCH}?f=${encodeURIComponent(filter.id)}`}
                   onClick={() => void haptic.light()}
                   className="rounded-full border border-vantix-cyan/20 bg-vantix-surface-raised px-4 py-2 text-xs font-semibold text-vantix-fg-muted transition hover:border-vantix-cyan/40 hover:text-vantix-fg"
                 >

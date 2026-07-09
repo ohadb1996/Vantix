@@ -16,7 +16,10 @@ export interface VantixListing {
   menuItemNames?: string[]
   minMenuPrice?: number
   maxMenuPrice?: number
+  min_delivery_total?: number
   itemsCount: number
   categoriesCount: number
   updated_at?: string
+  pickup_lat?: number
+  pickup_lng?: number
 }

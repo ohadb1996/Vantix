@@ -3,6 +3,7 @@ import { getFirebaseAuth } from '../lib/firebase'
 export type DeliveryQuote = {
   distance_km: number
   delivery_fee: number
+  min_delivery_total: number
   max_delivery_km: number
   within_range: boolean
 }
@@ -19,10 +20,27 @@ export function buildDestinationAddress(parts: {
   delivery_city?: string
 }): string {
   const streetLine = [parts.delivery_street, parts.delivery_building_number].filter(Boolean).join(' ').trim()
+  let line = ''
   if (!streetLine && !parts.delivery_city) return ''
-  if (!parts.delivery_city) return streetLine
-  if (!streetLine) return parts.delivery_city.trim()
-  return `${streetLine}, ${parts.delivery_city.trim()}`
+  if (!parts.delivery_city) line = streetLine
+  else if (!streetLine) line = parts.delivery_city.trim()
+  else line = `${streetLine}, ${parts.delivery_city.trim()}`
+
+  if (!line) return ''
+  if (line.includes('ישראל') || line.toLowerCase().includes('israel')) return line
+  return `${line}, ישראל`
+}
+
+export function formatSavedAddressLine(parts: {
+  label?: string
+  delivery_street?: string
+  delivery_building_number?: string
+  delivery_city?: string
+}): string {
+  const address = buildDestinationAddress(parts)
+  const label = parts.label?.trim()
+  if (label && address) return `${label} · ${address}`
+  return label || address
 }
 
 export async function quoteDeliveryFee(

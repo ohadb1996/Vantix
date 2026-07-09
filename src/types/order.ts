@@ -49,6 +49,10 @@ export interface Order {
   payment_status?: 'paid' | 'cash_on_delivery' | 'pending'
   /** סכום משנה (מנות בלבד) */
   items_subtotal?: number
+  /** מינימום לחיוב במשלוח כפי שהוגדר לעסק */
+  min_delivery_total?: number
+  /** סכום ביניים לפני טיפ (כולל התאמת מינימום משלוח אם נדרש) */
+  subtotal_before_tip?: number
   /** טיפ לשליח (₪) */
   courier_tip?: number
   /** סה״כ שחויב / לגבייה */

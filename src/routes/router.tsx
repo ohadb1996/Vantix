@@ -1,4 +1,5 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom'
+import { RootLayout } from '../layouts/RootLayout'
 import { AppLayout } from '../layouts/AppLayout'
 import { HomePage } from '../screens/home/HomePage'
 import { RestaurantsPage } from '../screens/restaurants/RestaurantsPage'
@@ -7,9 +8,7 @@ import { SearchPage } from '../screens/search/SearchPage'
 import { OrderHistoryPage } from '../screens/orders/OrderHistoryPage'
 import { OrderTrackingPage } from '../screens/orders/OrderTrackingPage'
 import { ProfilePage } from '../screens/profile/ProfilePage'
-import { AuthLanding } from '../screens/auth/AuthLanding'
-import { LoginPage } from '../screens/auth/LoginPage'
-import { RegisterPage } from '../screens/auth/RegisterPage'
+import { AuthSheetOpener } from '../components/auth/AuthSheetOpener'
 import { AuthGuard } from '../components/auth/AuthGuard'
 import { GuestOnlyGuard } from '../components/auth/GuestOnlyGuard'
 import { NotFoundPage } from '../screens/errors/NotFoundPage'
@@ -17,6 +16,10 @@ import { RouteErrorPage } from '../screens/errors/RouteErrorPage'
 import { ROUTES } from '../constants/app'
 
 export const router = createBrowserRouter([
+  {
+    element: <RootLayout />,
+    errorElement: <RouteErrorPage />,
+    children: [
   {
     path: '/live',
     element: <Navigate to={ROUTES.RESTAURANTS} replace />,
@@ -70,31 +73,22 @@ export const router = createBrowserRouter([
     ],
   },
   {
+    path: '/auth/login',
+    element: <AuthSheetOpener mode="login" />,
+  },
+  {
+    path: '/auth/register',
+    element: <AuthSheetOpener mode="register" />,
+  },
+  {
     path: '/auth',
-    element: <AuthLanding />,
-    errorElement: <RouteErrorPage />,
-    children: [
-      {
-        path: 'login',
-        element: <LoginPage />,
-      },
-      {
-        path: 'register',
-        element: <RegisterPage />,
-      },
-      {
-        index: true,
-        element: <LoginPage />,
-      },
-      {
-        path: '*',
-        element: <Navigate to={ROUTES.AUTH_LOGIN} replace />,
-      },
-    ],
+    element: <Navigate to={ROUTES.AUTH_LOGIN} replace />,
   },
   {
     path: '*',
     element: <NotFoundPage />,
+  },
+    ],
   },
 ])
 

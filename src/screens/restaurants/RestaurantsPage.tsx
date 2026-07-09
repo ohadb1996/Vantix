@@ -4,14 +4,16 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { ChevronLeft, ChevronRight, UtensilsCrossed } from 'lucide-react'
 import { RestaurantCard } from '../../components/cards/RestaurantCard'
 import { WalletBalanceBanner } from '../../components/wallet/WalletBalanceBanner'
+import { StoreVerticalShortcuts } from '../../components/discovery/StoreVerticalShortcuts'
+import { DeliveryLocationBanner } from '../../components/location/DeliveryLocationBanner'
 import { useToast } from '../../components/ui/Toast'
 import { haptic } from '../../lib/native'
 import { ReelsFeed } from '../../components/reels/ReelsFeed'
-import { useRestaurants } from '../../hooks/useRestaurants'
 import { useReels } from '../../hooks/useReels'
 import { useRestaurantCategories } from '../../hooks/useRestaurantCategories'
 import { useBusinessLikes } from '../../hooks/useBusinessLikes'
-import { useSavedAddresses } from '../../hooks/useCustomerProfile'
+import { useCustomerRestaurantCatalog } from '../../hooks/useCustomerRestaurantCatalog'
+import { useAuthSheet } from '../../context/AuthSheetContext'
 import { ROUTES } from '../../constants/app'
 import {
   FAVORITES_CATEGORY_ID,
@@ -19,8 +21,8 @@ import {
   RECOMMENDED_CATEGORY_ID,
   RECOMMENDED_CATEGORY_NAME,
 } from '../../services/restaurantCategories'
+import { filterBusinessesByStoreVertical, type StoreVerticalId } from '../../constants/storeVerticals'
 import type { BusinessWithMenu } from '../../services/orderService'
-import { buildDestinationAddress, quoteDeliveryFee } from '../../services/deliveryQuoteService'
 
 function RestaurantCardSkeleton() {
   return (
@@ -49,97 +51,57 @@ export const RestaurantsPage = () => {
   const [searchParams] = useSearchParams()
   const legacyQuery = searchParams.get('q')?.trim()
   const toast = useToast()
-  const { data: businesses, isLoading, error, refetch, isRefetching } = useRestaurants()
+  const { openAuthSheet } = useAuthSheet()
+  const [selectedVertical, setSelectedVertical] = useState<StoreVerticalId | null>(null)
   const { data: reels } = useReels()
   const { data: categories } = useRestaurantCategories()
   const { isLiked, likedBusinessIds, toggleLike, togglingId, isLoggedIn } = useBusinessLikes()
-  const { items: savedAddresses } = useSavedAddresses()
-  const [quoteDestination, setQuoteDestination] = useState<string | null>(null)
-  const [deliveryMetaByBusiness, setDeliveryMetaByBusiness] = useState<Record<string, string>>({})
+  const {
+    businesses,
+    distanceKmByBusiness,
+    deliveryFeeByBusiness,
+    minDeliveryTotalByBusiness,
+    isLoadingRestaurants,
+    isRefreshingRestaurants,
+    refetchRestaurants,
+    savedAddresses,
+    quoteLocationChoice,
+    setQuoteLocationChoice,
+    isResolvingQuoteLocation,
+    quoteGeoUnavailable,
+    useLocationFilter,
+    catalogLocationKey,
+    maxDeliveryKm,
+    listError: error,
+    discoverError,
+  } = useCustomerRestaurantCatalog(isLoggedIn)
 
   useEffect(() => {
     if (error) toast.error('לא הצלחנו לטעון את המסעדות. בדקו את החיבור לאינטרנט ונסו שוב.')
   }, [error, toast])
 
   useEffect(() => {
-    if (!isLoggedIn) {
-      setQuoteDestination(null)
-      return
-    }
-    let cancelled = false
-    if (typeof navigator !== 'undefined' && navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          if (cancelled) return
-          const { latitude, longitude } = pos.coords
-          setQuoteDestination(`${latitude},${longitude}`)
-        },
-        () => {
-          if (cancelled) return
-          const primary =
-            savedAddresses.find((a) => a.isDefault) ||
-            savedAddresses[0]
-          if (!primary) {
-            setQuoteDestination(null)
-            return
-          }
-          const destination = buildDestinationAddress(primary)
-          setQuoteDestination(destination || null)
-        },
-        { maximumAge: 120000, timeout: 6000, enableHighAccuracy: false },
-      )
-      return () => {
-        cancelled = true
-      }
-    }
-    const primary = savedAddresses.find((a) => a.isDefault) || savedAddresses[0]
-    setQuoteDestination(primary ? buildDestinationAddress(primary) : null)
-    return () => {
-      cancelled = true
-    }
-  }, [isLoggedIn, savedAddresses])
+    if (discoverError) toast.error('לא הצלחנו לטעון מסעדות באזור המיקום שנבחר.')
+  }, [discoverError, toast])
 
-  useEffect(() => {
-    if (!isLoggedIn || !quoteDestination || !businesses?.length) {
-      setDeliveryMetaByBusiness({})
-      return
-    }
-    let cancelled = false
-    const uniqueBusinesses = Array.from(new Set(businesses.map((b) => b.businessId)))
-    ;(async () => {
-      const next: Record<string, string> = {}
-      await Promise.all(
-        uniqueBusinesses.map(async (businessId) => {
-          try {
-            const quote = await quoteDeliveryFee(businessId, quoteDestination)
-            next[businessId] = quote.within_range
-              ? `${quote.distance_km} ק"מ • דמי משלוח ₪${quote.delivery_fee.toFixed(0)}`
-              : `מחוץ לטווח משלוח (${quote.max_delivery_km} ק"מ)`
-          } catch {
-            // שומרים שקט אם חישוב נכשל למסעדה ספציפית.
-          }
-        }),
-      )
-      if (!cancelled) setDeliveryMetaByBusiness(next)
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [isLoggedIn, quoteDestination, businesses])
+  const visibleBusinesses = useMemo(
+    () => filterBusinessesByStoreVertical(businesses ?? [], selectedVertical),
+    [businesses, selectedVertical],
+  )
 
   const businessById = useMemo(() => {
     const map = new Map<string, BusinessWithMenu>()
-    for (const b of businesses ?? []) map.set(b.businessId, b)
+    for (const b of visibleBusinesses) map.set(b.businessId, b)
     return map
-  }, [businesses])
+  }, [visibleBusinesses])
 
   const categorySections = useMemo((): CategorySection[] => {
-    if (!businesses?.length) return []
+    if (!visibleBusinesses.length) return []
 
     const sections: CategorySection[] = []
     const assigned = new Set<string>()
 
-    const recommended = businesses.filter((b) => b.isRecommended === true)
+    const recommended = visibleBusinesses.filter((b) => b.isRecommended === true)
     if (recommended.length > 0) {
       sections.push({
         id: RECOMMENDED_CATEGORY_ID,
@@ -176,7 +138,7 @@ export const RestaurantsPage = () => {
       for (const b of catBusinesses) assigned.add(b.businessId)
     }
 
-    const uncategorized = businesses.filter((b) => !assigned.has(b.businessId))
+    const uncategorized = visibleBusinesses.filter((b) => !assigned.has(b.businessId))
     if (uncategorized.length > 0 && (categories?.length ?? 0) > 0) {
       sections.push({
         id: '__other__',
@@ -185,20 +147,21 @@ export const RestaurantsPage = () => {
       })
     }
 
-    if (sections.length === 0 && businesses.length > 0) {
+    if (sections.length === 0 && visibleBusinesses.length > 0) {
       sections.push({
         id: '__all__',
         title: 'כל המסעדות',
-        businesses,
+        businesses: visibleBusinesses,
       })
     }
 
     return sections
-  }, [businesses, categories, businessById, isLoggedIn, likedBusinessIds])
+  }, [visibleBusinesses, categories, businessById, isLoggedIn, likedBusinessIds])
 
   const handleLike = async (businessId: string) => {
     if (!isLoggedIn) {
       toast.info('יש להתחבר כדי לסמן לייק')
+      openAuthSheet('login', ROUTES.RESTAURANTS)
       return
     }
     void haptic.light()
@@ -210,20 +173,25 @@ export const RestaurantsPage = () => {
 
   const renderBusinessCard = (b: BusinessWithMenu, matchedTags?: string[]) => {
     const menuPath = ROUTES.RESTAURANT_MENU(b.businessId)
-    const to = isLoggedIn ? menuPath : ROUTES.AUTH_LOGIN
-    const linkState = isLoggedIn ? undefined : { from: { pathname: menuPath } }
 
     return (
     <Link
       key={b.businessId}
-      to={to}
-      state={linkState}
+      to={menuPath}
+      onClick={(event) => {
+        if (!isLoggedIn) {
+          event.preventDefault()
+          openAuthSheet('login', menuPath)
+        }
+      }}
       className="block h-full w-[min(72vw,315px)] shrink-0 snap-start rounded-2xl px-1 py-2 outline-none focus-visible:ring-2 focus-visible:ring-vantix-cyan focus-visible:ring-offset-2 sm:w-[300px] sm:rounded-3xl"
     >
       <RestaurantCard
         name={b.businessName}
         eta="הזמנה ומשלוח"
-        deliveryMeta={deliveryMetaByBusiness[b.businessId]}
+        distanceKm={distanceKmByBusiness[b.businessId]}
+        deliveryFee={deliveryFeeByBusiness[b.businessId]}
+        minDeliveryTotal={minDeliveryTotalByBusiness[b.businessId]}
         address={b.pickupAddress ?? '—'}
         heroImage={b.logoUrl ?? undefined}
         tags={matchedTags ?? []}
@@ -246,22 +214,53 @@ export const RestaurantsPage = () => {
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
-        className="space-y-5 sm:space-y-6"
+        className="space-y-3 sm:space-y-4"
       >
+        <StoreVerticalShortcuts selected={selectedVertical} onChange={setSelectedVertical} />
         <WalletBalanceBanner />
+        <DeliveryLocationBanner
+          choice={quoteLocationChoice}
+          onChoiceChange={setQuoteLocationChoice}
+          savedAddresses={savedAddresses}
+          isResolving={isResolvingQuoteLocation}
+          geoUnavailable={quoteGeoUnavailable}
+        />
       </motion.header>
 
       {reels && reels.length > 0 && <ReelsFeed reels={reels} />}
 
-      {isLoading && (
-        <section className="grid gap-6 md:grid-cols-2">
-          {[1, 2, 3, 4].map((i) => (
-            <RestaurantCardSkeleton key={i} />
-          ))}
+      {isLoadingRestaurants && (
+        <section className="space-y-4">
+          {isResolvingQuoteLocation ? (
+            <p className="text-center text-sm text-vantix-fg-muted">מאתרים מסעדות באזור המיקום שנבחר...</p>
+          ) : null}
+          <div className="grid gap-6 md:grid-cols-2">
+            {[1, 2, 3, 4].map((i) => (
+              <RestaurantCardSkeleton key={i} />
+            ))}
+          </div>
         </section>
       )}
 
-      {error && (
+      {discoverError && useLocationFilter && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-800"
+        >
+          <p className="font-medium">לא הצלחנו לטעון מסעדות באזור המיקום שנבחר.</p>
+          <button
+            type="button"
+            onClick={() => void refetchRestaurants()}
+            disabled={isRefreshingRestaurants}
+            className="mt-3 rounded-xl border border-amber-300 bg-vantix-surface-raised px-4 py-2 text-sm font-semibold text-amber-800 transition hover:bg-amber-100 disabled:opacity-50"
+          >
+            {isRefreshingRestaurants ? 'טוען...' : 'נסה שוב'}
+          </button>
+        </motion.div>
+      )}
+
+      {error && !useLocationFilter && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -273,33 +272,63 @@ export const RestaurantsPage = () => {
           </p>
           <button
             type="button"
-            onClick={() => void refetch()}
-            disabled={isRefetching}
+            onClick={() => void refetchRestaurants()}
+            disabled={isRefreshingRestaurants}
             className="mt-3 rounded-xl border border-amber-300 bg-vantix-surface-raised px-4 py-2 text-sm font-semibold text-amber-800 transition hover:bg-amber-100 disabled:opacity-50"
           >
-            {isRefetching ? 'טוען...' : 'נסה שוב'}
+            {isRefreshingRestaurants ? 'טוען...' : 'נסה שוב'}
           </button>
         </motion.div>
       )}
 
-      {!isLoading && !error && (!businesses || businesses.length === 0) && (
+      {!isLoadingRestaurants && !error && !discoverError && (!businesses || businesses.length === 0) && (
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           className="flex flex-col items-center justify-center gap-4 rounded-3xl border border-vantix-cyan/25 bg-vantix-surface-raised p-12 text-center"
         >
           <UtensilsCrossed className="h-14 w-14 text-vantix-cyan/50" />
-          <p className="text-vantix-fg-muted">אין עדיין עסקים עם תפריט.</p>
-          <p className="text-sm text-vantix-fg-subtle">
-            בעלי עסקים יכולים להוסיף תפריט באפליקציית Vantix Partners בעמוד &quot;תפריט&quot;.
-          </p>
+          {useLocationFilter ? (
+            <>
+              <p className="text-vantix-fg-muted">
+                אין מסעדות בטווח משלוח מהמיקום שנבחר
+                {maxDeliveryKm ? ` (עד ${maxDeliveryKm} ק"מ)` : ''}.
+              </p>
+              <p className="text-sm text-vantix-fg-subtle">נסו לבחור מיקום אחר או כתובת שמורה קרובה יותר.</p>
+            </>
+          ) : (
+            <>
+              <p className="text-vantix-fg-muted">אין עדיין עסקים עם תפריט.</p>
+              <p className="text-sm text-vantix-fg-subtle">
+                בעלי עסקים יכולים להוסיף תפריט באפליקציית Vantix Partners בעמוד &quot;תפריט&quot;.
+              </p>
+            </>
+          )}
         </motion.div>
       )}
 
-      {!isLoading && !error && businesses && businesses.length > 0 && (
+      {!isLoadingRestaurants && !error && !discoverError && businesses && businesses.length > 0 && visibleBusinesses.length === 0 && selectedVertical && (
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="rounded-3xl border border-vantix-cyan/25 bg-vantix-surface-raised p-10 text-center"
+        >
+          <p className="text-vantix-fg-muted">אין עסקים מהסוג שנבחר באזור שלך כרגע.</p>
+          <button
+            type="button"
+            onClick={() => setSelectedVertical(null)}
+            className="mt-4 text-sm font-semibold text-vantix-cyan hover:underline"
+          >
+            הצג הכל
+          </button>
+        </motion.div>
+      )}
+
+      {!isLoadingRestaurants && !error && !discoverError && visibleBusinesses.length > 0 && (
         <AnimatePresence mode="wait">
           {categorySections.length > 0 && (
             <motion.div
+              key={catalogLocationKey ?? 'guest'}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}

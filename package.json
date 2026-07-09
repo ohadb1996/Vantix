@@ -9,6 +9,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
+    "test": "vitest run",
     "preview": "vite preview",
     "deploy": "npm run build && firebase use prod && firebase deploy --only hosting:prod && npx cap sync ios && npx cap sync android",
     "deploy:demo": "npm run build && firebase use demo && firebase deploy --only hosting:demo",
@@ -34,7 +35,9 @@
   "dependencies": {
     "@capacitor-firebase/authentication": "^7.5.0",
     "@capacitor/android": "^7.4.4",
+    "@capacitor/app": "^7.1.2",
     "@capacitor/core": "^7.4.4",
+    "@capacitor/geolocation": "^7.1.8",
     "@capacitor/haptics": "^7.0.5",
     "@capacitor/ios": "^7.4.4",
     "@capacitor/keyboard": "^7.0.6",
@@ -67,6 +70,7 @@
     "tailwindcss": "^3.4.14",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.46.3",
-    "vite": "^7.2.2"
+    "vite": "^7.2.2",
+    "vitest": "^4.1.10"
   }
 }

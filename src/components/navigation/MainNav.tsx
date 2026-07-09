@@ -2,6 +2,7 @@ import { ChevronRight, UtensilsCrossed, History, Search, User } from 'lucide-rea
 import { Link, NavLink, useLocation, useMatch } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { useAuth } from '../../context/AuthContext'
+import { useAuthSheet } from '../../context/AuthSheetContext'
 import { useMenu } from '../../hooks/useMenu'
 import { useScrolled } from '../../hooks/useScrolled'
 import { Logo } from '../branding/Logo'
@@ -26,6 +27,7 @@ function formatNavGreetingName(user: { displayName?: string | null; email?: stri
 
 export const MainNav = () => {
   const { user, loading } = useAuth()
+  const { openAuthSheet } = useAuthSheet()
   const location = useLocation()
   const scrolled = useScrolled()
   const isRestaurantMenu = /^\/restaurants\/[^/]+$/.test(location.pathname)
@@ -141,12 +143,13 @@ export const MainNav = () => {
             </Link>
           )
         ) : (
-          <Link
-            to={ROUTES.AUTH_LOGIN}
+          <button
+            type="button"
+            onClick={() => openAuthSheet('login', ROUTES.RESTAURANTS)}
             className={`vantix-btn-primary ${scrolled ? 'px-5 py-2 text-sm' : 'px-4 py-1.5 text-xs'}`}
           >
             להתחיל הזמנה
-          </Link>
+          </button>
         )}
       </div>
     </nav>

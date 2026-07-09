@@ -23,9 +23,10 @@ const INITIAL_STATE: FormState = {
 type SignUpFormProps = {
   onSuccess?: () => void;
   redirectTo?: string;
+  variant?: "page" | "sheet";
 };
 
-export const SignUpForm = ({ onSuccess, redirectTo }: SignUpFormProps = {}) => {
+export const SignUpForm = ({ onSuccess, redirectTo, variant = "page" }: SignUpFormProps = {}) => {
   const { loginWithGoogle, authError, clearAuthError } = useAuth();
   const navigate = useNavigate();
   const [form, setForm] = useState<FormState>(INITIAL_STATE);
@@ -36,6 +37,18 @@ export const SignUpForm = ({ onSuccess, redirectTo }: SignUpFormProps = {}) => {
   const [error, setError] = useState<string | null>(null);
   const to = redirectTo || "/";
   const displayError = error ?? authError;
+  const shellClass =
+    variant === "sheet"
+      ? "flex flex-col gap-4 rounded-3xl border border-vantix-cyan/20 bg-vantix-surface-raised p-5 shadow-[0_20px_70px_rgba(0,0,0,0.05)] sm:p-6"
+      : "flex flex-col gap-4 rounded-3xl border border-vantix-cyan/20 bg-vantix-surface-raised p-8 shadow-[0_20px_70px_rgba(0,0,0,0.05)]";
+
+  const finishGoogle = () => {
+    if (onSuccess) {
+      onSuccess();
+      return;
+    }
+    navigate(to);
+  };
 
   const handleGoogleSignUp = async () => {
     setError(null);
@@ -43,7 +56,7 @@ export const SignUpForm = ({ onSuccess, redirectTo }: SignUpFormProps = {}) => {
     setIsGoogleLoading(true);
     try {
       await loginWithGoogle();
-      navigate(to);
+      finishGoogle();
     } catch (err) {
       setError(getAuthErrorMessage(err, "google"));
     } finally {
@@ -96,8 +109,9 @@ export const SignUpForm = ({ onSuccess, redirectTo }: SignUpFormProps = {}) => {
   return (
     <form
       onSubmit={handleSubmit}
-      className="flex flex-col gap-4 rounded-3xl border border-vantix-cyan/20 bg-vantix-surface-raised p-8 shadow-[0_20px_70px_rgba(0,0,0,0.05)]"
+      className={shellClass}
     >
+      {variant === "page" ? (
       <div className="space-y-2">
         <h3 className="font-display text-2xl text-vantix-fg">
           יוצאים לדרך עם Vantix
@@ -105,6 +119,22 @@ export const SignUpForm = ({ onSuccess, redirectTo }: SignUpFormProps = {}) => {
         <p className="text-sm text-vantix-fg-muted">
           מלאו את הפרטים ונתאים לכם חוויות, מסעדות ומנות לפי ה-Taste DNA שלכם.
         </p>
+      </div>
+      ) : null}
+
+      <GoogleAuthButton
+        label="הרשמה מהירה עם Google"
+        loading={isGoogleLoading}
+        disabled={isSubmitting}
+        onClick={handleGoogleSignUp}
+      />
+
+      <div className="relative my-2 text-center text-xs text-vantix-fg-subtle">
+        <span className="relative z-10 bg-vantix-surface-raised px-2">או</span>
+        <span
+          aria-hidden
+          className="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-vantix-cyan/15"
+        />
       </div>
 
       <label className="space-y-1">
@@ -168,23 +198,6 @@ export const SignUpForm = ({ onSuccess, redirectTo }: SignUpFormProps = {}) => {
             )}
           </button>
         </div>
-
-        <div className="relative my-1 text-center text-xs text-vantix-fg-subtle">
-          <span className="relative z-10 bg-vantix-surface-raised px-2">
-            או
-          </span>
-          <span
-            aria-hidden
-            className="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-vantix-cyan/15"
-          />
-        </div>
-        
-        <GoogleAuthButton
-          label="הרשמה מהירה עם Google"
-          loading={isGoogleLoading}
-          disabled={isSubmitting}
-          onClick={handleGoogleSignUp}
-        />
       </label>
 
       <label className="flex items-center gap-3 rounded-2xl border border-vantix-cyan/20 bg-vantix-cyan/10/60 px-4 py-3 text-sm text-vantix-fg-muted">
