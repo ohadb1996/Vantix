@@ -19,6 +19,7 @@ import { CheckoutSavedSelector } from '../../components/checkout/CheckoutSavedSe
 import { CourierTipSelector } from '../../components/checkout/CourierTipSelector'
 import { DeliveryNotesInput } from '../../components/checkout/DeliveryNotesInput'
 import { PopularDishesRow } from '../../components/menu/PopularDishesRow'
+import { PopularBadge } from '../../components/menu/PopularBadge'
 import { useMenuItemStats } from '../../hooks/useMenuItemStats'
 import { useMainScrollPast } from '../../hooks/useScrolled'
 import { incrementMenuItemOrderCounts } from '../../services/menuItemStats'
@@ -67,11 +68,13 @@ function getFirstIncompleteRequiredSectionId(
 
 function MenuItemRow({
   item,
+  isPopular = false,
   onOpen,
   onAdd,
   orderingClosed = false,
 }: {
   item: MenuItem
+  isPopular?: boolean
   onOpen: () => void
   onAdd: (e: React.MouseEvent) => void
   orderingClosed?: boolean
@@ -101,9 +104,13 @@ function MenuItemRow({
         />
       ) : null}
       <div className="min-w-0 overflow-hidden">
-        <p className="block w-full truncate font-medium text-vantix-fg" title={item.name}>
-          {item.name}
-        </p>
+        <div className="flex items-center gap-1.5 min-w-0">
+          
+          <p className="truncate font-medium text-vantix-fg" title={item.name}>
+            {item.name}
+          </p>
+          {isPopular ? <PopularBadge /> : null}
+        </div>
         {item.sections && item.sections.length > 0 ? (
           <p className="mt-1 truncate text-xs text-vantix-cyan/80">יש אפשרויות לבחירה</p>
         ) : null}
@@ -449,6 +456,11 @@ export const RestaurantMenuPage = () => {
       .sort((a, b) => b.orderCount - a.orderCount)
       .slice(0, 10)
   }, [itemsList, orderCounts])
+
+  const popularItemIds = useMemo(
+    () => new Set(popularDishes.map((entry) => entry.item.id)),
+    [popularDishes],
+  )
 
   const scrollToCategory = useCallback((catId: string) => {
     isTabClickScrolling.current = true
@@ -967,7 +979,8 @@ export const RestaurantMenuPage = () => {
 
       <div className="grid min-w-0 gap-8 lg:grid-cols-3">
         <div className="min-w-0 space-y-4 lg:col-span-2">
-          {!isMenuSearching && popularDishes.length > 0 && (
+         
+        {!isMenuSearching && popularDishes.length > 0 && (
             <PopularDishesRow
               dishes={popularDishes}
               cart={cart}
@@ -977,7 +990,6 @@ export const RestaurantMenuPage = () => {
               onRemoveItem={handlePopularRemove}
             />
           )}
-
           {/* שורת חיפוש – נדבקת לראש המסך מתחת לסרגל העליון בזמן גלילה */}
           <div
             ref={stickyNavRef}
@@ -985,6 +997,7 @@ export const RestaurantMenuPage = () => {
               compactStickyNav ? 'pb-0.5 pt-0' : 'pb-2 pt-1'
             }`}
           >
+            
             <div
               className={`flex items-center gap-3 rounded-xl border border-vantix-cyan/25 bg-vantix-surface-raised px-3 shadow-sm transition-[padding] duration-200 ${
                 compactStickyNav ? 'py-1.5' : 'py-2.5'
@@ -1008,9 +1021,10 @@ export const RestaurantMenuPage = () => {
                   <X className="h-4 w-4" />
                 </button>
               )}
+              
             </div>
 
-            {/* ניווט מהיר לקטגוריות – כמו Wolt / משלוחה */}
+           
             {!isMenuSearching && visibleCategoriesForNav.length > 1 && (
               <div
                 ref={categoryTabsRef}
@@ -1053,6 +1067,7 @@ export const RestaurantMenuPage = () => {
                 </div>
               </div>
             )}
+            
           </div>
 
           {isMenuSearching && filteredItemsList.length === 0 && (
@@ -1084,6 +1099,7 @@ export const RestaurantMenuPage = () => {
                         <MenuItemRow
                           key={item.id}
                           item={item}
+                          isPopular={popularItemIds.has(item.id)}
                           orderingClosed={orderingClosed}
                           onOpen={() => openItemDetails(item)}
                           onAdd={(e) => {
@@ -1102,6 +1118,7 @@ export const RestaurantMenuPage = () => {
                   <MenuItemRow
                     key={item.id}
                     item={item}
+                    isPopular={popularItemIds.has(item.id)}
                     orderingClosed={orderingClosed}
                     onOpen={() => openItemDetails(item)}
                     onAdd={(e) => {
@@ -1112,6 +1129,7 @@ export const RestaurantMenuPage = () => {
                 ))}
               </ul>
             )}
+             
         </div>
 
         <div className="lg:col-span-1">

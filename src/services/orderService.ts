@@ -191,6 +191,9 @@ async function getBusinessesWithMenusLegacy(): Promise<BusinessWithMenu[]> {
       const categories = menu?.categories ? Object.keys(menu.categories).length : 0
       if (items === 0) continue
 
+      const data = businessesById[businessId]
+      if (data?.isBlocked === true) continue
+
       const menuItemNames: string[] = menu?.items
         ? Object.values(menu.items)
             .filter((it) => it?.available !== false)
@@ -204,7 +207,6 @@ async function getBusinessesWithMenusLegacy(): Promise<BusinessWithMenu[]> {
             .map((it) => it.price as number)
         : []
 
-      const data = businessesById[businessId]
       let businessName = ''
       let logoUrl: string | undefined
       let isRecommended = false
@@ -288,11 +290,18 @@ async function getBusinessesWithMenusLegacy(): Promise<BusinessWithMenu[]> {
  * תפריט מלא של עסק (קטגוריות + פריטים)
  */
 export async function getBusinessMenu(businessId: string): Promise<BusinessMenu | null> {
-  const menuRef = ref(db(), `BusinessMenus/${businessId}`)
-  const snap = await get(menuRef)
-  if (!snap.exists()) return null
+  const [menuSnap, bizSnap] = await Promise.all([
+    get(ref(db(), `BusinessMenus/${businessId}`)),
+    get(ref(db(), `Businesses/${businessId}`)),
+  ])
 
-  const data = snap.val()
+  if (bizSnap.exists() && bizSnap.val()?.isBlocked === true) {
+    return null
+  }
+
+  if (!menuSnap.exists()) return null
+
+  const data = menuSnap.val()
   return {
     categories: data.categories || {},
     items: data.items || {},

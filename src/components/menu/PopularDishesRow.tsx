@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Plus, Minus } from 'lucide-react'
+import { PopularBadge } from './PopularBadge'
 import type { MenuItem } from '../../types/menu'
 import type { CartLine } from '../../hooks/useCart'
 
@@ -116,7 +117,7 @@ function PopularDishTile({
               type="button"
               onClick={handlePlus}
               disabled={orderingClosed}
-              className="rounded-full bg-vantix-orange p-2 text-white shadow-md hover:brightness-110 disabled:opacity-40"
+              className="rounded-full bg-vantix-orange p-2 text-white shadow-md hover:brightness-110 disabled:opacity-40 dark:bg-vantix-cyan dark:text-black dark:shadow-vantix-cyan/30"
               aria-label={`הוסף ${item.name}`}
             >
               <Plus className="h-4 w-4" />
@@ -124,7 +125,7 @@ function PopularDishTile({
           )}
 
           {mode === 'stepper' && (
-            <div className="flex items-center gap-1.5 rounded-full bg-white/95 px-2 py-1 shadow-md backdrop-blur-sm">
+            <div className="flex items-center gap-1.5 rounded-full border border-vantix-line/10 bg-vantix-surface-raised/95 px-2 py-1 shadow-md backdrop-blur-sm dark:border-vantix-cyan/20 dark:bg-vantix-surface-muted/95 dark:shadow-black/50">
               <button
                 type="button"
                 onClick={handleMinus}
@@ -151,7 +152,7 @@ function PopularDishTile({
             <button
               type="button"
               onClick={handleControlAreaClick}
-              className="min-w-[2rem] rounded-full bg-white/95 px-2.5 py-1 text-sm font-bold text-vantix-fg shadow-md backdrop-blur-sm"
+              className="min-w-[2rem] rounded-full border border-vantix-line/10 bg-vantix-surface-raised/95 px-2.5 py-1 text-sm font-bold text-vantix-fg shadow-md backdrop-blur-sm dark:border-vantix-cyan/20 dark:bg-vantix-surface-muted/95 dark:shadow-black/50"
               aria-label={`${orderCount} הזמנות של ${item.name}`}
             >
               {orderCount}
@@ -161,6 +162,7 @@ function PopularDishTile({
       </div>
 
       <div className="mt-2 space-y-0.5 px-0.5">
+       
         <p className="line-clamp-2 text-sm font-semibold leading-snug text-vantix-fg" title={item.name}>
           {item.name}
         </p>
@@ -190,7 +192,7 @@ export function PopularDishesRow({
   return (
     <section className="space-y-3" aria-labelledby="popular-dishes-title">
       <h2 id="popular-dishes-title" className="text-base font-bold text-vantix-fg">
-        המנות הכי מבוקשות
+        המנות הפופולריות
       </h2>
       <div
         className="-mx-3 flex gap-3 overflow-x-auto px-3 pb-1 snap-x snap-mandatory [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
