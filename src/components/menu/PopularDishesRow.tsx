@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Plus, Minus } from 'lucide-react'
-import { PopularBadge } from './PopularBadge'
 import type { MenuItem } from '../../types/menu'
 import type { CartLine } from '../../hooks/useCart'
 
