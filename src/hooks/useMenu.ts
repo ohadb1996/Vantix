@@ -27,6 +27,7 @@ export function useMenu(businessId: string | undefined) {
     businessPickupAddress: business?.pickupAddress ?? null,
     isOpenNow: business?.isOpenNow !== false,
     businessHours: business?.businessHours ?? null,
+    cashbackPercent: business?.cashbackPercent,
     isLoading: menuQuery.isLoading,
     error: menuQuery.error,
     refetch: menuQuery.refetch,

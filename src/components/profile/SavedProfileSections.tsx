@@ -18,6 +18,7 @@ import {
   paymentSummary,
 } from './savedDisplay'
 import type { SavedAddress, SavedContact, SavedPayment } from '../../types/customerProfile'
+import { haptic } from '../../lib/native'
 
 const cardClass =
   'rounded-2xl border border-vantix-cyan/20 bg-vantix-surface-raised p-5 shadow-sm'
@@ -206,6 +207,7 @@ export function AddressesSection({ embedded = false }: { embedded?: boolean }) {
           onSubmit={async (data) => {
             if (editing) await update(editing.id, data)
             else await add(data)
+            void haptic.success()
             setEditing(undefined)
           }}
         />
@@ -273,6 +275,7 @@ export function ContactsSection({ embedded = false }: { embedded?: boolean }) {
           onSubmit={async (data) => {
             if (editing) await update(editing.id, data)
             else await add(data)
+            void haptic.success()
             setEditing(undefined)
           }}
         />
@@ -349,10 +352,12 @@ export function PaymentsSection() {
           onSubmit={async (data) => {
             if (editing) {
               await update(editing.id, data)
+              void haptic.success()
               setEditing(undefined)
               return
             }
             const id = await add(data)
+            void haptic.success()
             setEditing(undefined)
             return id
           }}

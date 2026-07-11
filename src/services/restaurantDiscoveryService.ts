@@ -46,6 +46,12 @@ function mapDiscoveredRestaurant(raw: Record<string, unknown>): DiscoveredRestau
     pickupAddress: typeof raw.pickupAddress === 'string' ? raw.pickupAddress : undefined,
     businessHours,
     isOpenNow: isBusinessOpenNow(businessHours),
+    cashbackPercent:
+      typeof raw.cashbackPercent === 'number' && raw.cashbackPercent > 0
+        ? raw.cashbackPercent
+        : typeof raw.cashback_percent === 'number' && raw.cashback_percent > 0
+          ? raw.cashback_percent
+          : undefined,
     distance_km: Number(raw.distance_km) || 0,
     delivery_fee: Number(raw.delivery_fee) || 0,
     minDeliveryTotal: resolveMinDeliveryTotal(

@@ -36,7 +36,7 @@ export interface Order {
   delivery_building_code?: string
   delivery_notes?: string
   items: OrderItem[]
-  status: 'new' | 'accepted' | 'delivery_created' | 'cancelled'
+  status: 'new' | 'accepted' | 'delivery_created' | 'cancelled' | 'completed'
   createdAt: string
   created_by_uid?: string
   /** מזהה משלוח ב-RTDB – נכתב כשבעל העסק יוצר משלוח מההזמנה */
@@ -44,7 +44,7 @@ export interface Order {
   /** אמצעי תשלום שבחר הלקוח */
   payment_method?: string
   /** סוג תשלום לעיבוד */
-  payment_type?: 'cash' | 'credit' | 'gpay' | 'apay' | 'bit'
+  payment_type?: 'cash' | 'credit' | 'gpay' | 'apay' | 'bit' | 'wallet_balance'
   /** סטטוס תשלום */
   payment_status?: 'paid' | 'cash_on_delivery' | 'pending'
   /** סכום משנה (מנות בלבד) */
@@ -59,6 +59,9 @@ export interface Order {
   total_charged?: number
   payplus_transaction_uid?: string
   payplus_approval_number?: string
+  wallet_amount_used?: number
+  cashback_credited?: boolean
+  cashback_amount?: number
 }
 
 /** נתונים לשליחה בצ'קאאוט (בלי orderId) */

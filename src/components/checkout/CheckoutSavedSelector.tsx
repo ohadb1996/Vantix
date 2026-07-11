@@ -36,6 +36,7 @@ type SelectorProps = {
   hideAddress?: boolean
   /** פרטי כרטיס מהוספה בצ'קאאוט — לחיוב בלחיצה על שליחת הזמנה בלי מודל נוסף */
   onCardCaptured?: (paymentId: string, secrets: { cardNumber: string; cvv: string }) => void
+  checkoutTotal?: number
 }
 
 function paymentSelectionLabel(
@@ -47,6 +48,7 @@ function paymentSelectionLabel(
     if (!card) return 'כרטיס אשראי – נא לבחור כרטיס'
     return card.label ? `${card.label} · ${paymentSummary(card)}` : paymentSummary(card)
   }
+  if (type === 'wallet_balance') return PAYMENT_METHOD_LABELS.wallet_balance
   return PAYMENT_METHOD_LABELS[type]
 }
 
@@ -141,6 +143,7 @@ export function CheckoutSavedSelector({
   onSelectPaymentMethod,
   hideAddress = false,
   onCardCaptured,
+  checkoutTotal,
 }: SelectorProps) {
   const contacts = useSavedContacts()
   const addresses = useSavedAddresses()
@@ -312,6 +315,7 @@ export function CheckoutSavedSelector({
             }
           }}
           onCardCaptured={onCardCaptured}
+          checkoutTotal={checkoutTotal}
         />
       )}
     </div>

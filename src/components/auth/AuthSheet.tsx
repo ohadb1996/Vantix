@@ -2,6 +2,7 @@ import { useEffect, type PointerEvent } from 'react'
 import { AnimatePresence, motion, useDragControls } from 'framer-motion'
 import { X } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
+import { haptic } from '../../lib/native'
 import { useAuth } from '../../context/AuthContext'
 import { useAuthSheet } from '../../context/AuthSheetContext'
 import { LoginForm } from '../forms/LoginForm'
@@ -19,6 +20,7 @@ export function AuthSheet() {
 
   useEffect(() => {
     if (user && isOpen) {
+      void haptic.success()
       closeAuthSheet()
       navigate(redirectTo, { replace: true })
     }

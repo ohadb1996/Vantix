@@ -11,6 +11,8 @@ import { paymentSummary } from '../profile/savedDisplay'
 import { SavedPaymentFormModal } from '../profile/SavedPaymentFormModal'
 import type { SavedPaymentInput } from '../../types/customerProfile'
 import { PaymentMethodIcon } from './PaymentMethodIcon'
+import { useWalletBalance } from '../../hooks/useWalletBalance'
+import { formatShekel } from '../../utils/currency'
 
 type Step = 'methods' | 'cards'
 
@@ -25,6 +27,7 @@ export function PaymentMethodPickerModal({
   onUpdateCard,
   onDeleteCard,
   onCardCaptured,
+  checkoutTotal,
 }: {
   cards: SavedPayment[]
   selectedType?: PaymentMethodType
@@ -36,9 +39,11 @@ export function PaymentMethodPickerModal({
   onUpdateCard: (id: string, data: SavedPaymentInput) => Promise<void>
   onDeleteCard: (id: string) => Promise<void>
   onCardCaptured?: (paymentId: string, secrets: { cardNumber: string; cvv: string }) => void
+  checkoutTotal?: number
 }) {
   const [step, setStep] = useState<Step>(selectedType === 'credit' ? 'cards' : 'methods')
   const [cardModal, setCardModal] = useState<SavedPayment | null | undefined>(undefined)
+  const { data: walletBalance = 0 } = useWalletBalance()
 
   const selectNonCredit = (type: PaymentMethodType) => {
     onSelectMethod(type)
@@ -76,10 +81,15 @@ export function PaymentMethodPickerModal({
 
           <div className="flex-1 space-y-2 overflow-y-auto px-5 py-5">
             {step === 'methods' ? (
-              CHECKOUT_PAYMENT_OPTIONS.map((opt) => (
+              CHECKOUT_PAYMENT_OPTIONS.map((opt) => {
+                const walletDisabled =
+                  opt.type === 'wallet_balance' &&
+                  ((checkoutTotal ?? 0) <= 0 || walletBalance < (checkoutTotal ?? 0))
+                return (
                 <button
                   key={opt.type}
                   type="button"
+                  disabled={walletDisabled}
                   onClick={() => {
                     if (opt.type === 'credit') setStep('cards')
                     else selectNonCredit(opt.type)
@@ -87,18 +97,25 @@ export function PaymentMethodPickerModal({
                   className={`flex w-full items-center justify-between rounded-xl border px-4 py-3.5 text-sm font-semibold transition ${
                     selectedType === opt.type
                       ? 'border-vantix-cyan bg-vantix-cyan/10 text-vantix-cyan'
-                      : 'border-vantix-cyan/20 text-vantix-fg hover:border-vantix-cyan/40'
+                      : walletDisabled
+                        ? 'border-vantix-cyan/10 text-vantix-fg-subtle opacity-60'
+                        : 'border-vantix-cyan/20 text-vantix-fg hover:border-vantix-cyan/40'
                   }`}
                 >
                   <span className="flex items-center gap-3">
                     <PaymentMethodIcon type={opt.type} />
                     <span>{opt.label}</span>
                   </span>
-                  {opt.type === 'credit' && cards.length > 0 && (
+                  {opt.type === 'wallet_balance' ? (
+                    <span className="text-xs font-normal text-vantix-fg-muted" dir="ltr">
+                      {formatShekel(walletBalance)}
+                      {walletDisabled && (checkoutTotal ?? 0) > 0 ? ' · לא מספיק' : ''}
+                    </span>
+                  ) : opt.type === 'credit' && cards.length > 0 ? (
                     <span className="text-xs font-normal text-vantix-fg-muted">{cards.length} שמורים</span>
-                  )}
+                  ) : null}
                 </button>
-              ))
+              )})
             ) : (
               <>
                 <button

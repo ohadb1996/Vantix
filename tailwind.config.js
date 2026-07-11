@@ -86,10 +86,16 @@ export default {
               '0 0 0 1px rgba(249,115,22,0.45), 0 0 22px rgba(249,115,22,0.32)',
           },
         },
+        'credit-tick-shake': {
+          '0%, 100%': { transform: 'translate3d(0, 0, 0) rotate(0deg)' },
+          '30%': { transform: 'translate3d(-3px, 0, 0) rotate(-0.5deg)' },
+          '65%': { transform: 'translate3d(3px, 0, 0) rotate(0.5deg)' },
+        },
       },
       animation: {
         marquee: 'marquee 45s linear infinite',
         'vantix-glow': 'vantix-marketing-glow 3.6s ease-in-out infinite',
+        'credit-tick-shake': 'credit-tick-shake 110ms ease-out both',
       },
     },
   },

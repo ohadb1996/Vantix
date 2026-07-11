@@ -31,6 +31,10 @@ function listingToBusinessWithMenu(raw: VantixListing): BusinessWithMenu {
     pickupAddress: raw.pickupAddress,
     businessHours,
     isOpenNow: isBusinessOpenNow(businessHours),
+    cashbackPercent:
+      typeof raw.cashback_percent === 'number' && raw.cashback_percent > 0
+        ? raw.cashback_percent
+        : undefined,
   }
 }
 

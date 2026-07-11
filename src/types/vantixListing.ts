@@ -22,4 +22,5 @@ export interface VantixListing {
   updated_at?: string
   pickup_lat?: number
   pickup_lng?: number
+  cashback_percent?: number
 }

@@ -51,6 +51,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       setToasts((list) => [...list, { id, message, variant }])
       if (variant === 'success') void haptic.success()
       else if (variant === 'error') void haptic.error()
+      else void haptic.light()
       window.setTimeout(() => remove(id), AUTO_DISMISS_MS)
     },
     [remove],

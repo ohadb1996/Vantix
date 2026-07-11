@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import { useParams, useNavigate } from 'react-router-dom'
+import { useQueryClient } from '@tanstack/react-query'
 import { motion, AnimatePresence, useDragControls, type PanInfo } from 'framer-motion'
 import { chargeAndPlaceOrder } from '../../services/paymentService'
 import { buildDestinationAddress, quoteDeliveryFee } from '../../services/deliveryQuoteService'
@@ -9,6 +10,7 @@ import type { MenuItem } from '../../types/menu'
 import { isValidIsraeliPhone } from '../../utils/phone'
 import { ShoppingCart, Plus, Minus, Loader2, Check, ArrowRight, X, Pencil, Search, Truck, Store } from 'lucide-react'
 import { useMenu } from '../../hooks/useMenu'
+import { useWalletBalance } from '../../hooks/useWalletBalance'
 import { useCart, type CartLine, type CartSelectedOption } from '../../hooks/useCart'
 import { useAuth } from '../../context/AuthContext'
 import { useAuthSheet } from '../../context/AuthSheetContext'
@@ -20,6 +22,7 @@ import { CourierTipSelector } from '../../components/checkout/CourierTipSelector
 import { DeliveryNotesInput } from '../../components/checkout/DeliveryNotesInput'
 import { PopularDishesRow } from '../../components/menu/PopularDishesRow'
 import { PopularBadge } from '../../components/menu/PopularBadge'
+import { CashbackBadge } from '../../components/menu/CashbackBadge'
 import { useMenuItemStats } from '../../hooks/useMenuItemStats'
 import { useMainScrollPast } from '../../hooks/useScrolled'
 import { incrementMenuItemOrderCounts } from '../../services/menuItemStats'
@@ -141,12 +144,14 @@ export const RestaurantMenuPage = () => {
     businessPickupAddress,
     businessMinDeliveryTotal,
     isOpenNow,
+    cashbackPercent,
     isLoading: loading,
   } = useMenu(businessId)
   const { cart, addToCart, removeFromCart, updateLineOptions, clearCart, totalItems, totalPrice } = useCart(businessId, menu?.items ?? null)
   const { orderCounts, bumpLocalCounts } = useMenuItemStats(businessId)
   const compactStickyNav = useMainScrollPast(72)
   const { user } = useAuth()
+  const queryClient = useQueryClient()
   const { openAuthSheet } = useAuthSheet()
   const toast = useToast()
   const { items: savedPayments } = useSavedPayments()
@@ -159,6 +164,24 @@ export const RestaurantMenuPage = () => {
     },
     [addToCart],
   )
+
+  /** הסרה מהעגלה עם רטט עדין. */
+  const removeLine = useCallback(
+    (itemId: string, opts?: CartSelectedOption[]) => {
+      void haptic.light()
+      removeFromCart(itemId, opts)
+    },
+    [removeFromCart],
+  )
+
+  const bumpSelectionHaptic = useCallback(() => {
+    void haptic.light()
+  }, [])
+
+  const openCartPanel = useCallback(() => {
+    void haptic.light()
+    setShowCartPanel(true)
+  }, [])
 
   /** פתיחת מסך התשלום — דורש התחברות; אחרת מפנה להתחברות ומחזיר לכאן. */
   const openCheckout = useCallback(() => {
@@ -249,6 +272,7 @@ export const RestaurantMenuPage = () => {
     () => roundMoney(checkoutSubtotalBeforeTip + courierTip),
     [checkoutSubtotalBeforeTip, courierTip],
   )
+  const { data: walletBalance = 0 } = useWalletBalance()
 
   useEffect(() => {
     if (fulfillment !== 'delivery' || !businessId) {
@@ -389,6 +413,8 @@ export const RestaurantMenuPage = () => {
       err._submit = 'נא לבחור כרטיס אשראי'
     } else if (selectedPaymentType === 'gpay' || selectedPaymentType === 'apay') {
       err._submit = 'תשלום Google Pay / Apple Pay ישירות מהאפליקציה יתמך בקרוב – בחרו כרטיס אשראי או מזומן'
+    } else if (selectedPaymentType === 'wallet_balance' && walletBalance < checkoutTotal) {
+      err._submit = `אין מספיק יתרה בארנק (זמין: ₪${walletBalance.toFixed(2)})`
     } else if (selectedPaymentType === 'credit' && needsCvvField) {
       if (!/^\d{3,4}$/.test(creditCvv)) {
         setCreditSecurityErrors({ cvv: 'נא להזין CVV תקין' })
@@ -403,7 +429,7 @@ export const RestaurantMenuPage = () => {
     }
     setFormErrors(err)
     return Object.keys(err).length === 0
-  }, [form, fulfillment, selectedPaymentType, selectedPaymentId, creditCvv, creditCardNumber, needsCvvField, needsInlineCardFields, deliveryQuoteLoading, deliveryWithinRange, deliveryFee, deliveryQuoteError])
+  }, [form, fulfillment, selectedPaymentType, selectedPaymentId, creditCvv, creditCardNumber, needsCvvField, needsInlineCardFields, deliveryQuoteLoading, deliveryWithinRange, deliveryFee, deliveryQuoteError, walletBalance, checkoutTotal])
 
   const submitOrderBlocked =
     placing ||
@@ -463,6 +489,7 @@ export const RestaurantMenuPage = () => {
   )
 
   const scrollToCategory = useCallback((catId: string) => {
+    void haptic.light()
     isTabClickScrolling.current = true
     setActiveCategoryId(catId)
 
@@ -654,6 +681,9 @@ export const RestaurantMenuPage = () => {
       const statsLines = cart.map((l) => ({ menuItemId: l.item.id, quantity: l.quantity }))
       bumpLocalCounts(statsLines)
       void incrementMenuItemOrderCounts(businessId, statsLines).catch(() => {})
+      void queryClient.invalidateQueries({ queryKey: ['walletBalance'] })
+      void queryClient.invalidateQueries({ queryKey: ['walletSummary'] })
+      void queryClient.invalidateQueries({ queryKey: ['walletTransactions'] })
       toast.success(
         paymentStatus === 'paid'
           ? 'התשלום בוצע וההזמנה נשלחה!'
@@ -755,6 +785,7 @@ export const RestaurantMenuPage = () => {
       return
     }
     if (item.sections && item.sections.length > 0) {
+      void haptic.light()
       setEditingOldOptions(null)
       setAddItemModal(item)
       setSectionSelections({})
@@ -765,7 +796,7 @@ export const RestaurantMenuPage = () => {
 
   const handlePopularRemove = (item: MenuItem) => {
     const line = cart.find((l) => l.item.id === item.id)
-    if (line) removeFromCart(item.id, line.selectedOptions)
+    if (line) removeLine(item.id, line.selectedOptions)
   }
 
   // פתיחת כרטיסיית המנה (לחיצה על כל הכרטיס בתפריט) – מציג פרטים ותמונה לכל מנה
@@ -821,6 +852,7 @@ export const RestaurantMenuPage = () => {
     }
     const selectedOptions = buildSelectedOptions(addItemModal)
     if (editingOldOptions !== null) {
+      void haptic.light()
       updateLineOptions(addItemModal.id, editingOldOptions, selectedOptions)
     } else {
       addLine(addItemModal, selectedOptions.length ? selectedOptions : undefined)
@@ -839,7 +871,7 @@ export const RestaurantMenuPage = () => {
         >
           <button
             type="button"
-            onClick={() => setShowCartPanel(true)}
+            onClick={openCartPanel}
             className="flex items-center gap-2 rounded-2xl border-2 border-vantix-cyan/30 bg-vantix-surface-raised px-5 py-3 shadow-vantix font-semibold text-vantix-fg hover:border-vantix-cyan/40 hover:bg-vantix-surface-raised focus:outline-none focus:ring-2 focus:ring-vantix-cyan"
             aria-label="פתח עגלה"
           >
@@ -906,7 +938,7 @@ export const RestaurantMenuPage = () => {
                         )}
                         <button
                           type="button"
-                          onClick={() => removeFromCart(l.item.id, l.selectedOptions)}
+                          onClick={() => removeLine(l.item.id, l.selectedOptions)}
                           className="p-1.5 rounded-lg text-vantix-fg-muted hover:bg-vantix-cyan/10 hover:text-vantix-cyan"
                           aria-label={`הפחת כמות ${l.item.name}`}
                         >
@@ -974,6 +1006,17 @@ export const RestaurantMenuPage = () => {
       {orderingClosed && (
         <div className="rounded-xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-center text-sm font-medium text-red-700 dark:text-red-300">
           {businessName ? `${businessName} סגור/ה כעת` : 'העסק סגור כעת'} — לא ניתן לבצע הזמנה חדשה
+        </div>
+      )}
+
+      {cashbackPercent != null && cashbackPercent > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3">
+          <CashbackBadge percent={cashbackPercent} />
+          <p className="text-xs text-vantix-fg-muted">
+            {fulfillment === 'pickup'
+              ? 'הקאשבק ייזקף לארנק שלך אחרי שהעסק יסמן את ההזמנה כנמסרה — גם בתשלום במזומן (תוקף 90 יום)'
+              : 'הקאשבק ייזקף לארנק שלך אחרי שהמשלוח יימסר — גם בתשלום במזומן (תוקף 90 יום)'}
+          </p>
         </div>
       )}
 
@@ -1163,7 +1206,7 @@ export const RestaurantMenuPage = () => {
                             )}
                             <button
                               type="button"
-                              onClick={() => removeFromCart(l.item.id, l.selectedOptions)}
+                              onClick={() => removeLine(l.item.id, l.selectedOptions)}
                               className="p-1.5 rounded-lg text-vantix-fg-muted hover:bg-vantix-cyan/10 hover:text-vantix-cyan"
                               aria-label={`הפחת כמות ${l.item.name}`}
                             >
@@ -1308,6 +1351,7 @@ export const RestaurantMenuPage = () => {
               onSelectPaymentMethod={applyPaymentMethod}
               onCardCaptured={captureCardSecrets}
               hideAddress={fulfillment === 'pickup'}
+              checkoutTotal={checkoutTotal}
             />
 
             {needsCvvField ? (
@@ -1389,7 +1433,7 @@ export const RestaurantMenuPage = () => {
                 </div>
               ) : null}
               <div className="mt-2 flex items-center justify-between border-t border-vantix-cyan/10 pt-2 font-semibold text-vantix-fg">
-                <span>{selectedPaymentType === 'cash' ? 'לתשלום במזומן' : 'לחיוב'}</span>
+                <span>{selectedPaymentType === 'cash' ? 'לתשלום במזומן' : selectedPaymentType === 'wallet_balance' ? 'לתשלום מהארנק' : 'לחיוב'}</span>
                 <span className="text-vantix-cyan">₪{checkoutTotal.toFixed(2)}</span>
               </div>
             </div>
@@ -1534,7 +1578,10 @@ export const RestaurantMenuPage = () => {
                             type="radio"
                             name={`sec-${sec.id}`}
                             checked={(sectionSelections[sec.id] as string) === opt.id}
-                            onChange={() => setSectionSelections((prev) => ({ ...prev, [sec.id]: opt.id }))}
+                            onChange={() => {
+                              bumpSelectionHaptic()
+                              setSectionSelections((prev) => ({ ...prev, [sec.id]: opt.id }))
+                            }}
                             className="text-vantix-cyan focus:ring-vantix-cyan"
                           />
                           <span className="flex-1">{opt.label}</span>
@@ -1555,6 +1602,7 @@ export const RestaurantMenuPage = () => {
                               type="checkbox"
                               checked={checked}
                               onChange={() => {
+                                bumpSelectionHaptic()
                                 setSectionSelections((prev) => {
                                   const current = (prev[sec.id] as string[] | undefined) ?? []
                                   const next = checked ? current.filter((id) => id !== opt.id) : [...current, opt.id]

@@ -146,6 +146,11 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
 
   const logout = async () => {
     const auth = getFirebaseAuth()
+    const uid = auth.currentUser?.uid
+    if (uid) {
+      const { removePushTokens } = await import('../services/pushNotificationService')
+      await removePushTokens(uid).catch(() => {})
+    }
     await signOut(auth)
   }
 

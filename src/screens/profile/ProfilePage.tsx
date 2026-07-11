@@ -9,6 +9,7 @@ import {
   PersonalDetailsSection,
   PaymentsSection,
 } from '../../components/profile/SavedProfileSections'
+import { WalletHistorySection } from '../../components/wallet/WalletHistorySection'
 
 export const ProfilePage = () => {
   const { user, logout } = useAuth()
@@ -19,9 +20,10 @@ export const ProfilePage = () => {
   const phone = user?.phoneNumber ?? ''
 
   useEffect(() => {
-    if (location.hash !== '#payments') return
+    const hash = location.hash.replace('#', '')
+    if (hash !== 'payments' && hash !== 'wallet') return
     const timer = window.setTimeout(() => {
-      document.getElementById('payments')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      document.getElementById(hash)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     }, 100)
     return () => window.clearTimeout(timer)
   }, [location.hash])
@@ -71,6 +73,8 @@ export const ProfilePage = () => {
       />
 
       <PaymentsSection />
+
+      <WalletHistorySection />
 
       {/* ניווט: היסטוריית הזמנות */}
       <Link

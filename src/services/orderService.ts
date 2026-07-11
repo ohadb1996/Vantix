@@ -54,6 +54,8 @@ export interface BusinessWithMenu {
   minDeliveryTotal?: number
   /** סוג העסק מפרופיל ההרשמה (Businesses/{id}/business_type) */
   businessType?: string
+  /** אחוז קאשבק ללקוח (מסכום המנות, לאחר מסירה) */
+  cashbackPercent?: number
   /** האם הוגדרו שעות פעילות בפועל */
   hasConfiguredHours?: boolean
   /** כתובת העסק – להצגה בעת איסוף עצמי */
@@ -219,6 +221,7 @@ async function getBusinessesWithMenusLegacy(): Promise<BusinessWithMenu[]> {
       let foodTypes: string[] = []
       let kashrutType: string | null = null
       let minDeliveryTotal: number | undefined
+      let cashbackPercent: number | undefined
 
       if (data) {
         businessName = (data.business_name as string) || ''
@@ -253,6 +256,9 @@ async function getBusinessesWithMenusLegacy(): Promise<BusinessWithMenu[]> {
         } else {
           minDeliveryTotal = resolveMinDeliveryTotal(undefined)
         }
+        if (typeof data.cashback_percent === 'number' && data.cashback_percent > 0) {
+          cashbackPercent = data.cashback_percent
+        }
       } else {
         businessName = `עסק ${businessId.slice(0, 6)}`
       }
@@ -277,6 +283,7 @@ async function getBusinessesWithMenusLegacy(): Promise<BusinessWithMenu[]> {
         pickupAddress,
         businessHours,
         isOpenNow: isBusinessOpenNow(businessHours),
+        cashbackPercent,
       })
     }
 

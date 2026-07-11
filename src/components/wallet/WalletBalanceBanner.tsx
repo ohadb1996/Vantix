@@ -4,7 +4,7 @@ import { useAuth } from '../../context/AuthContext'
 import { useAuthSheet } from '../../context/AuthSheetContext'
 import { useWalletBalance } from '../../hooks/useWalletBalance'
 import { ROUTES } from '../../constants/app'
-import { formatShekel } from '../../utils/currency'
+import { AnimatedWalletBalance } from './AnimatedWalletBalance'
 
 export function WalletBalanceBanner() {
   const { user, loading: authLoading } = useAuth()
@@ -41,11 +41,11 @@ export function WalletBalanceBanner() {
     )
   }
 
-  const displayBalance = balanceLoading ? null : formatShekel(balance ?? 0)
+  const displayReady = !balanceLoading && user
 
   return (
     <Link
-      to={`${ROUTES.PROFILE}#payments`}
+      to={`${ROUTES.PROFILE}#wallet`}
       className="group flex items-center justify-between gap-3 rounded-2xl border border-vantix-cyan/20 bg-vantix-surface-raised px-4 py-4 shadow-sm transition hover:border-vantix-cyan/40 hover:shadow-md"
       aria-label="מעבר לארנק ואמצעי תשלום בפרופיל"
     >
@@ -55,8 +55,10 @@ export function WalletBalanceBanner() {
         </span>
         <div className="text-right">
           <p className="text-sm text-vantix-fg-muted">יתרה בארנק</p>
-          {displayBalance ? (
-            <p className="font-display text-2xl font-bold text-vantix-fg sm:text-3xl">{displayBalance}</p>
+          {displayReady ? (
+            <p className="font-display text-2xl font-bold text-vantix-fg sm:text-3xl">
+              <AnimatedWalletBalance balance={balance ?? 0} isReady />
+            </p>
           ) : (
             <div className="flex items-center gap-2 pt-1">
               <Loader2 className="h-4 w-4 animate-spin text-vantix-cyan" />

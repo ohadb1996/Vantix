@@ -194,7 +194,10 @@ export const RestaurantsPage = () => {
         minDeliveryTotal={minDeliveryTotalByBusiness[b.businessId]}
         address={b.pickupAddress ?? '—'}
         heroImage={b.logoUrl ?? undefined}
-        tags={matchedTags ?? []}
+        tags={[
+          ...(b.cashbackPercent && b.cashbackPercent > 0 ? [`${b.cashbackPercent}% קאשבק`] : []),
+          ...(matchedTags ?? []),
+        ]}
         isLiked={isLiked(b.businessId)}
         likeDisabled={togglingId === b.businessId}
         onLikeClick={() => void handleLike(b.businessId)}

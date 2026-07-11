@@ -20,6 +20,9 @@ const config: CapacitorConfig = {
       providers: ['google.com'],
       authDomain: 'maxdeliveries.firebaseapp.com',
     },
+    PushNotifications: {
+      presentationOptions: ['badge', 'sound', 'alert'],
+    },
     StatusBar: {
       style: 'dark',
       backgroundColor: '#ffffff',

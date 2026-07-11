@@ -1,9 +1,12 @@
 import { Loader2, Wallet } from 'lucide-react'
-import { useWalletBalance } from '../../hooks/useWalletBalance'
+import { useWalletSummary } from '../../hooks/useWalletBalance'
+import { AnimatedWalletBalance } from './AnimatedWalletBalance'
 import { formatShekel } from '../../utils/currency'
+import { formatWalletExpiryLabel } from '../../services/walletService'
 
 export function WalletBalanceRow() {
-  const { data: balance, isLoading } = useWalletBalance()
+  const { data: summary, isLoading } = useWalletSummary()
+  const expiryLabel = formatWalletExpiryLabel(summary?.nearestExpiryAt)
 
   return (
     <div className="mb-4 flex items-center justify-between gap-3 rounded-xl border border-vantix-cyan/15 bg-vantix-surface p-3.5">
@@ -19,7 +22,16 @@ export function WalletBalanceRow() {
               <span className="text-sm text-vantix-fg-muted">טוען...</span>
             </div>
           ) : (
-            <p className="font-display text-xl font-bold text-vantix-fg">{formatShekel(balance ?? 0)}</p>
+            <>
+              <p className="font-display text-xl font-bold text-vantix-fg">
+                <AnimatedWalletBalance balance={summary?.balance ?? 0} isReady={!isLoading} />
+              </p>
+              {expiryLabel && (summary?.nearestExpiryAmount ?? 0) > 0 ? (
+                <p className="text-[11px] text-vantix-fg-subtle">
+                  {formatShekel(summary!.nearestExpiryAmount!)} {expiryLabel}
+                </p>
+              ) : null}
+            </>
           )}
         </div>
       </div>
