@@ -22,6 +22,8 @@ export interface OrderItem {
 export interface Order {
   orderId?: string
   business_id: string
+  /** שם העסק (נטען מה-RTDB לתצוגה) */
+  business_name?: string
   customer_name: string
   customer_phone: string
   customer_phone_secondary?: string

@@ -428,6 +428,24 @@ export async function getBusinessLocation(businessId: string): Promise<BusinessL
   }
 }
 
+async function getBusinessNamesByIds(businessIds: string[]): Promise<Record<string, string>> {
+  const unique = [...new Set(businessIds.filter(Boolean))]
+  if (unique.length === 0) return {}
+
+  const entries = await Promise.all(
+    unique.map(async (id) => {
+      try {
+        const snap = await get(ref(db(), `Businesses/${id}/business_name`))
+        const name = snap.val()
+        return [id, typeof name === 'string' ? name.trim() : ''] as const
+      } catch {
+        return [id, ''] as const
+      }
+    }),
+  )
+  return Object.fromEntries(entries.filter(([, name]) => name))
+}
+
 export async function getMyOrders(uid: string): Promise<Order[]> {
   const q = query(
     ref(db(), 'Orders'),
@@ -437,7 +455,13 @@ export async function getMyOrders(uid: string): Promise<Order[]> {
   const snap = await get(q)
   if (!snap.exists()) return []
   const val = snap.val()
-  return Object.entries(val)
+  const orders = Object.entries(val)
     .map(([key, v]) => ({ ...(v as Omit<Order, 'orderId'>), orderId: key } as Order))
     .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''))
+
+  const nameMap = await getBusinessNamesByIds(orders.map((o) => o.business_id))
+  return orders.map((order) => ({
+    ...order,
+    business_name: nameMap[order.business_id] || order.business_name,
+  }))
 }

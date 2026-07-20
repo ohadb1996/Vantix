@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { motion, AnimatePresence, useDragControls, type PanInfo } from 'framer-motion'
-import { chargeAndPlaceOrder } from '../../services/paymentService'
+import { chargeAndPlaceOrder, startWalletCheckout } from '../../services/paymentService'
 import { buildDestinationAddress, quoteDeliveryFee } from '../../services/deliveryQuoteService'
 import type { OrderCreate, OrderItem } from '../../types/order'
 import type { MenuItem } from '../../types/menu'
@@ -24,7 +24,7 @@ import { PopularDishesRow } from '../../components/menu/PopularDishesRow'
 import { PopularBadge } from '../../components/menu/PopularBadge'
 import { CashbackBadge } from '../../components/menu/CashbackBadge'
 import { useMenuItemStats } from '../../hooks/useMenuItemStats'
-import { useMainScrollPast } from '../../hooks/useScrolled'
+import { getAppScrollRoot, useMainScrollPast } from '../../hooks/useScrolled'
 import { incrementMenuItemOrderCounts } from '../../services/menuItemStats'
 import {
   CheckoutCvvOnlyField,
@@ -155,6 +155,11 @@ export const RestaurantMenuPage = () => {
   const { openAuthSheet } = useAuthSheet()
   const toast = useToast()
   const { items: savedPayments } = useSavedPayments()
+
+  useEffect(() => {
+    const main = getAppScrollRoot()
+    if (main) main.scrollTop = 0
+  }, [businessId])
 
   /** הוספה לעגלה עם משוב מישושי (רטט) במובייל. */
   const addLine = useCallback(
@@ -411,8 +416,6 @@ export const RestaurantMenuPage = () => {
       err._submit = 'נא לבחור אמצעי תשלום'
     } else if (selectedPaymentType === 'credit' && !selectedPaymentId) {
       err._submit = 'נא לבחור כרטיס אשראי'
-    } else if (selectedPaymentType === 'gpay' || selectedPaymentType === 'apay') {
-      err._submit = 'תשלום Google Pay / Apple Pay ישירות מהאפליקציה יתמך בקרוב – בחרו כרטיס אשראי או מזומן'
     } else if (selectedPaymentType === 'wallet_balance' && walletBalance < checkoutTotal) {
       err._submit = `אין מספיק יתרה בארנק (זמין: ₪${walletBalance.toFixed(2)})`
     } else if (selectedPaymentType === 'credit' && needsCvvField) {
@@ -654,6 +657,31 @@ export const RestaurantMenuPage = () => {
         items,
         status: 'new',
       }
+      const statsLines = cart.map((l) => ({ menuItemId: l.item.id, quantity: l.quantity }))
+      const deliveryFeeForOrder = fulfillment === 'delivery' ? deliveryFee : 0
+
+      if (selectedPaymentType === 'gpay' || selectedPaymentType === 'apay') {
+        const { paymentUrl } = await startWalletCheckout(
+          order,
+          courierTip,
+          selectedPaymentType,
+          deliveryFeeForOrder,
+        )
+        clearCart()
+        setShowCheckout(false)
+        setSessionCardPaymentId(undefined)
+        setCreditCvv('')
+        setCreditCardNumber('')
+        setCourierTip(0)
+        setDeliveryFee(0)
+        setMinDeliveryTotal(0)
+        setDeliveryDistanceKm(null)
+        bumpLocalCounts(statsLines)
+        void incrementMenuItemOrderCounts(businessId, statsLines).catch(() => {})
+        window.location.assign(paymentUrl)
+        return
+      }
+
       const { orderId, paymentStatus } = await chargeAndPlaceOrder(
         order,
         courierTip,
@@ -667,7 +695,7 @@ export const RestaurantMenuPage = () => {
               ? stripCardNumber(creditCardNumber)
               : undefined,
         },
-        fulfillment === 'delivery' ? deliveryFee : 0,
+        deliveryFeeForOrder,
       )
       clearCart()
       setShowCheckout(false)
@@ -678,7 +706,6 @@ export const RestaurantMenuPage = () => {
       setDeliveryFee(0)
       setMinDeliveryTotal(0)
       setDeliveryDistanceKm(null)
-      const statsLines = cart.map((l) => ({ menuItemId: l.item.id, quantity: l.quantity }))
       bumpLocalCounts(statsLines)
       void incrementMenuItemOrderCounts(businessId, statsLines).catch(() => {})
       void queryClient.invalidateQueries({ queryKey: ['walletBalance'] })
@@ -704,7 +731,7 @@ export const RestaurantMenuPage = () => {
       }
       const message = isPermissionDenied
         ? 'אין הרשאה לשלוח הזמנה. ודאו שהתחברתם לחשבון ונסו שוב.'
-        : 'שגיאה בשליחת ההזמנה. נסו שוב.'
+        : err?.message || 'שגיאה בשליחת ההזמנה. נסו שוב.'
       setFormErrors({ _submit: message })
       toast.error(message)
     } finally {
@@ -861,7 +888,7 @@ export const RestaurantMenuPage = () => {
   }
 
   return (
-    <div className="min-w-0 space-y-2 pb-28 sm:space-y-3" dir="rtl">
+    <div className="min-w-0  pb-28 sm:space-y-3" dir="rtl">
       {/* Floating cart badge – מופיע רק כשיש פריטים */}
       {totalItems > 0 && (
         <motion.div
@@ -989,18 +1016,17 @@ export const RestaurantMenuPage = () => {
         document.body
       )}
 
-      {/* תמונת נושא – רוחב מלא של האזור, מתחילה מאחורי הסרגל */}
-      <header className="relative -mx-3 -mt-[5.5rem] sm:-mx-6 sm:-mt-[6rem] lg:-mx-10 lg:-mt-[7.5rem] rounded-b-lg overflow-hidden shadow-[0_18px_50px_rgba(0,0,0,0.08)]">
-        <div className="relative w-full aspect-[16/9] min-h-[10rem] bg-gradient-to-br from-vantix-cyan/20 via-white to-vantix-orange/10">
-          {businessLogoUrl ? (
-            <img
-              src={businessLogoUrl}
-              alt=""
-              className="absolute inset-0 w-full h-full object-cover object-center"
-            />
-          ) : null}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent pointer-events-none" />
-        </div>
+      {/* תמונת נושא – צמודה לסרגל, בלי פס gradient מעל הלוגו */}
+      <header className="relative -mx-3 sm:-mx-6 lg:-mx-10 overflow-hidden rounded-b-lg shadow-[0_18px_50px_rgba(0,0,0,0.08)]">
+        {businessLogoUrl ? (
+          <img
+            src={businessLogoUrl}
+            alt=""
+            className="block h-auto max-h-[min(42vh,14rem)] w-full bg-white object-contain object-top dark:bg-black sm:max-h-[min(44vh,16rem)]"
+          />
+        ) : (
+          <div className="min-h-[10rem] w-full bg-vantix-surface-muted" />
+        )}
       </header>
 
       {orderingClosed && (
@@ -1010,7 +1036,7 @@ export const RestaurantMenuPage = () => {
       )}
 
       {cashbackPercent != null && cashbackPercent > 0 && (
-        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3">
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-b-xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3">
           <CashbackBadge percent={cashbackPercent} />
           <p className="text-xs text-vantix-fg-muted">
             {fulfillment === 'pickup'
@@ -1433,7 +1459,17 @@ export const RestaurantMenuPage = () => {
                 </div>
               ) : null}
               <div className="mt-2 flex items-center justify-between border-t border-vantix-cyan/10 pt-2 font-semibold text-vantix-fg">
-                <span>{selectedPaymentType === 'cash' ? 'לתשלום במזומן' : selectedPaymentType === 'wallet_balance' ? 'לתשלום מהארנק' : 'לחיוב'}</span>
+                <span>
+                  {selectedPaymentType === 'cash'
+                    ? 'לתשלום במזומן'
+                    : selectedPaymentType === 'wallet_balance'
+                      ? 'לתשלום מהארנק'
+                      : selectedPaymentType === 'gpay'
+                        ? 'לתשלום ב-Google Pay'
+                        : selectedPaymentType === 'apay'
+                          ? 'לתשלום ב-Apple Pay'
+                          : 'לחיוב'}
+                </span>
                 <span className="text-vantix-cyan">₪{checkoutTotal.toFixed(2)}</span>
               </div>
             </div>

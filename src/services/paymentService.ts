@@ -15,10 +15,22 @@ export type ChargeOrderResult = {
   transactionUid?: string
 }
 
+export type WalletCheckoutResult = {
+  orderId: string
+  paymentUrl: string
+  paymentStatus: 'pending_wallet'
+}
+
 function getChargeOrderUrl(): string {
   const explicit = import.meta.env.VITE_CHARGE_VANTIX_ORDER_URL as string | undefined
   if (explicit) return explicit
   return 'https://us-central1-maxdeliveries.cloudfunctions.net/chargeVantixOrder'
+}
+
+function getWalletCheckoutUrl(): string {
+  const explicit = import.meta.env.VITE_WALLET_VANTIX_CHECKOUT_URL as string | undefined
+  if (explicit) return explicit
+  return 'https://us-central1-maxdeliveries.cloudfunctions.net/startVantixWalletCheckout'
 }
 
 function getTokenizeCardUrl(): string {
@@ -59,6 +71,56 @@ export async function tokenizeSavedCard(params: {
   holderId: string
 }): Promise<void> {
   await authFetch(getTokenizeCardUrl(), params)
+}
+
+/**
+ * Google Pay / Apple Pay — יוצר הזמנה ממתינה + לינק PayPlus (redirect לדף תשלום מאובטח).
+ */
+export async function startWalletCheckout(
+  order: OrderCreate,
+  courierTip: number,
+  walletType: 'gpay' | 'apay',
+  deliveryFee = 0,
+): Promise<WalletCheckoutResult> {
+  const auth = getFirebaseAuth()
+  const user = auth.currentUser
+  if (!user) throw new Error('יש להתחבר כדי להשלים הזמנה')
+
+  const idToken = await user.getIdToken()
+  const res = await fetch(getWalletCheckoutUrl(), {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${idToken}`,
+    },
+    body: JSON.stringify({
+      order,
+      courierTip,
+      deliveryFee,
+      payment: { type: walletType },
+    }),
+  })
+
+  const data = (await res.json()) as {
+    orderId?: string
+    paymentUrl?: string
+    paymentStatus?: 'pending_wallet'
+    error?: string
+  }
+
+  if (!res.ok) {
+    throw new Error(data.error || 'שגיאה ביצירת תשלום Google Pay / Apple Pay')
+  }
+
+  if (!data.orderId || !data.paymentUrl) {
+    throw new Error('לא התקבל לינק תשלום מהשרת')
+  }
+
+  return {
+    orderId: data.orderId,
+    paymentUrl: data.paymentUrl,
+    paymentStatus: 'pending_wallet',
+  }
 }
 
 /**

@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
-import { getMyOrders, getBusinessesWithMenus } from '../../services/orderService'
+import { getMyOrders } from '../../services/orderService'
 import { useAuth } from '../../context/AuthContext'
 import { useAuthSheet } from '../../context/AuthSheetContext'
 import { History, Loader2, Package, UtensilsCrossed } from 'lucide-react'
@@ -16,11 +16,6 @@ const statusLabels: Record<string, string> = {
 export const OrderHistoryPage = () => {
   const { user } = useAuth()
   const { openAuthSheet } = useAuthSheet()
-  const { data: businesses = [] } = useQuery({
-    queryKey: ['businessesWithMenus'],
-    queryFn: getBusinessesWithMenus,
-  })
-  const businessNameMap = Object.fromEntries(businesses.map((b) => [b.businessId, b.businessName]))
 
   const { data: orders, isLoading, error } = useQuery({
     queryKey: ['myOrders', user?.uid],
@@ -84,9 +79,7 @@ export const OrderHistoryPage = () => {
         <ul className="space-y-4">
           {orders.map((order) => {
             const total = order.items?.reduce((s, i) => s + i.price * i.quantity, 0) ?? 0
-            const name = order.orderId && businessNameMap[order.business_id]
-              ? businessNameMap[order.business_id]
-              : `עסק ${(order.business_id || '').slice(0, 8)}`
+            const name = order.business_name?.trim() || 'עסק'
             const date = order.createdAt
               ? new Date(order.createdAt).toLocaleDateString('he-IL', {
                   day: 'numeric',

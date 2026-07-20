@@ -227,7 +227,7 @@ export function PopularDishesRow({
   if (dishes.length === 0) return null
 
   return (
-    <section className="space-y-3" aria-labelledby="popular-dishes-title">
+    <section className="space-y-3 [overflow-anchor:none]" aria-labelledby="popular-dishes-title">
       <h2 id="popular-dishes-title" className="text-base font-bold text-vantix-fg">
         המנות הפופולריות
       </h2>

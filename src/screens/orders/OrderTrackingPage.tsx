@@ -1,4 +1,5 @@
-import { useNavigate, useParams } from 'react-router-dom'
+import { useEffect } from 'react'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { ChevronLeft, MapPin, Package } from 'lucide-react'
 import { useOrderTracking } from '../../hooks/useOrderTracking'
 import { OrderTrackingMap } from '../../components/orders/OrderTrackingMap'
@@ -6,6 +7,7 @@ import { OrderCurrentStatusBar } from '../../components/orders/OrderCurrentStatu
 import { OrderTrackingHero } from '../../components/orders/OrderTrackingHero'
 import { ROUTES } from '../../constants/app'
 import { useAuth } from '../../context/AuthContext'
+import { useToast } from '../../components/ui/Toast'
 
 /** האם עדיין ממתינים לאישור/טיפול ראשוני של העסק */
 function isAwaitingBusinessConfirmation(
@@ -18,9 +20,24 @@ function isAwaitingBusinessConfirmation(
 
 export function OrderTrackingPage() {
   const { orderId } = useParams<{ orderId: string }>()
+  const [searchParams, setSearchParams] = useSearchParams()
   const navigate = useNavigate()
   const { user } = useAuth()
+  const toast = useToast()
   const { order, delivery, business, markers, stepIndex, loading, error } = useOrderTracking(orderId)
+
+  useEffect(() => {
+    const payment = searchParams.get('payment')
+    if (!payment) return
+    if (payment === 'success') {
+      toast.success('התשלום אושר! ההזמנה נשלחה לעסק.')
+    } else if (payment === 'cancel') {
+      toast.error('התשלום בוטל. ההזמנה נשמרה כממתינה לתשלום.')
+    }
+    const next = new URLSearchParams(searchParams)
+    next.delete('payment')
+    setSearchParams(next, { replace: true })
+  }, [searchParams, setSearchParams, toast])
 
   const cancelled = order?.status === 'cancelled' || stepIndex < 0
   const showHero = isAwaitingBusinessConfirmation(order, delivery)

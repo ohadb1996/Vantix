@@ -31,6 +31,7 @@ export const MainNav = () => {
   const location = useLocation()
   const scrolled = useScrolled()
   const isRestaurantMenu = /^\/restaurants\/[^/]+$/.test(location.pathname)
+  const navExpanded = isRestaurantMenu ? false : scrolled
   const menuMatch = useMatch('/restaurants/:businessId')
   const businessId = isRestaurantMenu ? menuMatch?.params.businessId : undefined
   const { businessName } = useMenu(businessId)
@@ -46,13 +47,15 @@ export const MainNav = () => {
     ? 'border-vantix-cyan/25 bg-vantix-surface-raised/80 backdrop-blur-md'
     : 'vantix-nav-shell'
 
-  const sizeClasses = scrolled
+  const sizeClasses = navExpanded
     ? 'rounded-xl px-2.5 py-1.5 sm:rounded-3xl sm:px-6 sm:py-3'
     : 'rounded-lg px-2 py-1 sm:rounded-xl sm:px-4 sm:py-1.5'
 
   return (
     <nav
-      className={`relative flex min-w-0 items-center justify-between gap-1.5 overflow-x-auto border transition-all duration-300 sm:gap-4 sm:overflow-visible ${sizeClasses} ${baseBorderBg}`}
+      className={`relative flex min-w-0 items-center justify-between gap-1.5 overflow-x-auto border sm:gap-4 sm:overflow-visible ${
+        isRestaurantMenu ? '' : 'transition-all duration-300'
+      } ${sizeClasses} ${baseBorderBg}`}
     >
       {navTitle ? (
         <div className="pointer-events-none absolute left-1/2 top-1/2 z-0 max-w-[calc(100%-7.5rem)] -translate-x-1/2 -translate-y-1/2 sm:max-w-[calc(100%-14rem)]">
@@ -73,7 +76,7 @@ export const MainNav = () => {
             animate={{ rotateY: 360 }}
             transition={{ repeat: Infinity, duration: 6, ease: 'linear' }}
           >
-            <Logo size={scrolled ? 28 : 22} />
+            <Logo size={navExpanded ? 28 : 22} />
           </motion.div>
         </div>
       </Link>
@@ -110,13 +113,13 @@ export const MainNav = () => {
           <Link
             to={ROUTES.RESTAURANTS}
             className={`vantix-btn-ghost inline-flex shrink-0 items-center justify-center gap-1 ${
-              scrolled
+              navExpanded
                 ? 'min-h-[44px] min-w-[44px] px-3 py-2 text-sm sm:min-h-0 sm:min-w-0 sm:px-4'
                 : 'min-h-[32px] min-w-[32px] px-2 py-1 text-xs sm:min-h-0 sm:min-w-0 sm:px-3'
             }`}
             aria-label="חזרה לרשימת המסעדות"
           >
-            <ChevronRight className={scrolled ? 'h-4 w-4 shrink-0' : 'h-3.5 w-3.5 shrink-0'} />
+            <ChevronRight className={navExpanded ? 'h-4 w-4 shrink-0' : 'h-3.5 w-3.5 shrink-0'} />
             <span className="hidden sm:inline">חזרה</span>
           </Link>
         ) : loading ? null : user ? (
@@ -125,7 +128,7 @@ export const MainNav = () => {
               to={ROUTES.PROFILE}
               title={user.email ?? displayName}
               className={`hidden max-w-[100px] shrink overflow-hidden text-ellipsis whitespace-nowrap rounded-full border border-vantix-cyan/20 bg-vantix-surface-raised px-2.5 py-1.5 text-xs font-semibold text-vantix-fg-muted transition hover:border-vantix-cyan/35 hover:text-vantix-fg sm:block sm:max-w-[140px] md:max-w-[180px] ${
-                scrolled ? 'px-3 py-2 text-sm' : ''
+                navExpanded ? 'px-3 py-2 text-sm' : ''
               }`}
             >
               {greetingLabel}
@@ -134,7 +137,7 @@ export const MainNav = () => {
             <Link
               to={ROUTES.PROFILE}
               className={`vantix-btn-ghost hidden items-center gap-1.5 sm:inline-flex ${
-                scrolled ? 'px-3 py-2 text-sm' : 'px-2.5 py-1.5 text-xs'
+                navExpanded ? 'px-3 py-2 text-sm' : 'px-2.5 py-1.5 text-xs'
               }`}
               aria-label="פרופיל"
             >
@@ -146,7 +149,7 @@ export const MainNav = () => {
           <button
             type="button"
             onClick={() => openAuthSheet('login', ROUTES.RESTAURANTS)}
-            className={`vantix-btn-primary ${scrolled ? 'px-5 py-2 text-sm' : 'px-4 py-1.5 text-xs'}`}
+            className={`vantix-btn-primary ${navExpanded ? 'px-5 py-2 text-sm' : 'px-4 py-1.5 text-xs'}`}
           >
             להתחיל הזמנה
           </button>
