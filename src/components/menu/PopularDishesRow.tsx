@@ -4,6 +4,7 @@ import { Plus, Minus } from 'lucide-react'
 import type { MenuItem } from '../../types/menu'
 import type { CartLine } from '../../hooks/useCart'
 import { haptic } from '../../lib/native'
+import { DietaryBadge } from './DietaryBadge'
 
 type ControlMode = 'plus' | 'stepper' | 'compact'
 
@@ -200,9 +201,12 @@ function PopularDishTile({
       </div>
 
       <div className="mt-2 space-y-0.5 px-0.5">
-        <p className="line-clamp-2 text-sm font-semibold leading-snug text-vantix-fg" title={item.name}>
-          {item.name}
-        </p>
+        <div className="flex flex-wrap items-center gap-1">
+          <p className="line-clamp-2 text-sm font-semibold leading-snug text-vantix-fg" title={item.name}>
+            {item.name}
+          </p>
+          <DietaryBadge dietaryType={item.dietaryType} />
+        </div>
         <p className="text-sm font-bold text-vantix-cyan">₪{item.price.toFixed(2)}</p>
       </div>
     </article>

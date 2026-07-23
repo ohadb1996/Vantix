@@ -22,6 +22,7 @@ import { CourierTipSelector } from '../../components/checkout/CourierTipSelector
 import { DeliveryNotesInput } from '../../components/checkout/DeliveryNotesInput'
 import { PopularDishesRow } from '../../components/menu/PopularDishesRow'
 import { PopularBadge } from '../../components/menu/PopularBadge'
+import { DietaryBadge } from '../../components/menu/DietaryBadge'
 import { CashbackBadge } from '../../components/menu/CashbackBadge'
 import { useMenuItemStats } from '../../hooks/useMenuItemStats'
 import { getAppScrollRoot, useMainScrollPast } from '../../hooks/useScrolled'
@@ -113,6 +114,7 @@ function MenuItemRow({
             {item.name}
           </p>
           {isPopular ? <PopularBadge /> : null}
+          <DietaryBadge dietaryType={item.dietaryType} />
         </div>
         {item.sections && item.sections.length > 0 ? (
           <p className="mt-1 truncate text-xs text-vantix-cyan/80">יש אפשרויות לבחירה</p>
@@ -598,8 +600,14 @@ export const RestaurantMenuPage = () => {
     const tabsContainer = categoryTabsRef.current
     const tab = tabsContainer.querySelector(`[data-cat-tab="${activeCategoryId}"]`) as HTMLElement | null
     if (!tab) return
-    const targetLeft = tab.offsetLeft - (tabsContainer.clientWidth - tab.clientWidth) / 2
-    tabsContainer.scrollTo({ left: Math.max(0, targetLeft), behavior: 'smooth' })
+
+    // RTL-safe: scroll by visual delta so the active tab stays centered in the bar
+    const containerRect = tabsContainer.getBoundingClientRect()
+    const tabRect = tab.getBoundingClientRect()
+    const delta =
+      tabRect.left + tabRect.width / 2 - (containerRect.left + containerRect.width / 2)
+    if (Math.abs(delta) < 2) return
+    tabsContainer.scrollBy({ left: delta, behavior: 'smooth' })
   }, [activeCategoryId])
 
   const handlePlaceOrder = async () => {
@@ -1566,15 +1574,18 @@ export const RestaurantMenuPage = () => {
               <h3 id="add-item-title" className="text-xl font-bold text-vantix-fg">
                 {editingOldOptions !== null ? `עריכת ${addItemModal.name}` : addItemModal.name}
               </h3>
-              <button
-                type="button"
-                onClick={closeItemModal}
-                onPointerDown={(event) => event.stopPropagation()}
-                className="p-2 rounded-full text-vantix-fg-muted hover:bg-vantix-cyan/10 hover:text-vantix-cyan"
-                aria-label="סגור"
-              >
-                <X className="h-5 w-5" />
-              </button>
+              <div className="flex items-center gap-2 shrink-0">
+                <DietaryBadge dietaryType={addItemModal.dietaryType} />
+                <button
+                  type="button"
+                  onClick={closeItemModal}
+                  onPointerDown={(event) => event.stopPropagation()}
+                  className="p-2 rounded-full text-vantix-fg-muted hover:bg-vantix-cyan/10 hover:text-vantix-cyan"
+                  aria-label="סגור"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
             </div>
             <p className="text-vantix-cyan font-semibold mb-3">₪{addItemModal.price.toFixed(2)}</p>
             {addItemModal.description && (

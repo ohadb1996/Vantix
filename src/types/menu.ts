@@ -33,6 +33,9 @@ export interface MenuItemSection {
   freeQuantity?: number
 }
 
+/** סיווג תזונתי של מנה – ברירת מחדל other (לא מוצג ללקוח) */
+export type MenuItemDietaryType = 'vegetarian' | 'vegan' | 'other'
+
 export interface MenuItem {
   id: string
   name: string
@@ -42,6 +45,8 @@ export interface MenuItem {
   imageUrl?: string
   available?: boolean
   sortOrder?: number
+  /** סיווג: צמחוני / טבעוני / אחר */
+  dietaryType?: MenuItemDietaryType
   /** סקשנים לפירוט ההזמנה – כמו ב־maxDelivery-partners */
   sections?: MenuItemSection[]
 }
