@@ -23,15 +23,24 @@ import type {
 import { PAYMENT_METHOD_LABELS } from '../../types/customerProfile'
 import { PaymentMethodPickerModal } from './PaymentMethodPickerModal'
 import { PaymentMethodIcon } from './PaymentMethodIcon'
+import {
+  CRYPTO_PAY_CURRENCY_OPTIONS,
+  type CryptoPayCurrency,
+} from '../../services/paymentService'
 
 type SelectorProps = {
   selectedContactId?: string
   selectedAddressId?: string
   selectedPaymentType?: PaymentMethodType
   selectedPaymentId?: string
+  selectedCryptoCurrency?: CryptoPayCurrency
   onSelectContact: (c: SavedContact) => void
   onSelectAddress: (a: SavedAddress) => void
-  onSelectPaymentMethod: (type: PaymentMethodType, card?: SavedPayment) => void
+  onSelectPaymentMethod: (
+    type: PaymentMethodType,
+    card?: SavedPayment,
+    cryptoCurrency?: CryptoPayCurrency,
+  ) => void
   /** הסתרת בלוק הכתובות (באיסוף עצמי אין צורך בכתובת) */
   hideAddress?: boolean
   /** פרטי כרטיס מהוספה בצ'קאאוט — לחיוב בלחיצה על שליחת הזמנה בלי מודל נוסף */
@@ -41,7 +50,8 @@ type SelectorProps = {
 
 function paymentSelectionLabel(
   type?: PaymentMethodType,
-  card?: SavedPayment
+  card?: SavedPayment,
+  cryptoCurrency?: CryptoPayCurrency,
 ): string {
   if (!type) return 'לא נבחר אמצעי תשלום'
   if (type === 'credit') {
@@ -49,6 +59,10 @@ function paymentSelectionLabel(
     return card.label ? `${card.label} · ${paymentSummary(card)}` : paymentSummary(card)
   }
   if (type === 'wallet_balance') return PAYMENT_METHOD_LABELS.wallet_balance
+  if (type === 'crypto') {
+    const coin = CRYPTO_PAY_CURRENCY_OPTIONS.find((c) => c.id === cryptoCurrency)
+    return coin ? `קריפטו · ${coin.label}` : 'קריפטו – נא לבחור מטבע'
+  }
   return PAYMENT_METHOD_LABELS[type]
 }
 
@@ -138,6 +152,7 @@ export function CheckoutSavedSelector({
   selectedAddressId,
   selectedPaymentType,
   selectedPaymentId,
+  selectedCryptoCurrency,
   onSelectContact,
   onSelectAddress,
   onSelectPaymentMethod,
@@ -251,7 +266,7 @@ export function CheckoutSavedSelector({
               </span>
             )}
             <span className={`truncate text-sm ${selectedPaymentType ? 'text-vantix-fg' : 'text-vantix-fg-subtle'}`}>
-              {paymentSelectionLabel(selectedPaymentType, selectedCard)}
+              {paymentSelectionLabel(selectedPaymentType, selectedCard, selectedCryptoCurrency)}
             </span>
           </span>
           <span className="shrink-0 text-xs text-vantix-cyan">שינוי</span>
@@ -300,6 +315,7 @@ export function CheckoutSavedSelector({
           cards={payments.items}
           selectedType={selectedPaymentType}
           selectedCardId={selectedPaymentId}
+          selectedCryptoCurrency={selectedCryptoCurrency}
           saving={payments.isSaving}
           onClose={() => setPaymentPickerOpen(false)}
           onSelectMethod={onSelectPaymentMethod}

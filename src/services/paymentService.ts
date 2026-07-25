@@ -21,6 +21,12 @@ export type WalletCheckoutResult = {
   paymentStatus: 'pending_wallet'
 }
 
+export type CryptoCheckoutResult = {
+  orderId: string
+  paymentUrl: string
+  paymentStatus: 'pending_crypto'
+}
+
 function getChargeOrderUrl(): string {
   const explicit = import.meta.env.VITE_CHARGE_VANTIX_ORDER_URL as string | undefined
   if (explicit) return explicit
@@ -31,6 +37,52 @@ function getWalletCheckoutUrl(): string {
   const explicit = import.meta.env.VITE_WALLET_VANTIX_CHECKOUT_URL as string | undefined
   if (explicit) return explicit
   return 'https://us-central1-maxdeliveries.cloudfunctions.net/startVantixWalletCheckout'
+}
+
+function getCryptoCheckoutUrl(): string {
+  const explicit = import.meta.env.VITE_CRYPTO_VANTIX_CHECKOUT_URL as string | undefined
+  if (explicit) return explicit
+  return 'https://us-central1-maxdeliveries.cloudfunctions.net/startVantixCryptoCheckout'
+}
+
+function getCryptoFeeQuoteUrl(): string {
+  const explicit = import.meta.env.VITE_CRYPTO_FEE_QUOTE_URL as string | undefined
+  if (explicit) return explicit
+  return 'https://us-central1-maxdeliveries.cloudfunctions.net/quoteVantixCryptoTransferFee'
+}
+
+/** עמלת העברה קבועה בתשלום קריפטו (מוצגת ללקוח; החיוב בפועל בשרת) */
+export const CRYPTO_TRANSFER_FEE_USDT = 1
+
+/** מטבעות מותרים לתשלום קריפטו */
+export const CRYPTO_PAY_CURRENCY_OPTIONS = [
+  { id: 'btc' as const, label: 'Bitcoin (BTC)' },
+  { id: 'usdttrc20' as const, label: 'USDT (TRC20)' },
+] as const
+
+export type CryptoPayCurrency = (typeof CRYPTO_PAY_CURRENCY_OPTIONS)[number]['id']
+
+export type CryptoTransferFeeQuote = {
+  feeUsdt: number
+  feeIls: number
+}
+
+export async function quoteCryptoTransferFee(): Promise<CryptoTransferFeeQuote> {
+  const res = await fetch(getCryptoFeeQuoteUrl(), { method: 'GET' })
+  const data = (await res.json()) as {
+    feeUsdt?: number
+    feeIls?: number
+    error?: string
+  }
+  if (!res.ok) {
+    throw new Error(data.error || 'שגיאה בחישוב עמלת קריפטו')
+  }
+  const feeUsdt = Number(data.feeUsdt)
+  const feeIls = Number(data.feeIls)
+  if (!Number.isFinite(feeUsdt) || !Number.isFinite(feeIls) || feeIls < 0) {
+    throw new Error('תגובת עמלת קריפטו לא תקינה')
+  }
+  return { feeUsdt, feeIls }
 }
 
 function getTokenizeCardUrl(): string {
@@ -120,6 +172,57 @@ export async function startWalletCheckout(
     orderId: data.orderId,
     paymentUrl: data.paymentUrl,
     paymentStatus: 'pending_wallet',
+  }
+}
+
+/**
+ * קריפטו — יוצר הזמנה ממתינה + לינק NOWPayments (redirect לדף תשלום).
+ * אחרי אישור IPN ההזמנה מסומנת כשולמה ומופקת חשבונית PayPlus (אם מוגדר).
+ */
+export async function startCryptoCheckout(
+  order: OrderCreate,
+  courierTip: number,
+  deliveryFee = 0,
+  payCurrency: CryptoPayCurrency,
+): Promise<CryptoCheckoutResult> {
+  const auth = getFirebaseAuth()
+  const user = auth.currentUser
+  if (!user) throw new Error('יש להתחבר כדי להשלים הזמנה')
+
+  const idToken = await user.getIdToken()
+  const res = await fetch(getCryptoCheckoutUrl(), {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${idToken}`,
+    },
+    body: JSON.stringify({
+      order,
+      courierTip,
+      deliveryFee,
+      payment: { type: 'crypto', payCurrency },
+    }),
+  })
+
+  const data = (await res.json()) as {
+    orderId?: string
+    paymentUrl?: string
+    paymentStatus?: 'pending_crypto'
+    error?: string
+  }
+
+  if (!res.ok) {
+    throw new Error(data.error || 'שגיאה ביצירת תשלום קריפטו')
+  }
+
+  if (!data.orderId || !data.paymentUrl) {
+    throw new Error('לא התקבל לינק תשלום קריפטו מהשרת')
+  }
+
+  return {
+    orderId: data.orderId,
+    paymentUrl: data.paymentUrl,
+    paymentStatus: 'pending_crypto',
   }
 }
 

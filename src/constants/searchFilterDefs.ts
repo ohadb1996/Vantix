@@ -1,5 +1,6 @@
 /**
- * פילטרי חיפוש – מבוססים על בחירה מפורשת של בעל העסק (search_profile).
+ * פילטרי חיפוש – מבוססים על בחירה מפורשת של בעל העסק (search_profile)
+ * + סינון צמחוני/טבעוני לפי מנות בתפריט.
  */
 import {
   FOOD_TYPE_OPTIONS,
@@ -7,7 +8,7 @@ import {
   KITCHEN_TYPE_OPTIONS,
 } from './businessFilters'
 
-export type SearchFilterGroup = 'status' | 'kitchen' | 'food' | 'kashrut' | 'featured'
+export type SearchFilterGroup = 'status' | 'kitchen' | 'food' | 'kashrut' | 'featured' | 'dietary'
 
 export interface SearchFilterDef {
   id: string
@@ -33,14 +34,13 @@ const TILE_GRADIENTS = [
 ]
 
 function optionsToFilters(
-  options: { id: string; label: string }[],
-  group: SearchFilterGroup,
-  emoji: string
+  options: { id: string; label: string; emoji: string }[],
+  group: SearchFilterGroup
 ): SearchFilterDef[] {
   return options.map((opt, i) => ({
     id: opt.id,
     label: opt.label,
-    emoji,
+    emoji: opt.emoji,
     gradient: TILE_GRADIENTS[i % TILE_GRADIENTS.length],
     group,
   }))
@@ -70,13 +70,32 @@ export const STATUS_FILTER_DEFS: SearchFilterDef[] = [
   },
 ]
 
-export const KITCHEN_FILTER_DEFS = optionsToFilters(KITCHEN_TYPE_OPTIONS, 'kitchen', '🍽️')
-export const FOOD_FILTER_DEFS = optionsToFilters(FOOD_TYPE_OPTIONS, 'food', '🍔')
-export const KASHRUT_FILTER_DEFS = optionsToFilters(KASHRUT_TYPE_OPTIONS, 'kashrut', '✡️')
+/** סינון לפי מנות עם dietaryType בתפריט (לא לפי פרופיל חיפוש) */
+export const DIETARY_FILTER_DEFS: SearchFilterDef[] = [
+  {
+    id: 'vegetarian',
+    label: 'צמחוני',
+    emoji: '🥬',
+    gradient: 'from-lime-500/90 to-green-600/90',
+    group: 'dietary',
+  },
+  {
+    id: 'vegan',
+    label: 'טבעוני',
+    emoji: '🌱',
+    gradient: 'from-emerald-500/90 to-teal-700/90',
+    group: 'dietary',
+  },
+]
+
+export const KITCHEN_FILTER_DEFS = optionsToFilters(KITCHEN_TYPE_OPTIONS, 'kitchen')
+export const FOOD_FILTER_DEFS = optionsToFilters(FOOD_TYPE_OPTIONS, 'food')
+export const KASHRUT_FILTER_DEFS = optionsToFilters(KASHRUT_TYPE_OPTIONS, 'kashrut')
 
 export const ALL_SEARCH_FILTER_DEFS: SearchFilterDef[] = [
   ...STATUS_FILTER_DEFS,
   ...KITCHEN_FILTER_DEFS,
   ...FOOD_FILTER_DEFS,
+  ...DIETARY_FILTER_DEFS,
   ...KASHRUT_FILTER_DEFS,
 ]

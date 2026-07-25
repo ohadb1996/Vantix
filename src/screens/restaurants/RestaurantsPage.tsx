@@ -24,6 +24,16 @@ import {
 import { filterBusinessesByStoreVertical, type StoreVerticalId } from '../../constants/storeVerticals'
 import type { BusinessWithMenu } from '../../services/orderService'
 
+/** ערבוב Fisher–Yates — עותק חדש, לא משנה את המקור */
+function shuffleBusinesses(list: BusinessWithMenu[]): BusinessWithMenu[] {
+  const out = [...list]
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[out[i], out[j]] = [out[j], out[i]]
+  }
+  return out
+}
+
 function RestaurantCardSkeleton() {
   return (
     <div className="overflow-hidden rounded-3xl border border-vantix-cyan/20 bg-vantix-surface-raised">
@@ -106,7 +116,7 @@ export const RestaurantsPage = () => {
       sections.push({
         id: RECOMMENDED_CATEGORY_ID,
         title: RECOMMENDED_CATEGORY_NAME,
-        businesses: recommended,
+        businesses: shuffleBusinesses(recommended),
         isSystem: true,
       })
     }
@@ -119,6 +129,7 @@ export const RestaurantsPage = () => {
         sections.push({
           id: FAVORITES_CATEGORY_ID,
           title: FAVORITES_CATEGORY_NAME,
+          // מועדפים נשארים לפי סדר הלייקים — בלי ערבוב
           businesses: favorites,
           isSystem: true,
         })
@@ -133,7 +144,7 @@ export const RestaurantsPage = () => {
       sections.push({
         id: cat.id,
         title: cat.name,
-        businesses: catBusinesses,
+        businesses: shuffleBusinesses(catBusinesses),
       })
       for (const b of catBusinesses) assigned.add(b.businessId)
     }
@@ -142,16 +153,17 @@ export const RestaurantsPage = () => {
     if (uncategorized.length > 0 && (categories?.length ?? 0) > 0) {
       sections.push({
         id: '__other__',
-        title: 'עוד מסעדות',
-        businesses: uncategorized,
+        title: 'עוד באיזור שלך ♨️',
+        businesses: shuffleBusinesses(uncategorized),
       })
     }
 
-    if (sections.length === 0 && visibleBusinesses.length > 0) {
+    // רשימה ייחודית של כל העסקים הנראים באיזור (בלי כפילויות מקטגוריות)
+    if (visibleBusinesses.length > 0) {
       sections.push({
         id: '__all__',
-        title: 'כל המסעדות',
-        businesses: visibleBusinesses,
+        title: 'כל העסקים באיזור שלך ♨️',
+        businesses: shuffleBusinesses(visibleBusinesses),
       })
     }
 

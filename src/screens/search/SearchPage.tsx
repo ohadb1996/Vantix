@@ -72,7 +72,7 @@ export const SearchPage = () => {
     [availableFilters]
   )
   const foodFilters = useMemo(
-    () => availableFilters.filter((f) => f.group === 'food'),
+    () => availableFilters.filter((f) => f.group === 'food' || f.group === 'dietary'),
     [availableFilters]
   )
   const kashrutFilters = useMemo(

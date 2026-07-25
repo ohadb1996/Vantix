@@ -23,4 +23,8 @@ export interface VantixListing {
   pickup_lat?: number
   pickup_lng?: number
   cashback_percent?: number
+  /** יש מנות צמחוניות או טבעוניות זמינות בתפריט */
+  has_vegetarian?: boolean
+  /** יש מנות טבעוניות זמינות בתפריט */
+  has_vegan?: boolean
 }

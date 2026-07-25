@@ -13,7 +13,7 @@ export const AppLayout = () => {
   const headerPadding = navExpanded
     ? 'px-3 py-3 sm:px-6 sm:py-4 lg:px-10 lg:py-6'
     : isRestaurantMenu
-      ? 'px-3 pt-1 pb-0 sm:px-6 sm:pt-1.5 sm:pb-0 lg:px-10 lg:pt-2 lg:pb-0'
+      ? 'px-0 pt-0 pb-0'
       : 'px-3 py-1.5 sm:px-6 sm:py-2 lg:px-10 lg:py-3'
 
   return (

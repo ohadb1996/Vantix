@@ -32,7 +32,14 @@ export interface SavedContact {
 }
 export type SavedContactInput = Omit<SavedContact, 'id' | 'createdAt'>
 
-export type PaymentMethodType = 'cash' | 'credit' | 'bit' | 'gpay' | 'apay' | 'wallet_balance'
+export type PaymentMethodType =
+  | 'cash'
+  | 'credit'
+  | 'bit'
+  | 'gpay'
+  | 'apay'
+  | 'wallet_balance'
+  | 'crypto'
 
 export interface SavedPayment {
   id: string
@@ -59,6 +66,7 @@ export const PAYMENT_METHOD_LABELS: Record<PaymentMethodType, string> = {
   gpay: 'Google Pay',
   apay: 'Apple Pay',
   wallet_balance: 'יתרה בארנק',
+  crypto: 'קריפטו',
 }
 
 export const PAYMENT_METHOD_OPTIONS: { type: PaymentMethodType; label: string }[] = (
@@ -70,6 +78,7 @@ export const CHECKOUT_PAYMENT_OPTIONS: { type: PaymentMethodType; label: string 
   { type: 'wallet_balance', label: PAYMENT_METHOD_LABELS.wallet_balance },
   { type: 'gpay', label: PAYMENT_METHOD_LABELS.gpay },
   { type: 'apay', label: PAYMENT_METHOD_LABELS.apay },
+  { type: 'crypto', label: PAYMENT_METHOD_LABELS.crypto },
   { type: 'cash', label: PAYMENT_METHOD_LABELS.cash },
   { type: 'credit', label: PAYMENT_METHOD_LABELS.credit },
 ]

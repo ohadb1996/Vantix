@@ -21,10 +21,18 @@ export function businessMatchesFilter(b: BusinessWithMenu, filter: SearchFilterD
       return typeof b.minMenuPrice === 'number' && b.minMenuPrice <= 60
     case 'recommended':
       return b.isRecommended === true
+    case 'vegetarian':
+      return b.hasVegetarian === true
+    case 'vegan':
+      return b.hasVegan === true
     default:
       if (filter.group === 'kitchen') return b.kitchenType === filter.id
       if (filter.group === 'food') return b.foodTypes?.includes(filter.id) ?? false
       if (filter.group === 'kashrut') return b.kashrutType === filter.id
+      if (filter.group === 'dietary') {
+        if (filter.id === 'vegetarian') return b.hasVegetarian === true
+        if (filter.id === 'vegan') return b.hasVegan === true
+      }
       return false
   }
 }

@@ -1,5 +1,6 @@
 import { resolveMinDeliveryTotal } from '../constants/deliveryPricing'
-import { getFirebaseAuth } from '../lib/firebase'
+import { getFirebaseAuth, getRealtimeDb } from '../lib/firebase'
+import { ref, get } from 'firebase/database'
 import type { BusinessWithMenu } from './orderService'
 import { isBusinessOpenNow, normalizeBusinessHours } from '../utils/businessHours'
 import type { BusinessHours } from '../types/businessHours'
@@ -52,6 +53,8 @@ function mapDiscoveredRestaurant(raw: Record<string, unknown>): DiscoveredRestau
         : typeof raw.cashback_percent === 'number' && raw.cashback_percent > 0
           ? raw.cashback_percent
           : undefined,
+    hasVegetarian: raw.hasVegetarian === true || raw.has_vegetarian === true,
+    hasVegan: raw.hasVegan === true || raw.has_vegan === true,
     distance_km: Number(raw.distance_km) || 0,
     delivery_fee: Number(raw.delivery_fee) || 0,
     minDeliveryTotal: resolveMinDeliveryTotal(
@@ -88,8 +91,30 @@ export async function discoverRestaurantsNearDestination(
     throw new Error(data.error || 'לא ניתן לטעון מסעדות באזור')
   }
 
+  const mapped = (data.businesses ?? []).map((b) =>
+    mapDiscoveredRestaurant(b as unknown as Record<string, unknown>),
+  )
+
+  // חגורת בטיחות מול CF ישן / stub באינדקס: מסננים עסקים מוסתרים/חסומים מה-RTDB
+  let businesses = mapped
+  try {
+    const bizSnap = await get(ref(getRealtimeDb(), 'Businesses'))
+    if (bizSnap.exists()) {
+      const byId = bizSnap.val() as Record<
+        string,
+        { isBlocked?: boolean; hidden_from_vantix?: boolean } | undefined
+      >
+      businesses = mapped.filter((b) => {
+        const biz = byId[b.businessId]
+        return !(biz?.isBlocked === true || biz?.hidden_from_vantix === true)
+      })
+    }
+  } catch {
+    // אם אין הרשאה לקרוא Businesses — משאירים את תוצאת ה-CF כמו שהיא
+  }
+
   return {
     max_delivery_km: data.max_delivery_km,
-    businesses: (data.businesses ?? []).map((b) => mapDiscoveredRestaurant(b as unknown as Record<string, unknown>)),
+    businesses,
   }
 }

@@ -35,19 +35,32 @@ function listingToBusinessWithMenu(raw: VantixListing): BusinessWithMenu {
       typeof raw.cashback_percent === 'number' && raw.cashback_percent > 0
         ? raw.cashback_percent
         : undefined,
+    hasVegetarian: raw.has_vegetarian === true,
+    hasVegan: raw.has_vegan === true,
   }
 }
 
 /** קריאה מהירה – אינדקס מנורמל לחיפוש ורשימת מסעדות */
 export async function getVantixListings(): Promise<BusinessWithMenu[] | null> {
-  const snap = await get(ref(db(), 'VantixListings'))
-  if (!snap.exists()) return null
+  const [listingsSnap, businessesSnap] = await Promise.all([
+    get(ref(db(), 'VantixListings')),
+    get(ref(db(), 'Businesses')).catch(() => null),
+  ])
+  if (!listingsSnap.exists()) return null
 
-  const val = snap.val() as Record<string, VantixListing | null>
+  const businessesById = (
+    businessesSnap && businessesSnap.exists() ? businessesSnap.val() : {}
+  ) as Record<string, { isBlocked?: boolean; hidden_from_vantix?: boolean } | undefined>
+
+  const val = listingsSnap.val() as Record<string, VantixListing | null>
   return Object.entries(val)
     .filter((entry): entry is [string, VantixListing] => {
-      const [, listing] = entry
-      return listing != null && typeof listing === 'object'
+      const [id, listing] = entry
+      if (listing == null || typeof listing !== 'object') return false
+      const biz = businessesById[id]
+      // אם יש נתוני עסק — מסננים חסומים/מוסתרים גם אם האינדקס עדיין לא נמחק
+      if (biz && (biz.isBlocked === true || biz.hidden_from_vantix === true)) return false
+      return true
     })
     .map(([id, l]) => listingToBusinessWithMenu({ ...l, businessId: l.businessId || id }))
     .filter((b) => b.itemsCount > 0)

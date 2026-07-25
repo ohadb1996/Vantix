@@ -1,4 +1,4 @@
-import { Banknote, CreditCard, Wallet } from 'lucide-react'
+import { Banknote, Bitcoin, CreditCard, Wallet } from 'lucide-react'
 import type { PaymentMethodType } from '../../types/customerProfile'
 import { GoogleIcon } from '../branding/GoogleIcon'
 
@@ -42,6 +42,8 @@ export function PaymentMethodIcon({
         return <span className={`${className} flex items-center justify-center text-[10px] font-bold`}>bit</span>
       case 'wallet_balance':
         return <Wallet className={className} />
+      case 'crypto':
+        return <Bitcoin className={className} />
       default:
         return <CreditCard className={className} />
     }

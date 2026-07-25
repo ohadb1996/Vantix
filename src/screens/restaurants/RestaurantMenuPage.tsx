@@ -3,7 +3,15 @@ import { createPortal } from 'react-dom'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { motion, AnimatePresence, useDragControls, type PanInfo } from 'framer-motion'
-import { chargeAndPlaceOrder, startWalletCheckout } from '../../services/paymentService'
+import {
+  chargeAndPlaceOrder,
+  CRYPTO_PAY_CURRENCY_OPTIONS,
+  CRYPTO_TRANSFER_FEE_USDT,
+  quoteCryptoTransferFee,
+  startCryptoCheckout,
+  startWalletCheckout,
+  type CryptoPayCurrency,
+} from '../../services/paymentService'
 import { buildDestinationAddress, quoteDeliveryFee } from '../../services/deliveryQuoteService'
 import type { OrderCreate, OrderItem } from '../../types/order'
 import type { MenuItem } from '../../types/menu'
@@ -36,6 +44,7 @@ import { useSavedPayments } from '../../hooks/useCustomerProfile'
 import { stripCardNumber, formatCardNumberInput } from '../../utils/cardNumber'
 import { PAYMENT_METHOD_LABELS, type SavedAddress, type SavedContact, type SavedPayment, type PaymentMethodType } from '../../types/customerProfile'
 import { paymentSummary } from '../../components/profile/savedDisplay'
+import { AmbientBleedImage } from '../../components/media/AmbientBleedImage'
 
 function roundMoney(n: number) {
   return Math.round(n * 100) / 100
@@ -244,6 +253,7 @@ export const RestaurantMenuPage = () => {
   const [selectedAddressId, setSelectedAddressId] = useState<string>()
   const [selectedPaymentId, setSelectedPaymentId] = useState<string>()
   const [selectedPaymentType, setSelectedPaymentType] = useState<PaymentMethodType>()
+  const [selectedCryptoCurrency, setSelectedCryptoCurrency] = useState<CryptoPayCurrency>()
   const [paymentMethod, setPaymentMethod] = useState<string>('')
   const [courierTip, setCourierTip] = useState(0)
   const [deliveryFee, setDeliveryFee] = useState(0)
@@ -279,7 +289,34 @@ export const RestaurantMenuPage = () => {
     () => roundMoney(checkoutSubtotalBeforeTip + courierTip),
     [checkoutSubtotalBeforeTip, courierTip],
   )
+  const [cryptoFeeIls, setCryptoFeeIls] = useState(0)
+  const payableTotal = useMemo(
+    () =>
+      selectedPaymentType === 'crypto'
+        ? roundMoney(checkoutTotal + cryptoFeeIls)
+        : checkoutTotal,
+    [selectedPaymentType, checkoutTotal, cryptoFeeIls],
+  )
   const { data: walletBalance = 0 } = useWalletBalance()
+
+  useEffect(() => {
+    if (selectedPaymentType !== 'crypto') {
+      setCryptoFeeIls(0)
+      return
+    }
+    let cancelled = false
+    void quoteCryptoTransferFee()
+      .then((quote) => {
+        if (!cancelled) setCryptoFeeIls(quote.feeIls)
+      })
+      .catch(() => {
+        // fallback תצוגתי בלבד — החיוב האמיתי מחושב בשרת
+        if (!cancelled) setCryptoFeeIls(CRYPTO_TRANSFER_FEE_USDT * 3.7)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [selectedPaymentType])
 
   useEffect(() => {
     if (fulfillment !== 'delivery' || !businessId) {
@@ -369,17 +406,30 @@ export const RestaurantMenuPage = () => {
     }))
   }, [])
 
-  const applyPaymentMethod = useCallback((type: PaymentMethodType, card?: SavedPayment) => {
+  const applyPaymentMethod = useCallback((
+    type: PaymentMethodType,
+    card?: SavedPayment,
+    cryptoCurrency?: CryptoPayCurrency,
+  ) => {
     setSelectedPaymentType(type)
     setCreditCvv('')
     setCreditCardNumber('')
     setSessionCardPaymentId(undefined)
     setCreditSecurityErrors({})
     if (type === 'credit' && card) {
+      setSelectedCryptoCurrency(undefined)
       setSelectedPaymentId(card.id)
       const label = card.label ? `${card.label} · ` : ''
       setPaymentMethod(`${label}${paymentSummary(card)}`)
+    } else if (type === 'crypto') {
+      setSelectedPaymentId(undefined)
+      const coin =
+        cryptoCurrency &&
+        CRYPTO_PAY_CURRENCY_OPTIONS.find((c) => c.id === cryptoCurrency)
+      setSelectedCryptoCurrency(cryptoCurrency)
+      setPaymentMethod(coin ? `קריפטו · ${coin.label}` : PAYMENT_METHOD_LABELS.crypto)
     } else {
+      setSelectedCryptoCurrency(undefined)
       setSelectedPaymentId(undefined)
       setPaymentMethod(PAYMENT_METHOD_LABELS[type])
     }
@@ -416,6 +466,8 @@ export const RestaurantMenuPage = () => {
       err._submit = deliveryQuoteError || 'לא ניתן לחשב דמי משלוח – בדקו את הכתובת'
     } else if (!selectedPaymentType) {
       err._submit = 'נא לבחור אמצעי תשלום'
+    } else if (selectedPaymentType === 'crypto' && !selectedCryptoCurrency) {
+      err._submit = 'נא לבחור מטבע קריפטו (Bitcoin או USDT)'
     } else if (selectedPaymentType === 'credit' && !selectedPaymentId) {
       err._submit = 'נא לבחור כרטיס אשראי'
     } else if (selectedPaymentType === 'wallet_balance' && walletBalance < checkoutTotal) {
@@ -434,7 +486,7 @@ export const RestaurantMenuPage = () => {
     }
     setFormErrors(err)
     return Object.keys(err).length === 0
-  }, [form, fulfillment, selectedPaymentType, selectedPaymentId, creditCvv, creditCardNumber, needsCvvField, needsInlineCardFields, deliveryQuoteLoading, deliveryWithinRange, deliveryFee, deliveryQuoteError, walletBalance, checkoutTotal])
+  }, [form, fulfillment, selectedPaymentType, selectedCryptoCurrency, selectedPaymentId, creditCvv, creditCardNumber, needsCvvField, needsInlineCardFields, deliveryQuoteLoading, deliveryWithinRange, deliveryFee, deliveryQuoteError, walletBalance, checkoutTotal])
 
   const submitOrderBlocked =
     placing ||
@@ -674,6 +726,31 @@ export const RestaurantMenuPage = () => {
           courierTip,
           selectedPaymentType,
           deliveryFeeForOrder,
+        )
+        clearCart()
+        setShowCheckout(false)
+        setSessionCardPaymentId(undefined)
+        setCreditCvv('')
+        setCreditCardNumber('')
+        setCourierTip(0)
+        setDeliveryFee(0)
+        setMinDeliveryTotal(0)
+        setDeliveryDistanceKm(null)
+        bumpLocalCounts(statsLines)
+        void incrementMenuItemOrderCounts(businessId, statsLines).catch(() => {})
+        window.location.assign(paymentUrl)
+        return
+      }
+
+      if (selectedPaymentType === 'crypto') {
+        if (!selectedCryptoCurrency) {
+          throw new Error('נא לבחור מטבע קריפטו (Bitcoin או USDT)')
+        }
+        const { paymentUrl } = await startCryptoCheckout(
+          order,
+          courierTip,
+          deliveryFeeForOrder,
+          selectedCryptoCurrency,
         )
         clearCart()
         setShowCheckout(false)
@@ -1024,13 +1101,13 @@ export const RestaurantMenuPage = () => {
         document.body
       )}
 
-      {/* תמונת נושא – צמודה לסרגל, בלי פס gradient מעל הלוגו */}
-      <header className="relative -mx-3 sm:-mx-6 lg:-mx-10 overflow-hidden rounded-b-lg shadow-[0_18px_50px_rgba(0,0,0,0.08)]">
+      {/* תמונת נושא – צמודה לסרגל, זוהר שוליים לשטח המת */}
+      <header className="relative -mx-3 sm:-mx-6 lg:-mx-10 overflow-hidden  shadow-[0_18px_50px_rgba(0,0,0,0.08)]">
         {businessLogoUrl ? (
-          <img
+          <AmbientBleedImage
             src={businessLogoUrl}
             alt=""
-            className="block h-auto max-h-[min(42vh,14rem)] w-full bg-white object-contain object-top dark:bg-black sm:max-h-[min(44vh,16rem)]"
+            imgClassName="max-h-[min(42vh,14rem)] sm:max-h-[min(44vh,16rem)]"
           />
         ) : (
           <div className="min-h-[10rem] w-full bg-vantix-surface-muted" />
@@ -1044,12 +1121,12 @@ export const RestaurantMenuPage = () => {
       )}
 
       {cashbackPercent != null && cashbackPercent > 0 && (
-        <div className="flex flex-wrap items-center justify-between gap-2 rounded-b-xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3">
+        <div className="-mx-3 flex flex-wrap items-center justify-between gap-2 rounded-b-xl border border-x-0 border-t-0 border-vantix-cyan/30 px-4 py-3 sm:-mx-6 sm:px-6 lg:-mx-10 lg:px-10">
           <CashbackBadge percent={cashbackPercent} />
           <p className="text-xs text-vantix-fg-muted">
             {fulfillment === 'pickup'
-              ? 'הקאשבק ייזקף לארנק שלך אחרי שהעסק יסמן את ההזמנה כנמסרה — גם בתשלום במזומן (תוקף 90 יום)'
-              : 'הקאשבק ייזקף לארנק שלך אחרי שהמשלוח יימסר — גם בתשלום במזומן (תוקף 90 יום)'}
+              ? 'הקאשבק ייזקף לארנק שלך אחרי שהעסק יסמן את ההזמנה כנמסרה — (תוקף 90 יום)'
+              : 'הקאשבק ייזקף לארנק שלך אחרי שהמשלוח יימסר בהצלחה — (תוקף 90 יום)'}
           </p>
         </div>
       )}
@@ -1380,6 +1457,7 @@ export const RestaurantMenuPage = () => {
               selectedAddressId={selectedAddressId}
               selectedPaymentType={selectedPaymentType}
               selectedPaymentId={selectedPaymentId}
+              selectedCryptoCurrency={selectedCryptoCurrency}
               onSelectContact={applyContact}
               onSelectAddress={applyAddress}
               onSelectPaymentMethod={applyPaymentMethod}
@@ -1460,6 +1538,12 @@ export const RestaurantMenuPage = () => {
                   <span>₪{courierTip.toFixed(0)}</span>
                 </div>
               ) : null}
+              {selectedPaymentType === 'crypto' ? (
+                <div className="mt-1 flex items-center justify-between text-vantix-fg-muted">
+                  <span>עמלת העברה קריפטו ({CRYPTO_TRANSFER_FEE_USDT} USDT)</span>
+                  <span>₪{cryptoFeeIls.toFixed(2)}</span>
+                </div>
+              ) : null}
               {fulfillment === 'delivery' && checkoutSubtotalBeforeTip > roundMoney(totalPrice + deliveryFee) ? (
                 <div className="mt-1 flex items-center justify-between text-vantix-fg-muted">
                   <span>ביניים לפני טיפ</span>
@@ -1476,9 +1560,11 @@ export const RestaurantMenuPage = () => {
                         ? 'לתשלום ב-Google Pay'
                         : selectedPaymentType === 'apay'
                           ? 'לתשלום ב-Apple Pay'
-                          : 'לחיוב'}
+                          : selectedPaymentType === 'crypto'
+                            ? 'לתשלום בקריפטו'
+                            : 'לחיוב'}
                 </span>
-                <span className="text-vantix-cyan">₪{checkoutTotal.toFixed(2)}</span>
+                <span className="text-vantix-cyan">₪{payableTotal.toFixed(2)}</span>
               </div>
             </div>
 

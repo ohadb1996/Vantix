@@ -47,9 +47,11 @@ export const MainNav = () => {
     ? 'border-vantix-cyan/25 bg-vantix-surface-raised/80 backdrop-blur-md'
     : 'vantix-nav-shell'
 
-  const sizeClasses = navExpanded
-    ? 'rounded-xl px-2.5 py-1.5 sm:rounded-3xl sm:px-6 sm:py-3'
-    : 'rounded-lg px-2 py-1 sm:rounded-xl sm:px-4 sm:py-1.5'
+  const sizeClasses = isRestaurantMenu
+    ? 'rounded-none border-x-0 border-t-0 px-3 py-2 sm:px-6 sm:py-2.5 lg:px-10'
+    : navExpanded
+      ? 'rounded-xl px-2.5 py-1.5 sm:rounded-3xl sm:px-6 sm:py-3'
+      : 'rounded-lg px-2 py-1 sm:rounded-xl sm:px-4 sm:py-1.5'
 
   return (
     <nav

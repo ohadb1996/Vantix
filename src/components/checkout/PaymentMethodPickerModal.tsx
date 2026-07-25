@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { createPortal } from 'react-dom'
-import { CreditCard, Plus, Trash2, X } from 'lucide-react'
+import { Bitcoin, CreditCard, Plus, Trash2, X } from 'lucide-react'
 import {
   CHECKOUT_PAYMENT_OPTIONS,
   PAYMENT_METHOD_LABELS,
@@ -13,13 +13,18 @@ import type { SavedPaymentInput } from '../../types/customerProfile'
 import { PaymentMethodIcon } from './PaymentMethodIcon'
 import { useWalletBalance } from '../../hooks/useWalletBalance'
 import { formatShekel } from '../../utils/currency'
+import {
+  CRYPTO_PAY_CURRENCY_OPTIONS,
+  type CryptoPayCurrency,
+} from '../../services/paymentService'
 
-type Step = 'methods' | 'cards'
+type Step = 'methods' | 'cards' | 'crypto'
 
 export function PaymentMethodPickerModal({
   cards,
   selectedType,
   selectedCardId,
+  selectedCryptoCurrency,
   saving,
   onClose,
   onSelectMethod,
@@ -32,16 +37,23 @@ export function PaymentMethodPickerModal({
   cards: SavedPayment[]
   selectedType?: PaymentMethodType
   selectedCardId?: string
+  selectedCryptoCurrency?: CryptoPayCurrency
   saving?: boolean
   onClose: () => void
-  onSelectMethod: (type: PaymentMethodType, card?: SavedPayment) => void
+  onSelectMethod: (
+    type: PaymentMethodType,
+    card?: SavedPayment,
+    cryptoCurrency?: CryptoPayCurrency,
+  ) => void
   onAddCard: (data: SavedPaymentInput) => Promise<SavedPayment>
   onUpdateCard: (id: string, data: SavedPaymentInput) => Promise<void>
   onDeleteCard: (id: string) => Promise<void>
   onCardCaptured?: (paymentId: string, secrets: { cardNumber: string; cvv: string }) => void
   checkoutTotal?: number
 }) {
-  const [step, setStep] = useState<Step>(selectedType === 'credit' ? 'cards' : 'methods')
+  const [step, setStep] = useState<Step>(
+    selectedType === 'credit' ? 'cards' : selectedType === 'crypto' ? 'crypto' : 'methods',
+  )
   const [cardModal, setCardModal] = useState<SavedPayment | null | undefined>(undefined)
   const { data: walletBalance = 0 } = useWalletBalance()
 
@@ -49,6 +61,13 @@ export function PaymentMethodPickerModal({
     onSelectMethod(type)
     onClose()
   }
+
+  const title =
+    step === 'methods'
+      ? 'בחר אמצעי תשלום'
+      : step === 'cards'
+        ? 'בחר כרטיס אשראי'
+        : 'בחר מטבע קריפטו'
 
   return (
     <>
@@ -66,8 +85,12 @@ export function PaymentMethodPickerModal({
         >
           <div className="flex items-center justify-between gap-4 border-b border-vantix-cyan/20 px-5 py-4">
             <h3 className="flex items-center gap-2 text-lg font-bold text-vantix-fg">
-              <CreditCard className="h-5 w-5 text-vantix-cyan" />
-              {step === 'methods' ? 'בחר אמצעי תשלום' : 'בחר כרטיס אשראי'}
+              {step === 'crypto' ? (
+                <Bitcoin className="h-5 w-5 text-vantix-cyan" />
+              ) : (
+                <CreditCard className="h-5 w-5 text-vantix-cyan" />
+              )}
+              {title}
             </h3>
             <button
               type="button"
@@ -92,6 +115,7 @@ export function PaymentMethodPickerModal({
                   disabled={walletDisabled}
                   onClick={() => {
                     if (opt.type === 'credit') setStep('cards')
+                    else if (opt.type === 'crypto') setStep('crypto')
                     else selectNonCredit(opt.type)
                   }}
                   className={`flex w-full items-center justify-between rounded-xl border px-4 py-3.5 text-sm font-semibold transition ${
@@ -113,9 +137,44 @@ export function PaymentMethodPickerModal({
                     </span>
                   ) : opt.type === 'credit' && cards.length > 0 ? (
                     <span className="text-xs font-normal text-vantix-fg-muted">{cards.length} שמורים</span>
+                  ) : opt.type === 'crypto' ? (
+                    <span className="text-xs font-normal text-vantix-fg-muted">BTC / USDT</span>
                   ) : null}
                 </button>
               )})
+            ) : step === 'crypto' ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setStep('methods')}
+                  className="mb-2 text-xs font-medium text-vantix-cyan hover:underline"
+                >
+                  ← חזרה לאמצעי תשלום
+                </button>
+                <p className="mb-2 text-xs text-vantix-fg-muted">
+                  ניתן לשלם רק בביטקוין או USDT
+                </p>
+                {CRYPTO_PAY_CURRENCY_OPTIONS.map((coin) => (
+                  <button
+                    key={coin.id}
+                    type="button"
+                    onClick={() => {
+                      onSelectMethod('crypto', undefined, coin.id)
+                      onClose()
+                    }}
+                    className={`flex w-full items-center justify-between rounded-xl border px-4 py-3.5 text-sm font-semibold transition ${
+                      selectedCryptoCurrency === coin.id
+                        ? 'border-vantix-cyan bg-vantix-cyan/10 text-vantix-cyan'
+                        : 'border-vantix-cyan/20 text-vantix-fg hover:border-vantix-cyan/40'
+                    }`}
+                  >
+                    <span className="flex items-center gap-3">
+                      <PaymentMethodIcon type="crypto" />
+                      <span>{coin.label}</span>
+                    </span>
+                  </button>
+                ))}
+              </>
             ) : (
               <>
                 <button

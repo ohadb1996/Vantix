@@ -64,6 +64,10 @@ export interface BusinessWithMenu {
   businessHours?: BusinessHours | null
   /** האם העסק פתוח כעת לקבלת הזמנות */
   isOpenNow?: boolean
+  /** יש מנות צמחוניות או טבעוניות זמינות בתפריט */
+  hasVegetarian?: boolean
+  /** יש מנות טבעוניות זמינות בתפריט */
+  hasVegan?: boolean
 }
 
 function isPermissionDeniedError(e: unknown): boolean {
@@ -135,7 +139,13 @@ export async function getBusinessesWithMenus(): Promise<BusinessWithMenu[]> {
         return applyRecommendedFlags(fromIndex, recommendedIds)
       }
       const legacyById = new Map(legacy.map((b) => [b.businessId, b]))
-      const mergedIndexed = fromIndex.map((indexed) => {
+      const mergedIndexed = fromIndex
+        .filter((indexed) => {
+          // אם ה-legacy סינן עסק (חסום/מוסתר) — אל תציג אותו מהאינדקס הישן
+          if (legacy.length > 0 && !legacyById.has(indexed.businessId)) return false
+          return true
+        })
+        .map((indexed) => {
         const fresh = legacyById.get(indexed.businessId)
         if (!fresh) return indexed
 
@@ -178,7 +188,7 @@ async function getBusinessesWithMenusLegacy(): Promise<BusinessWithMenu[]> {
     if (!menuSnap.exists()) return []
 
     const menus = menuSnap.val() as Record<string, {
-      items?: Record<string, { name?: string; available?: boolean; price?: number }>
+      items?: Record<string, { name?: string; available?: boolean; price?: number; dietaryType?: string }>
       categories?: Record<string, { name?: string; available?: boolean }>
     }>
     const businessesById = (businessesSnap.exists() ? businessesSnap.val() : {}) as Record<
@@ -194,20 +204,23 @@ async function getBusinessesWithMenusLegacy(): Promise<BusinessWithMenu[]> {
       if (items === 0) continue
 
       const data = businessesById[businessId]
-      if (data?.isBlocked === true) continue
+      if (data?.isBlocked === true || data?.hidden_from_vantix === true) continue
 
-      const menuItemNames: string[] = menu?.items
-        ? Object.values(menu.items)
-            .filter((it) => it?.available !== false)
-            .map((it) => it?.name || '')
-            .filter(Boolean)
+      const availableMenuItems = menu?.items
+        ? Object.values(menu.items).filter((it) => it?.available !== false)
         : []
 
-      const menuPrices: number[] = menu?.items
-        ? Object.values(menu.items)
-            .filter((it) => it?.available !== false && typeof it.price === 'number' && it.price > 0)
-            .map((it) => it.price as number)
-        : []
+      const menuItemNames: string[] = availableMenuItems
+        .map((it) => it?.name || '')
+        .filter(Boolean)
+
+      const menuPrices: number[] = availableMenuItems
+        .filter((it) => typeof it.price === 'number' && it.price > 0)
+        .map((it) => it.price as number)
+
+      const hasVegan = availableMenuItems.some((it) => it?.dietaryType === 'vegan')
+      const hasVegetarian =
+        hasVegan || availableMenuItems.some((it) => it?.dietaryType === 'vegetarian')
 
       let businessName = ''
       let logoUrl: string | undefined
@@ -284,6 +297,8 @@ async function getBusinessesWithMenusLegacy(): Promise<BusinessWithMenu[]> {
         businessHours,
         isOpenNow: isBusinessOpenNow(businessHours),
         cashbackPercent,
+        hasVegetarian: hasVegetarian || undefined,
+        hasVegan: hasVegan || undefined,
       })
     }
 
@@ -302,8 +317,11 @@ export async function getBusinessMenu(businessId: string): Promise<BusinessMenu 
     get(ref(db(), `Businesses/${businessId}`)),
   ])
 
-  if (bizSnap.exists() && bizSnap.val()?.isBlocked === true) {
-    return null
+  if (bizSnap.exists()) {
+    const biz = bizSnap.val()
+    if (biz?.isBlocked === true || biz?.hidden_from_vantix === true) {
+      return null
+    }
   }
 
   if (!menuSnap.exists()) return null

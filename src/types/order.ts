@@ -46,9 +46,9 @@ export interface Order {
   /** אמצעי תשלום שבחר הלקוח */
   payment_method?: string
   /** סוג תשלום לעיבוד */
-  payment_type?: 'cash' | 'credit' | 'gpay' | 'apay' | 'bit' | 'wallet_balance'
+  payment_type?: 'cash' | 'credit' | 'gpay' | 'apay' | 'bit' | 'wallet_balance' | 'crypto'
   /** סטטוס תשלום */
-  payment_status?: 'paid' | 'cash_on_delivery' | 'pending'
+  payment_status?: 'paid' | 'cash_on_delivery' | 'pending' | 'pending_crypto' | 'pending_wallet'
   /** סכום משנה (מנות בלבד) */
   items_subtotal?: number
   /** מינימום לחיוב במשלוח כפי שהוגדר לעסק */
