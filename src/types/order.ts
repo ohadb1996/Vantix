@@ -48,12 +48,20 @@ export interface Order {
   /** סוג תשלום לעיבוד */
   payment_type?: 'cash' | 'credit' | 'gpay' | 'apay' | 'bit' | 'wallet_balance' | 'crypto'
   /** סטטוס תשלום */
-  payment_status?: 'paid' | 'cash_on_delivery' | 'pending' | 'pending_crypto' | 'pending_wallet'
+  payment_status?:
+    | 'paid'
+    | 'cash_on_delivery'
+    | 'pending'
+    | 'pending_crypto'
+    | 'pending_wallet'
+    | 'crypto_partially_paid'
+    | 'crypto_expired'
+    | 'crypto_failed'
   /** סכום משנה (מנות בלבד) */
   items_subtotal?: number
-  /** מינימום לחיוב במשלוח כפי שהוגדר לעסק */
+  /** מינימום לחיוב במשלוח כפי שהוגדר לעסק (על סכום המנות בלבד, לפני דמי משלוח) */
   min_delivery_total?: number
-  /** סכום ביניים לפני טיפ (כולל התאמת מינימום משלוח אם נדרש) */
+  /** סכום ביניים לפני טיפ (מנות אחרי מינימום משלוח + דמי משלוח) */
   subtotal_before_tip?: number
   /** טיפ לשליח (₪) */
   courier_tip?: number
@@ -64,6 +72,21 @@ export interface Order {
   wallet_amount_used?: number
   cashback_credited?: boolean
   cashback_amount?: number
+  /** פרטי תשלום קריפטו (NOWPayments direct) */
+  nowpayments_payment_id?: string | number
+  nowpayments_pay_address?: string
+  nowpayments_pay_amount?: number
+  nowpayments_pay_currency?: string
+  nowpayments_payment_status?: string
+  nowpayments_expiration_estimate_date?: string
+  nowpayments_network?: string
+  nowpayments_payin_extra_id?: string
+  nowpayments_actually_paid?: number
+  nowpayments_remaining_amount?: number
+  crypto_transfer_fee_usdt?: number
+  crypto_transfer_fee_ils?: number
+  crypto_usdt_ils_rate?: number
+  crypto_pay_currency?: string
 }
 
 /** נתונים לשליחה בצ'קאאוט (בלי orderId) */

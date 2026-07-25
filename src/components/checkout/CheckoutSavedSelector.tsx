@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type RefObject } from 'react'
 import { MapPin, User, CreditCard, Plus, Pencil, Check } from 'lucide-react'
 import {
   useSavedAddresses,
@@ -46,6 +46,9 @@ type SelectorProps = {
   /** פרטי כרטיס מהוספה בצ'קאאוט — לחיוב בלחיצה על שליחת הזמנה בלי מודל נוסף */
   onCardCaptured?: (paymentId: string, secrets: { cardNumber: string; cvv: string }) => void
   checkoutTotal?: number
+  /** הדגשת בלוק אמצעי תשלום כשחסר בחירה */
+  paymentHighlight?: boolean
+  paymentSectionRef?: RefObject<HTMLDivElement | null>
 }
 
 function paymentSelectionLabel(
@@ -159,6 +162,8 @@ export function CheckoutSavedSelector({
   hideAddress = false,
   onCardCaptured,
   checkoutTotal,
+  paymentHighlight = false,
+  paymentSectionRef,
 }: SelectorProps) {
   const contacts = useSavedContacts()
   const addresses = useSavedAddresses()
@@ -247,15 +252,29 @@ export function CheckoutSavedSelector({
       )}
 
       {/* אמצעי תשלום */}
-      <div>
+      <div
+        ref={paymentSectionRef}
+        className={`rounded-xl transition ${
+          paymentHighlight
+            ? 'ring-2 ring-vantix-orange/80 ring-offset-2 ring-offset-vantix-surface'
+            : ''
+        }`}
+      >
         <div className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-vantix-fg">
           <CreditCard className="h-4 w-4 text-vantix-cyan" />
           אמצעי תשלום
+          {paymentHighlight ? (
+            <span className="text-xs font-medium text-vantix-orange">· נדרש לבחירה</span>
+          ) : null}
         </div>
         <button
           type="button"
           onClick={() => setPaymentPickerOpen(true)}
-          className="flex w-full items-center justify-between gap-3 rounded-xl border border-vantix-cyan/20 bg-vantix-surface px-4 py-3 text-right transition hover:border-vantix-cyan/40"
+          className={`flex w-full items-center justify-between gap-3 rounded-xl border bg-vantix-surface px-4 py-3 text-right transition ${
+            paymentHighlight
+              ? 'border-vantix-orange/60 hover:border-vantix-orange'
+              : 'border-vantix-cyan/20 hover:border-vantix-cyan/40'
+          }`}
         >
           <span className="flex min-w-0 items-center gap-3">
             {selectedPaymentType ? (
@@ -271,6 +290,9 @@ export function CheckoutSavedSelector({
           </span>
           <span className="shrink-0 text-xs text-vantix-cyan">שינוי</span>
         </button>
+        {paymentHighlight ? (
+          <p className="mt-1.5 text-xs text-vantix-orange">נא לבחור אמצעי תשלום כדי להמשיך</p>
+        ) : null}
       </div>
 
       {contactModal !== undefined && (

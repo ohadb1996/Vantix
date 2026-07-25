@@ -7,6 +7,32 @@ export function getAppScrollRoot(): HTMLElement | null {
   return document.querySelector('main')
 }
 
+/**
+ * נועל את גלילת ה-main כשמודל/שיט פתוח — מונע גלילת רקע במובייל
+ * (בחירת radio/checkbox או overscroll בשיט מזיזים את העמוד מאחור ומשאירים אותו "שבור").
+ */
+export function useLockAppScroll(locked: boolean) {
+  useEffect(() => {
+    if (!locked) return
+    const scrollRoot = getAppScrollRoot()
+    if (!scrollRoot) return
+
+    const savedTop = scrollRoot.scrollTop
+    const prevOverflow = scrollRoot.style.overflow
+    const prevOverscroll = scrollRoot.style.overscrollBehavior
+
+    scrollRoot.style.overflow = 'hidden'
+    scrollRoot.style.overscrollBehavior = 'none'
+    scrollRoot.scrollTop = savedTop
+
+    return () => {
+      scrollRoot.style.overflow = prevOverflow
+      scrollRoot.style.overscrollBehavior = prevOverscroll
+      scrollRoot.scrollTop = savedTop
+    }
+  }, [locked])
+}
+
 export const useScrolled = (threshold: number = SCROLL_EXPAND_THRESHOLD) => {
   const [scrolled, setScrolled] = useState(false)
   useEffect(() => {

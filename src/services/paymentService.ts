@@ -23,8 +23,18 @@ export type WalletCheckoutResult = {
 
 export type CryptoCheckoutResult = {
   orderId: string
-  paymentUrl: string
   paymentStatus: 'pending_crypto'
+  payCurrency: string
+  payAddress: string
+  payAmount: number
+  paymentId: string | number
+  expirationEstimateDate?: string | null
+  network?: string | null
+  payinExtraId?: string | null
+  priceAmountIls: number
+  cryptoTransferFeeUsdt: number
+  cryptoTransferFeeIls: number
+  totalCharged: number
 }
 
 function getChargeOrderUrl(): string {
@@ -65,6 +75,8 @@ export type CryptoPayCurrency = (typeof CRYPTO_PAY_CURRENCY_OPTIONS)[number]['id
 export type CryptoTransferFeeQuote = {
   feeUsdt: number
   feeIls: number
+  usdtIlsRate: number
+  rateSource: 'fx' | 'nowpayments' | 'fallback'
 }
 
 export async function quoteCryptoTransferFee(): Promise<CryptoTransferFeeQuote> {
@@ -72,6 +84,8 @@ export async function quoteCryptoTransferFee(): Promise<CryptoTransferFeeQuote> 
   const data = (await res.json()) as {
     feeUsdt?: number
     feeIls?: number
+    usdtIlsRate?: number
+    rateSource?: string
     error?: string
   }
   if (!res.ok) {
@@ -79,10 +93,89 @@ export async function quoteCryptoTransferFee(): Promise<CryptoTransferFeeQuote> 
   }
   const feeUsdt = Number(data.feeUsdt)
   const feeIls = Number(data.feeIls)
-  if (!Number.isFinite(feeUsdt) || !Number.isFinite(feeIls) || feeIls < 0) {
+  const usdtIlsRate = Number(data.usdtIlsRate ?? (feeUsdt > 0 ? feeIls / feeUsdt : NaN))
+  if (!Number.isFinite(feeUsdt) || !Number.isFinite(feeIls) || feeIls < 0 || !Number.isFinite(usdtIlsRate)) {
     throw new Error('תגובת עמלת קריפטו לא תקינה')
   }
-  return { feeUsdt, feeIls }
+  const rateSource =
+    data.rateSource === 'fx' || data.rateSource === 'nowpayments' || data.rateSource === 'fallback'
+      ? data.rateSource
+      : 'fx'
+  return { feeUsdt, feeIls, usdtIlsRate, rateSource }
+}
+
+/** הודעות שרת באנגלית / טכניות → טקסט ידידותי ללקוח בעברית */
+export function toCustomerFriendlyError(raw: unknown): string {
+  const message = raw instanceof Error ? raw.message : typeof raw === 'string' ? raw : ''
+  const lower = message.toLowerCase()
+  if (
+    lower.includes('estimate') ||
+    lower.includes('usdt') ||
+    lower.includes('ils') ||
+    lower.includes('nowpayments') ||
+    lower.includes('503') ||
+    lower.includes('service unavailable')
+  ) {
+    return 'לא הצלחנו להשלים את תשלום הקריפטו כרגע. נסו שוב בעוד רגע.'
+  }
+  if (message && /[א-ת]/.test(message)) return message
+  if (message.trim()) return 'משהו השתבש. נסו שוב בעוד רגע.'
+  return 'משהו השתבש. נסו שוב בעוד רגע.'
+}
+
+function getCryptoRenewUrl(): string {
+  const explicit = import.meta.env.VITE_CRYPTO_VANTIX_RENEW_URL as string | undefined
+  if (explicit) return explicit
+  return 'https://us-central1-maxdeliveries.cloudfunctions.net/renewVantixCryptoPayment'
+}
+
+/** מחדש תשלום קריפטו להזמנה קיימת אחרי תפוגה. */
+export async function renewCryptoPayment(
+  orderId: string,
+  payCurrency?: CryptoPayCurrency,
+): Promise<CryptoCheckoutResult> {
+  const auth = getFirebaseAuth()
+  const user = auth.currentUser
+  if (!user) throw new Error('יש להתחבר כדי להשלים הזמנה')
+
+  const idToken = await user.getIdToken()
+  const res = await fetch(getCryptoRenewUrl(), {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${idToken}`,
+    },
+    body: JSON.stringify({
+      orderId,
+      ...(payCurrency ? { payCurrency } : {}),
+    }),
+  })
+
+  const data = (await res.json()) as Partial<CryptoCheckoutResult> & { error?: string }
+
+  if (!res.ok) {
+    throw new Error(data.error || 'שגיאה בחידוש תשלום קריפטו')
+  }
+
+  if (!data.orderId || !data.payAddress || data.payAmount == null) {
+    throw new Error('לא התקבלו פרטי תשלום קריפטו מהשרת')
+  }
+
+  return {
+    orderId: data.orderId,
+    paymentStatus: 'pending_crypto',
+    payCurrency: data.payCurrency || payCurrency || 'usdttrc20',
+    payAddress: data.payAddress,
+    payAmount: Number(data.payAmount),
+    paymentId: data.paymentId ?? '',
+    expirationEstimateDate: data.expirationEstimateDate ?? null,
+    network: data.network ?? null,
+    payinExtraId: data.payinExtraId ?? null,
+    priceAmountIls: Number(data.priceAmountIls ?? data.totalCharged ?? 0),
+    cryptoTransferFeeUsdt: Number(data.cryptoTransferFeeUsdt ?? CRYPTO_TRANSFER_FEE_USDT),
+    cryptoTransferFeeIls: Number(data.cryptoTransferFeeIls ?? 0),
+    totalCharged: Number(data.totalCharged ?? 0),
+  }
 }
 
 function getTokenizeCardUrl(): string {
@@ -176,8 +269,7 @@ export async function startWalletCheckout(
 }
 
 /**
- * קריפטו — יוצר הזמנה ממתינה + לינק NOWPayments (redirect לדף תשלום).
- * אחרי אישור IPN ההזמנה מסומנת כשולמה ומופקת חשבונית PayPlus (אם מוגדר).
+ * קריפטו — יוצר הזמנה ממתינה + פרטי תשלום ישירים (כתובת+סכום) לתצוגה בתוך Vantix.
  */
 export async function startCryptoCheckout(
   order: OrderCreate,
@@ -204,25 +296,30 @@ export async function startCryptoCheckout(
     }),
   })
 
-  const data = (await res.json()) as {
-    orderId?: string
-    paymentUrl?: string
-    paymentStatus?: 'pending_crypto'
-    error?: string
-  }
+  const data = (await res.json()) as Partial<CryptoCheckoutResult> & { error?: string }
 
   if (!res.ok) {
     throw new Error(data.error || 'שגיאה ביצירת תשלום קריפטו')
   }
 
-  if (!data.orderId || !data.paymentUrl) {
-    throw new Error('לא התקבל לינק תשלום קריפטו מהשרת')
+  if (!data.orderId || !data.payAddress || data.payAmount == null) {
+    throw new Error('לא התקבלו פרטי תשלום קריפטו מהשרת')
   }
 
   return {
     orderId: data.orderId,
-    paymentUrl: data.paymentUrl,
     paymentStatus: 'pending_crypto',
+    payCurrency: data.payCurrency || payCurrency,
+    payAddress: data.payAddress,
+    payAmount: Number(data.payAmount),
+    paymentId: data.paymentId ?? '',
+    expirationEstimateDate: data.expirationEstimateDate ?? null,
+    network: data.network ?? null,
+    payinExtraId: data.payinExtraId ?? null,
+    priceAmountIls: Number(data.priceAmountIls ?? data.totalCharged ?? 0),
+    cryptoTransferFeeUsdt: Number(data.cryptoTransferFeeUsdt ?? CRYPTO_TRANSFER_FEE_USDT),
+    cryptoTransferFeeIls: Number(data.cryptoTransferFeeIls ?? 0),
+    totalCharged: Number(data.totalCharged ?? 0),
   }
 }
 

@@ -10,6 +10,7 @@ import {
   quoteCryptoTransferFee,
   startCryptoCheckout,
   startWalletCheckout,
+  toCustomerFriendlyError,
   type CryptoPayCurrency,
 } from '../../services/paymentService'
 import { buildDestinationAddress, quoteDeliveryFee } from '../../services/deliveryQuoteService'
@@ -20,6 +21,7 @@ import { ShoppingCart, Plus, Minus, Loader2, Check, ArrowRight, X, Pencil, Searc
 import { useMenu } from '../../hooks/useMenu'
 import { useWalletBalance } from '../../hooks/useWalletBalance'
 import { useCart, type CartLine, type CartSelectedOption } from '../../hooks/useCart'
+import { useHistoryBackClose } from '../../hooks/useHistoryBackClose'
 import { useAuth } from '../../context/AuthContext'
 import { useAuthSheet } from '../../context/AuthSheetContext'
 import { useToast } from '../../components/ui/Toast'
@@ -33,7 +35,7 @@ import { PopularBadge } from '../../components/menu/PopularBadge'
 import { DietaryBadge } from '../../components/menu/DietaryBadge'
 import { CashbackBadge } from '../../components/menu/CashbackBadge'
 import { useMenuItemStats } from '../../hooks/useMenuItemStats'
-import { getAppScrollRoot, useMainScrollPast } from '../../hooks/useScrolled'
+import { getAppScrollRoot, useMainScrollPast, useLockAppScroll } from '../../hooks/useScrolled'
 import { incrementMenuItemOrderCounts } from '../../services/menuItemStats'
 import {
   CheckoutCvvOnlyField,
@@ -212,6 +214,7 @@ export const RestaurantMenuPage = () => {
       return
     }
     void haptic.medium()
+    setShowCartPanel(false)
     setShowCheckout(true)
   }, [businessId, isOpenNow, user, toast, openAuthSheet])
 
@@ -230,13 +233,26 @@ export const RestaurantMenuPage = () => {
   const submitErrorRef = useRef<HTMLParagraphElement>(null)
   const itemModalScrollRef = useRef<HTMLDivElement>(null)
   const itemModalSectionRefs = useRef<Map<string, HTMLDivElement>>(new Map())
+  const paymentSectionRef = useRef<HTMLDivElement>(null)
+  const [paymentHighlight, setPaymentHighlight] = useState(false)
   const [highlightSectionId, setHighlightSectionId] = useState<string | null>(null)
   const itemModalDragControls = useDragControls()
   const [addItemModal, setAddItemModal] = useState<MenuItem | null>(null)
   const [sectionSelections, setSectionSelections] = useState<Record<string, string | string[]>>({})
   // כשעורכים שורה קיימת בעגלה – שומרים את האופציות הישנות כדי לזהות את השורה
   const [editingOldOptions, setEditingOldOptions] = useState<CartSelectedOption[] | null>(null)
+
+  // מונע גלילת הרקע בזמן מודל אפשרויות / עגלה / תשלום (באג מובייל אחרי בחירת תוספות)
+  useLockAppScroll(Boolean(addItemModal || showCartPanel || showCheckout))
+
   const [formErrors, setFormErrors] = useState<Record<string, string>>({})
+
+  const closeCheckout = useCallback(() => {
+    setShowCheckout(false)
+    setFormErrors({})
+  }, [])
+  const dismissCheckout = useHistoryBackClose(showCheckout, closeCheckout, 'checkout')
+
   const [form, setForm] = useState({
     customer_name: '',
     customer_phone: '',
@@ -280,9 +296,10 @@ export const RestaurantMenuPage = () => {
   const needsCvvField =
     selectedPaymentType === 'credit' && !!selectedPaymentId && !requireFullCard && !hasSessionSecrets
   const checkoutSubtotalBeforeTip = useMemo(() => {
-    const byOrder = roundMoney(totalPrice + (fulfillment === 'delivery' ? deliveryFee : 0))
-    if (fulfillment !== 'delivery') return byOrder
-    return roundMoney(Math.max(byOrder, minDeliveryTotal))
+    if (fulfillment !== 'delivery') return roundMoney(totalPrice)
+    // מינימום לחיוב חל על סכום המנות בלבד — דמי משלוח מתווספים מעליו
+    const itemsCharged = roundMoney(Math.max(totalPrice, minDeliveryTotal))
+    return roundMoney(itemsCharged + deliveryFee)
   }, [totalPrice, deliveryFee, minDeliveryTotal, fulfillment])
 
   const checkoutTotal = useMemo(
@@ -310,7 +327,7 @@ export const RestaurantMenuPage = () => {
         if (!cancelled) setCryptoFeeIls(quote.feeIls)
       })
       .catch(() => {
-        // fallback תצוגתי בלבד — החיוב האמיתי מחושב בשרת
+        // תצוגה בלבד אם הציטוט נכשל — השרת משתמש בשער חי / fallback בחיוב
         if (!cancelled) setCryptoFeeIls(CRYPTO_TRANSFER_FEE_USDT * 3.7)
       })
     return () => {
@@ -412,6 +429,14 @@ export const RestaurantMenuPage = () => {
     cryptoCurrency?: CryptoPayCurrency,
   ) => {
     setSelectedPaymentType(type)
+    setPaymentHighlight(false)
+    setFormErrors((prev) => {
+      if (!prev.payment && !prev._submit) return prev
+      const next = { ...prev }
+      delete next.payment
+      if (next._submit === 'נא לבחור אמצעי תשלום') delete next._submit
+      return next
+    })
     setCreditCvv('')
     setCreditCardNumber('')
     setSessionCardPaymentId(undefined)
@@ -445,47 +470,64 @@ export const RestaurantMenuPage = () => {
     [],
   )
 
-  const validate = useCallback((): boolean => {
+  const validate = useCallback((): { ok: boolean; focus: 'payment' | 'submit' | null } => {
     const err: Record<string, string> = {}
     const name = form.customer_name.trim()
     const phone = form.customer_phone.trim()
     const city = form.delivery_city.trim()
     const street = form.delivery_street.trim()
+    let focus: 'payment' | 'submit' | null = null
+    setPaymentHighlight(false)
+
     if (!name || !phone) {
       err._submit = 'נא לבחור או להוסיף פרטים אישיים (שם וטלפון) למעלה'
+      focus = 'submit'
     } else if (!isValidIsraeliPhone(phone)) {
       err._submit = 'מספר הטלפון בפרטים שנבחרו אינו תקין – ערוך אותו למעלה'
+      focus = 'submit'
     } else if (fulfillment === 'delivery' && (!city || !street)) {
       err._submit = 'נא לבחור או להוסיף כתובת מלאה למשלוח למעלה'
+      focus = 'submit'
     } else if (fulfillment === 'delivery' && deliveryQuoteLoading) {
       err._submit = 'מחשבים דמי משלוח – נא להמתין רגע'
+      focus = 'submit'
     } else if (fulfillment === 'delivery' && !deliveryWithinRange) {
       setFormErrors(err)
-      return false
+      return { ok: false, focus: null }
     } else if (fulfillment === 'delivery' && deliveryFee <= 0) {
       err._submit = deliveryQuoteError || 'לא ניתן לחשב דמי משלוח – בדקו את הכתובת'
+      focus = 'submit'
     } else if (!selectedPaymentType) {
-      err._submit = 'נא לבחור אמצעי תשלום'
+      err.payment = 'נא לבחור אמצעי תשלום'
+      setPaymentHighlight(true)
+      focus = 'payment'
     } else if (selectedPaymentType === 'crypto' && !selectedCryptoCurrency) {
-      err._submit = 'נא לבחור מטבע קריפטו (Bitcoin או USDT)'
+      err.payment = 'נא לבחור מטבע קריפטו (Bitcoin או USDT)'
+      setPaymentHighlight(true)
+      focus = 'payment'
     } else if (selectedPaymentType === 'credit' && !selectedPaymentId) {
-      err._submit = 'נא לבחור כרטיס אשראי'
+      err.payment = 'נא לבחור כרטיס אשראי'
+      setPaymentHighlight(true)
+      focus = 'payment'
     } else if (selectedPaymentType === 'wallet_balance' && walletBalance < checkoutTotal) {
       err._submit = `אין מספיק יתרה בארנק (זמין: ₪${walletBalance.toFixed(2)})`
+      focus = 'submit'
     } else if (selectedPaymentType === 'credit' && needsCvvField) {
       if (!/^\d{3,4}$/.test(creditCvv)) {
         setCreditSecurityErrors({ cvv: 'נא להזין CVV תקין' })
         err._submit = 'נא להזין CVV לפני שליחת ההזמנה'
+        focus = 'submit'
       }
     } else if (selectedPaymentType === 'credit' && needsInlineCardFields) {
       const creditErr = validateCheckoutCreditSecurity(creditCvv, creditCardNumber, true)
       if (Object.keys(creditErr).length) {
         setCreditSecurityErrors(creditErr)
         err._submit = creditErr.cardNumber || creditErr.cvv || 'נא להשלים פרטי אשראי'
+        focus = 'submit'
       }
     }
     setFormErrors(err)
-    return Object.keys(err).length === 0
+    return { ok: Object.keys(err).length === 0, focus }
   }, [form, fulfillment, selectedPaymentType, selectedCryptoCurrency, selectedPaymentId, creditCvv, creditCardNumber, needsCvvField, needsInlineCardFields, deliveryQuoteLoading, deliveryWithinRange, deliveryFee, deliveryQuoteError, walletBalance, checkoutTotal])
 
   const submitOrderBlocked =
@@ -647,6 +689,15 @@ export const RestaurantMenuPage = () => {
     toast.info('העסק סגור כעת ולא מקבל הזמנות חדשות')
   }, [toast])
 
+  const closeItemModal = useCallback(() => {
+    setAddItemModal(null)
+    setSectionSelections({})
+    setEditingOldOptions(null)
+    setHighlightSectionId(null)
+    itemModalSectionRefs.current.clear()
+  }, [])
+  const dismissItemModal = useHistoryBackClose(Boolean(addItemModal), closeItemModal, 'item')
+
   useEffect(() => {
     if (!activeCategoryId || !categoryTabsRef.current) return
     const tabsContainer = categoryTabsRef.current
@@ -664,9 +715,14 @@ export const RestaurantMenuPage = () => {
 
   const handlePlaceOrder = async () => {
     if (!businessId || cart.length === 0) return
-    if (!validate()) {
+    const result = validate()
+    if (!result.ok) {
       requestAnimationFrame(() => {
-        submitErrorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+        if (result.focus === 'payment') {
+          paymentSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        } else {
+          submitErrorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+        }
       })
       return
     }
@@ -727,8 +783,8 @@ export const RestaurantMenuPage = () => {
           selectedPaymentType,
           deliveryFeeForOrder,
         )
-        clearCart()
-        setShowCheckout(false)
+        // לא מוחקים עגלה לפני redirect — אם המשתמש חוזר אחורה העגלה נשמרת
+        closeCheckout()
         setSessionCardPaymentId(undefined)
         setCreditCvv('')
         setCreditCardNumber('')
@@ -746,14 +802,14 @@ export const RestaurantMenuPage = () => {
         if (!selectedCryptoCurrency) {
           throw new Error('נא לבחור מטבע קריפטו (Bitcoin או USDT)')
         }
-        const { paymentUrl } = await startCryptoCheckout(
+        const { orderId } = await startCryptoCheckout(
           order,
           courierTip,
           deliveryFeeForOrder,
           selectedCryptoCurrency,
         )
         clearCart()
-        setShowCheckout(false)
+        closeCheckout()
         setSessionCardPaymentId(undefined)
         setCreditCvv('')
         setCreditCardNumber('')
@@ -763,7 +819,7 @@ export const RestaurantMenuPage = () => {
         setDeliveryDistanceKm(null)
         bumpLocalCounts(statsLines)
         void incrementMenuItemOrderCounts(businessId, statsLines).catch(() => {})
-        window.location.assign(paymentUrl)
+        navigate(ROUTES.ORDER_CRYPTO_PAY(orderId))
         return
       }
 
@@ -783,7 +839,7 @@ export const RestaurantMenuPage = () => {
         deliveryFeeForOrder,
       )
       clearCart()
-      setShowCheckout(false)
+      dismissCheckout()
       setSessionCardPaymentId(undefined)
       setCreditCvv('')
       setCreditCardNumber('')
@@ -816,7 +872,7 @@ export const RestaurantMenuPage = () => {
       }
       const message = isPermissionDenied
         ? 'אין הרשאה לשלוח הזמנה. ודאו שהתחברתם לחשבון ונסו שוב.'
-        : err?.message || 'שגיאה בשליחת ההזמנה. נסו שוב.'
+        : toCustomerFriendlyError(err?.message || 'שגיאה בשליחת ההזמנה. נסו שוב.')
       setFormErrors({ _submit: message })
       toast.error(message)
     } finally {
@@ -848,14 +904,6 @@ export const RestaurantMenuPage = () => {
     )
   }
 
-  const closeItemModal = () => {
-    setAddItemModal(null)
-    setSectionSelections({})
-    setEditingOldOptions(null)
-    setHighlightSectionId(null)
-    itemModalSectionRefs.current.clear()
-  }
-
   const scrollToItemModalSection = (sectionId: string) => {
     const scrollRoot = itemModalScrollRef.current
     const el = itemModalSectionRefs.current.get(sectionId)
@@ -872,7 +920,7 @@ export const RestaurantMenuPage = () => {
 
   const handleItemModalDragEnd = (_event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
     if (info.offset.y > 90 || info.velocity.y > 400) {
-      closeItemModal()
+      dismissItemModal()
     }
   }
 
@@ -969,7 +1017,7 @@ export const RestaurantMenuPage = () => {
     } else {
       addLine(addItemModal, selectedOptions.length ? selectedOptions : undefined)
     }
-    closeItemModal()
+    dismissItemModal()
   }
 
   return (
@@ -1081,7 +1129,7 @@ export const RestaurantMenuPage = () => {
               </p>
               {fulfillment === 'delivery' && (minDeliveryTotal > 0 || businessMinDeliveryTotal > 0) ? (
                 <p className="mb-3 text-xs text-vantix-fg-muted">
-                  מינימום לחיוב במשלוח: ₪{Math.max(minDeliveryTotal, businessMinDeliveryTotal).toFixed(2)}
+                  מינימום מנות למשלוח: ₪{Math.max(minDeliveryTotal, businessMinDeliveryTotal).toFixed(2)}
                 </p>
               ) : null}
               <button
@@ -1347,7 +1395,7 @@ export const RestaurantMenuPage = () => {
                 </p>
                 {fulfillment === 'delivery' && (minDeliveryTotal > 0 || businessMinDeliveryTotal > 0) ? (
                   <p className="mt-1 text-xs text-vantix-fg-muted">
-                    מינימום לחיוב במשלוח: ₪{Math.max(minDeliveryTotal, businessMinDeliveryTotal).toFixed(2)}
+                    מינימום מנות למשלוח: ₪{Math.max(minDeliveryTotal, businessMinDeliveryTotal).toFixed(2)}
                   </p>
                 ) : null}
                 <button
@@ -1377,7 +1425,7 @@ export const RestaurantMenuPage = () => {
           role="dialog"
           aria-modal="true"
           aria-labelledby="checkout-title"
-          onClick={() => { setShowCheckout(false); setFormErrors({}) }}
+          onClick={dismissCheckout}
         >
           <motion.div
             initial={{ y: '100%' }}
@@ -1394,7 +1442,7 @@ export const RestaurantMenuPage = () => {
               </h3>
               <button
                 type="button"
-                onClick={() => { setShowCheckout(false); setFormErrors({}) }}
+                onClick={dismissCheckout}
                 className="p-2 rounded-full text-vantix-fg-muted hover:bg-vantix-cyan/10 hover:text-vantix-cyan"
                 aria-label="סגור"
               >
@@ -1447,7 +1495,7 @@ export const RestaurantMenuPage = () => {
             )}
 
             {formErrors._submit && (
-              <p className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-400">
+              <p className="mb-4 rounded-lg border border-vantix-orange/30 bg-vantix-orange/10 px-3 py-2 text-sm text-vantix-fg">
                 {formErrors._submit}
               </p>
             )}
@@ -1464,6 +1512,8 @@ export const RestaurantMenuPage = () => {
               onCardCaptured={captureCardSecrets}
               hideAddress={fulfillment === 'pickup'}
               checkoutTotal={checkoutTotal}
+              paymentHighlight={paymentHighlight}
+              paymentSectionRef={paymentSectionRef}
             />
 
             {needsCvvField ? (
@@ -1492,9 +1542,12 @@ export const RestaurantMenuPage = () => {
               />
             ) : null}
 
+            <div className="mt-5">
             {fulfillment === 'delivery' ? (
               <CourierTipSelector value={courierTip} onChange={setCourierTip} />
             ) : null}
+            </div>
+            
 
             {fulfillment === 'delivery' ? (
               <div className="rounded-2xl bg-vantix-surface-raised px-4 py-3 text-sm">
@@ -1528,7 +1581,7 @@ export const RestaurantMenuPage = () => {
               ) : null}
               {fulfillment === 'delivery' && minDeliveryTotal > 0 ? (
                 <div className="mt-1 flex items-center justify-between text-[12px] text-vantix-fg-subtle">
-                  <span>מינימום לחיוב במשלוח</span>
+                  <span>מינימום מנות למשלוח</span>
                   <span>₪{minDeliveryTotal.toFixed(2)}</span>
                 </div>
               ) : null}
@@ -1573,7 +1626,7 @@ export const RestaurantMenuPage = () => {
               {formErrors._submit && !submitOrderBlocked ? (
                 <p
                   ref={submitErrorRef}
-                  className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-400"
+                  className="rounded-lg border border-vantix-orange/30 bg-vantix-orange/10 px-3 py-2 text-sm text-vantix-fg"
                 >
                   {formErrors._submit}
                 </p>
@@ -1581,7 +1634,7 @@ export const RestaurantMenuPage = () => {
               <div className="flex gap-3">
               <button
                 type="button"
-                onClick={() => { setShowCheckout(false); setFormErrors({}) }}
+                onClick={dismissCheckout}
                 disabled={placing}
                 className="flex-1 rounded-xl border-2 border-gray-300 py-3 font-medium hover:bg-gray-500 disabled:opacity-50"
               >
@@ -1622,7 +1675,8 @@ export const RestaurantMenuPage = () => {
           role="dialog"
           aria-modal="true"
           aria-labelledby="add-item-title"
-          onClick={closeItemModal}
+          onClick={dismissItemModal}
+          onWheel={(e) => e.stopPropagation()}
         >
           <motion.div
             initial={{ y: '100%' }}
@@ -1664,7 +1718,7 @@ export const RestaurantMenuPage = () => {
                 <DietaryBadge dietaryType={addItemModal.dietaryType} />
                 <button
                   type="button"
-                  onClick={closeItemModal}
+                  onClick={dismissItemModal}
                   onPointerDown={(event) => event.stopPropagation()}
                   className="p-2 rounded-full text-vantix-fg-muted hover:bg-vantix-cyan/10 hover:text-vantix-cyan"
                   aria-label="סגור"

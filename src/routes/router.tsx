@@ -7,6 +7,7 @@ import { RestaurantMenuPage } from '../screens/restaurants/RestaurantMenuPage'
 import { SearchPage } from '../screens/search/SearchPage'
 import { OrderHistoryPage } from '../screens/orders/OrderHistoryPage'
 import { OrderTrackingPage } from '../screens/orders/OrderTrackingPage'
+import { CryptoPaymentPage } from '../screens/orders/CryptoPaymentPage'
 import { ProfilePage } from '../screens/profile/ProfilePage'
 import { AuthSheetOpener } from '../components/auth/AuthSheetOpener'
 import { AuthGuard } from '../components/auth/AuthGuard'
@@ -61,6 +62,10 @@ export const router = createBrowserRouter([
       {
         path: 'orders/:orderId',
         element: <AuthGuard><OrderTrackingPage /></AuthGuard>,
+      },
+      {
+        path: 'orders/:orderId/crypto-pay',
+        element: <AuthGuard><CryptoPaymentPage /></AuthGuard>,
       },
       {
         path: 'profile',

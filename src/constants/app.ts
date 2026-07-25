@@ -24,6 +24,7 @@ export const ROUTES = {
   RESTAURANT_MENU: (id: string) => `/restaurants/${id}`,
   ORDERS: '/orders',
   ORDER_TRACKING: (orderId: string) => `/orders/${orderId}`,
+  ORDER_CRYPTO_PAY: (orderId: string) => `/orders/${orderId}/crypto-pay`,
   PROFILE: '/profile',
   AUTH_LOGIN: '/auth/login',
   AUTH_REGISTER: '/auth/register',

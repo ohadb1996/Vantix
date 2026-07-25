@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import type { MenuItem } from '../types/menu'
 import { CART_STORAGE_KEY } from '../constants/app'
 import { calculateLineOptionsTotalShekels } from '../utils/menuSectionPricing'
@@ -64,23 +64,29 @@ function optionsFingerprint(opts: CartSelectedOption[] | undefined): string {
 /**
  * Cart state with localStorage persistence per business.
  * Hydrates from storage when menu items become available.
+ * לא שומרים לפני hydration — אחרת [] מוחק את העגלה השמורה בחזרה לדף.
  */
 export function useCart(businessId: string | undefined, menuItems: Record<string, MenuItem> | null) {
   const [cart, setCart] = useState<CartLine[]>([])
+  const hydratedForBusinessRef = useRef<string | null>(null)
 
   useEffect(() => {
     if (!businessId || !menuItems || Object.keys(menuItems).length === 0) return
+
     const stored = loadStoredCart(businessId)
     const lines: CartLine[] = []
     for (const { itemId, quantity, selectedOptions } of stored) {
       const item = menuItems[itemId]
       if (item && quantity > 0) lines.push({ item, quantity, selectedOptions })
     }
+    hydratedForBusinessRef.current = businessId
     setCart(lines)
   }, [businessId, menuItems])
 
   useEffect(() => {
     if (!businessId) return
+    // לא לדרוס localStorage לפני שטענו את העגלה השמורה
+    if (hydratedForBusinessRef.current !== businessId) return
     saveStoredCart(businessId, cart)
   }, [businessId, cart])
 
