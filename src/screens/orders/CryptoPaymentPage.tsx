@@ -421,7 +421,7 @@ export function CryptoPaymentPage() {
                 ) : (
                   <Copy className="h-4 w-4" />
                 )}
-                {copied === "address" ? "הכתובת הועתקה" : "העתק כתובת"}
+                {copied === "address" ? "הכתובת הועתקה" : "העתק כתובת ארנק לשליחת התשלום"}
               </button>
             </div>
           </>

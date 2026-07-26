@@ -1581,7 +1581,7 @@ export const RestaurantMenuPage = () => {
               ) : null}
               {fulfillment === 'delivery' && minDeliveryTotal > 0 ? (
                 <div className="mt-1 flex items-center justify-between text-[12px] text-vantix-fg-subtle">
-                  <span>מינימום מנות למשלוח</span>
+                  <span>מינימום סכום להזמנה</span>
                   <span>₪{minDeliveryTotal.toFixed(2)}</span>
                 </div>
               ) : null}
@@ -1599,7 +1599,7 @@ export const RestaurantMenuPage = () => {
               ) : null}
               {fulfillment === 'delivery' && checkoutSubtotalBeforeTip > roundMoney(totalPrice + deliveryFee) ? (
                 <div className="mt-1 flex items-center justify-between text-vantix-fg-muted">
-                  <span>ביניים לפני טיפ</span>
+                  <span>סכום לפני טיפ</span>
                   <span>₪{checkoutSubtotalBeforeTip.toFixed(2)}</span>
                 </div>
               ) : null}
