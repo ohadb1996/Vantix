@@ -72,5 +72,10 @@ export function filterBusinessesByStoreVertical<T extends Pick<BusinessWithMenu,
   vertical: StoreVerticalId | null,
 ): T[] {
   if (!vertical) return businesses
-  return businesses.filter((b) => businessMatchesStoreVertical(b, vertical))
+  const filtered = businesses.filter((b) => businessMatchesStoreVertical(b, vertical))
+  console.log(`[Filter] Vertical: ${vertical}, Total: ${businesses.length}, Matched: ${filtered.length}`)
+  if (filtered.length === 0 && businesses.length > 0) {
+    console.log('[Filter] No matches! Business types:', businesses.map((b) => b.businessType))
+  }
+  return filtered
 }

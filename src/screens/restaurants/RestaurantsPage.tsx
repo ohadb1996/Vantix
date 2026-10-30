@@ -21,7 +21,7 @@ import {
   RECOMMENDED_CATEGORY_ID,
   RECOMMENDED_CATEGORY_NAME,
 } from '../../services/restaurantCategories'
-import { filterBusinessesByStoreVertical, type StoreVerticalId } from '../../constants/storeVerticals'
+import { filterBusinessesByStoreVertical, STORE_VERTICALS, type StoreVerticalId } from '../../constants/storeVerticals'
 import type { BusinessWithMenu } from '../../services/orderService'
 
 /** ערבוב Fisher–Yates — עותק חדש, לא משנה את המקור */
@@ -86,13 +86,19 @@ export const RestaurantsPage = () => {
     discoverError,
   } = useCustomerRestaurantCatalog(isLoggedIn)
 
-  useEffect(() => {
-    if (error) toast.error('לא הצלחנו לטעון את המסעדות. בדקו את החיבור לאינטרנט ונסו שוב.')
-  }, [error, toast])
+  const verticalLabel = useMemo(() => {
+    if (!selectedVertical) return 'עסקים'
+    const vertical = STORE_VERTICALS.find((v) => v.id === selectedVertical)
+    return vertical?.label ?? 'עסקים'
+  }, [selectedVertical])
 
   useEffect(() => {
-    if (discoverError) toast.error('לא הצלחנו לטעון מסעדות באזור המיקום שנבחר.')
-  }, [discoverError, toast])
+    if (error) toast.error(`לא הצלחנו לטעון את ${verticalLabel}. בדקו את החיבור לאינטרנט ונסו שוב.`)
+  }, [error, toast, verticalLabel])
+
+  useEffect(() => {
+    if (discoverError) toast.error(`לא הצלחנו לטעון ${verticalLabel} באזור המיקום שנבחר.`)
+  }, [discoverError, toast, verticalLabel])
 
   const visibleBusinesses = useMemo(
     () => filterBusinessesByStoreVertical(businesses ?? [], selectedVertical),
@@ -247,7 +253,7 @@ export const RestaurantsPage = () => {
       {isLoadingRestaurants && (
         <section className="space-y-4">
           {isResolvingQuoteLocation ? (
-            <p className="text-center text-sm text-vantix-fg-muted">מאתרים מסעדות באזור המיקום שנבחר...</p>
+            <p className="text-center text-sm text-vantix-fg-muted">מאתרים {verticalLabel} באזור המיקום שנבחר...</p>
           ) : null}
           <div className="grid gap-6 md:grid-cols-2">
             {[1, 2, 3, 4].map((i) => (
@@ -263,7 +269,7 @@ export const RestaurantsPage = () => {
           animate={{ opacity: 1 }}
           className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-800"
         >
-          <p className="font-medium">לא הצלחנו לטעון מסעדות באזור המיקום שנבחר.</p>
+          <p className="font-medium">לא הצלחנו לטעון {verticalLabel} באזור המיקום שנבחר.</p>
           <button
             type="button"
             onClick={() => void refetchRestaurants()}
@@ -281,7 +287,7 @@ export const RestaurantsPage = () => {
           animate={{ opacity: 1 }}
           className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-800"
         >
-          <p className="font-medium">לא הצלחנו לטעון את רשימת המסעדות.</p>
+          <p className="font-medium">לא הצלחנו לטעון את רשימת {verticalLabel}.</p>
           <p className="mt-1 text-sm text-amber-700/90">
             בדקו את החיבור לאינטרנט ונסו שוב. אם הבעיה נמשכת, נסו שוב מאוחר יותר.
           </p>
@@ -306,14 +312,14 @@ export const RestaurantsPage = () => {
           {useLocationFilter ? (
             <>
               <p className="text-vantix-fg-muted">
-                אין מסעדות בטווח משלוח מהמיקום שנבחר
+                אין {verticalLabel} בטווח משלוח מהמיקום שנבחר
                 {maxDeliveryKm ? ` (עד ${maxDeliveryKm} ק"מ)` : ''}.
               </p>
               <p className="text-sm text-vantix-fg-subtle">נסו לבחור מיקום אחר או כתובת שמורה קרובה יותר.</p>
             </>
           ) : (
             <>
-              <p className="text-vantix-fg-muted">אין עדיין עסקים עם תפריט.</p>
+              <p className="text-vantix-fg-muted">אין עדיין {verticalLabel} עם תפריט.</p>
               <p className="text-sm text-vantix-fg-subtle">
                 בעלי עסקים יכולים להוסיף תפריט באפליקציית Vantix Partners בעמוד &quot;תפריט&quot;.
               </p>
@@ -328,7 +334,7 @@ export const RestaurantsPage = () => {
           animate={{ opacity: 1, y: 0 }}
           className="rounded-3xl border border-vantix-cyan/25 bg-vantix-surface-raised p-10 text-center"
         >
-          <p className="text-vantix-fg-muted">אין עסקים מהסוג שנבחר באזור שלך כרגע.</p>
+          <p className="text-vantix-fg-muted">אין {verticalLabel} באזור שלך כרגע.</p>
           <button
             type="button"
             onClick={() => setSelectedVertical(null)}
