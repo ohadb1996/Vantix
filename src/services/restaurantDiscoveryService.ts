@@ -74,26 +74,44 @@ export async function discoverRestaurantsNearDestination(
   if (!user) throw new Error('יש להתחבר')
 
   const idToken = await user.getIdToken()
+  const requestPayload = {
+    destinationAddress,
+    ...(searchQuery?.trim() ? { q: searchQuery.trim() } : {}),
+  }
+
+  console.log('[Discovery] Request:', requestPayload)
+
   const res = await fetch(getDiscoverUrl(), {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${idToken}`,
     },
-    body: JSON.stringify({
-      destinationAddress,
-      ...(searchQuery?.trim() ? { q: searchQuery.trim() } : {}),
-    }),
+    body: JSON.stringify(requestPayload),
   })
 
   const data = (await res.json()) as DiscoverRestaurantsResult & { error?: string }
   if (!res.ok) {
-    throw new Error(data.error || 'לא ניתן לטעון מסעדות באזור')
+    const errorMessage = data.error || 'לא ניתן לטעון עסקים באזור'
+    console.error('[Discovery] Error:', {
+      status: res.status,
+      statusText: res.statusText,
+      error: data.error,
+      data,
+    })
+    throw new Error(errorMessage)
   }
+
+  console.log('[Discovery] Success:', {
+    businessCount: data.businesses?.length ?? 0,
+    maxDeliveryKm: data.max_delivery_km,
+  })
 
   const mapped = (data.businesses ?? []).map((b) =>
     mapDiscoveredRestaurant(b as unknown as Record<string, unknown>),
   )
+
+  console.log('[Discovery] Business types:', mapped.map((b) => ({ name: b.businessName, type: b.businessType })))
 
   // חגורת בטיחות מול CF ישן / stub באינדקס: מסננים עסקים מוסתרים/חסומים מה-RTDB
   let businesses = mapped
