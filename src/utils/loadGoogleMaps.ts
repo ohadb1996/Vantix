@@ -57,8 +57,20 @@ export function ensureGoogleMapsLoaded(): Promise<void> {
   return loadPromise
 }
 
-export async function geocodeAddress(address: string): Promise<{ lat: number; lng: number } | null> {
-  if (!address.trim()) return null
+/** מטמון לפי כתובת (כולל כישלונות) – כל כתובת עולה קריאת Geocoding אחת לכל היותר */
+const geocodeCache = new Map<string, Promise<{ lat: number; lng: number } | null>>()
+
+export function geocodeAddress(address: string): Promise<{ lat: number; lng: number } | null> {
+  const key = address.trim()
+  if (!key) return Promise.resolve(null)
+  const cached = geocodeCache.get(key)
+  if (cached) return cached
+  const p = geocodeAddressUncached(key).catch(() => null)
+  geocodeCache.set(key, p)
+  return p
+}
+
+async function geocodeAddressUncached(address: string): Promise<{ lat: number; lng: number } | null> {
   await ensureGoogleMapsLoaded()
   const w = window as GoogleMapsWindow
   const Geocoder = (w.google?.maps as { Geocoder?: new () => { geocode: (r: object, cb: (r: Array<{ geometry?: { location?: { lat: () => number; lng: () => number } } }>, s: string) => void) => void } })?.Geocoder

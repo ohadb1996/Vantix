@@ -8,8 +8,7 @@ import { normalizeIsraeliPhone } from '../utils/phone'
 import type { Order, OrderCreate } from '../types/order'
 import type { BusinessMenu } from '../types/menu'
 import type { BusinessHours } from '../types/businessHours'
-import { isBusinessOpenNow, normalizeBusinessHours } from '../utils/businessHours'
-import { resolveMinDeliveryTotal } from '../constants/deliveryPricing'
+import { getBusinessField, isBusinessHiddenFromVantix } from './businessFields'
 import type { BusinessLocationInfo, CourierLocation, TrackedDelivery } from '../types/tracking'
 
 const db = () => getRealtimeDb()
@@ -70,15 +69,6 @@ export interface BusinessWithMenu {
   hasVegan?: boolean
 }
 
-function isPermissionDeniedError(e: unknown): boolean {
-  const err = e as { code?: string; message?: string }
-  return (
-    err?.code === 'PERMISSION_DENIED' ||
-    (err?.message?.includes('PERMISSION_DENIED') ?? false) ||
-    (err?.message?.includes('permission_denied') ?? false)
-  )
-}
-
 async function callPublicBusinessesFunction(): Promise<BusinessWithMenu[]> {
   const app = getFirebaseApp()
   const { getFunctions, httpsCallable } = await import('firebase/functions')
@@ -91,35 +81,10 @@ async function callPublicBusinessesFunction(): Promise<BusinessWithMenu[]> {
   return res.data?.data ?? []
 }
 
-async function getRecommendedBusinessIds(): Promise<Set<string>> {
-  try {
-    const snap = await get(ref(db(), 'Businesses'))
-    if (!snap.exists()) return new Set()
-
-    const val = snap.val() as Record<string, { is_recommended?: boolean } | null>
-    const ids = new Set<string>()
-    for (const [businessId, data] of Object.entries(val)) {
-      if (data?.is_recommended === true) ids.add(businessId)
-    }
-    return ids
-  } catch {
-    return new Set()
-  }
-}
-
-function applyRecommendedFlags(
-  businesses: BusinessWithMenu[],
-  recommendedIds: Set<string>
-): BusinessWithMenu[] {
-  if (recommendedIds.size === 0) return businesses
-  return businesses.map((b) => ({
-    ...b,
-    isRecommended: recommendedIds.has(b.businessId) || b.isRecommended === true,
-  }))
-}
-
 /**
- * רשימת עסקים – מנסה אינדקס דק, משלים/נופל לתפריטים מלאים, ואז Cloud Function.
+ * רשימת עסקים לדף הבית – רק מהאינדקס הדק VantixListings (בלי להוריד את כל Businesses/BusinessMenus).
+ * סינון חסומים/מוסתרים והמלצה נקראים כשדות בודדים לכל עסק (כמה בתים בלבד).
+ * אם האינדקס ריק/חסום – Cloud Function ציבורית שמסננת בשרת.
  */
 export async function getBusinessesWithMenus(): Promise<BusinessWithMenu[]> {
   let fromIndex: BusinessWithMenu[] | null = null
@@ -127,202 +92,27 @@ export async function getBusinessesWithMenus(): Promise<BusinessWithMenu[]> {
     const { getVantixListings } = await import('./vantixListings')
     fromIndex = await getVantixListings()
   } catch {
-    // אינדקס אופציונלי – אם אין הרשאה או שהצומת לא קיים, ממשיכים ל-fallback.
     fromIndex = null
   }
-
+  if (fromIndex && fromIndex.length > 0) return fromIndex
   try {
-    const legacy = await getBusinessesWithMenusLegacy()
-    if (fromIndex && fromIndex.length > 0) {
-      if (legacy.length === 0) {
-        const recommendedIds = await getRecommendedBusinessIds()
-        return applyRecommendedFlags(fromIndex, recommendedIds)
-      }
-      const legacyById = new Map(legacy.map((b) => [b.businessId, b]))
-      const mergedIndexed = fromIndex
-        .filter((indexed) => {
-          // אם ה-legacy סינן עסק (חסום/מוסתר) — אל תציג אותו מהאינדקס הישן
-          if (legacy.length > 0 && !legacyById.has(indexed.businessId)) return false
-          return true
-        })
-        .map((indexed) => {
-        const fresh = legacyById.get(indexed.businessId)
-        if (!fresh) return indexed
-
-        const merged: BusinessWithMenu = {
-          ...indexed,
-          ...(Object.fromEntries(
-            Object.entries(fresh).filter(([, v]) => v !== undefined),
-          ) as Partial<BusinessWithMenu>),
-        }
-        return merged
-      })
-
-      const indexedIds = new Set(mergedIndexed.map((b) => b.businessId))
-      const missing = legacy.filter((b) => !indexedIds.has(b.businessId))
-      return missing.length > 0 ? [...mergedIndexed, ...missing] : mergedIndexed
-    }
-    return legacy
-  } catch (e: unknown) {
-    if (fromIndex && fromIndex.length > 0) {
-      const recommendedIds = await getRecommendedBusinessIds()
-      return applyRecommendedFlags(fromIndex, recommendedIds)
-    }
-    if (isPermissionDeniedError(e)) {
-      try {
-        return await callPublicBusinessesFunction()
-      } catch {
-        return []
-      }
-    }
-    throw e
+    return await callPublicBusinessesFunction()
+  } catch {
+    return []
   }
 }
 
-async function getBusinessesWithMenusLegacy(): Promise<BusinessWithMenu[]> {
-  try {
-    const [menuSnap, businessesSnap] = await Promise.all([
-      get(ref(db(), 'BusinessMenus')),
-      get(ref(db(), 'Businesses')),
-    ])
-    if (!menuSnap.exists()) return []
-
-    const menus = menuSnap.val() as Record<string, {
-      items?: Record<string, { name?: string; available?: boolean; price?: number; dietaryType?: string }>
-      categories?: Record<string, { name?: string; available?: boolean }>
-    }>
-    const businessesById = (businessesSnap.exists() ? businessesSnap.val() : {}) as Record<
-      string,
-      Record<string, unknown>
-    >
-
-    const result: BusinessWithMenu[] = []
-
-    for (const [businessId, menu] of Object.entries(menus)) {
-      const items = menu?.items ? Object.keys(menu.items).length : 0
-      const categories = menu?.categories ? Object.keys(menu.categories).length : 0
-      if (items === 0) continue
-
-      const data = businessesById[businessId]
-      if (data?.isBlocked === true || data?.hidden_from_vantix === true) continue
-
-      const availableMenuItems = menu?.items
-        ? Object.values(menu.items).filter((it) => it?.available !== false)
-        : []
-
-      const menuItemNames: string[] = availableMenuItems
-        .map((it) => it?.name || '')
-        .filter(Boolean)
-
-      const menuPrices: number[] = availableMenuItems
-        .filter((it) => typeof it.price === 'number' && it.price > 0)
-        .map((it) => it.price as number)
-
-      const hasVegan = availableMenuItems.some((it) => it?.dietaryType === 'vegan')
-      const hasVegetarian =
-        hasVegan || availableMenuItems.some((it) => it?.dietaryType === 'vegetarian')
-
-      let businessName = ''
-      let logoUrl: string | undefined
-      let isRecommended = false
-      let likeCount = 0
-      let pickupAddress: string | undefined
-      let businessType: string | undefined
-      let businessHours: BusinessHours | null = null
-      let hasConfiguredHours = false
-      let kitchenType: string | null = null
-      let foodTypes: string[] = []
-      let kashrutType: string | null = null
-      let minDeliveryTotal: number | undefined
-      let cashbackPercent: number | undefined
-
-      if (data) {
-        businessName = (data.business_name as string) || ''
-        logoUrl = (data.logo_url as string) || undefined
-        isRecommended = data.is_recommended === true
-        likeCount = typeof data.likeCount === 'number' ? data.likeCount : 0
-        const streetLine = [data.business_street, data.business_building_number].filter(Boolean).join(' ')
-        pickupAddress =
-          (data.business_address as string) ||
-          [streetLine, data.business_city].filter(Boolean).join(', ') ||
-          undefined
-        businessHours = normalizeBusinessHours(data.business_hours)
-        hasConfiguredHours = data.business_hours != null && typeof data.business_hours === 'object'
-        businessType = typeof data.business_type === 'string' ? data.business_type : undefined
-        const profile = data.search_profile as Record<string, unknown> | undefined
-        if (profile && typeof profile === 'object') {
-          if (typeof profile.kitchen_type === 'string') {
-            kitchenType = profile.kitchen_type
-          } else if (Array.isArray(profile.kitchen_types)) {
-            const first = profile.kitchen_types.find((v): v is string => typeof v === 'string')
-            kitchenType = first ?? null
-          }
-          if (Array.isArray(profile.food_types)) {
-            foodTypes = profile.food_types.filter((v): v is string => typeof v === 'string')
-          }
-          if (typeof profile.kashrut_type === 'string') kashrutType = profile.kashrut_type
-        }
-        const customerPricing = data.customer_pricing as Record<string, unknown> | undefined
-        if (customerPricing && typeof customerPricing === 'object') {
-          const v = Number(customerPricing.min_delivery_total)
-          minDeliveryTotal = resolveMinDeliveryTotal(Number.isFinite(v) ? v : undefined)
-        } else {
-          minDeliveryTotal = resolveMinDeliveryTotal(undefined)
-        }
-        if (typeof data.cashback_percent === 'number' && data.cashback_percent > 0) {
-          cashbackPercent = data.cashback_percent
-        }
-      } else {
-        businessName = `עסק ${businessId.slice(0, 6)}`
-      }
-
-      result.push({
-        businessId,
-        businessName: businessName || `עסק ${businessId.slice(0, 8)}`,
-        logoUrl,
-        itemsCount: items,
-        categoriesCount: categories,
-        isRecommended,
-        likeCount,
-        menuItemNames,
-        kitchenType,
-        foodTypes,
-        kashrutType,
-        minMenuPrice: menuPrices.length ? Math.min(...menuPrices) : undefined,
-        maxMenuPrice: menuPrices.length ? Math.max(...menuPrices) : undefined,
-        minDeliveryTotal,
-        businessType,
-        hasConfiguredHours,
-        pickupAddress,
-        businessHours,
-        isOpenNow: isBusinessOpenNow(businessHours),
-        cashbackPercent,
-        hasVegetarian: hasVegetarian || undefined,
-        hasVegan: hasVegan || undefined,
-      })
-    }
-
-    return result
-  } catch (e: unknown) {
-    throw e
-  }
-}
 
 /**
  * תפריט מלא של עסק (קטגוריות + פריטים)
  */
 export async function getBusinessMenu(businessId: string): Promise<BusinessMenu | null> {
-  const [menuSnap, bizSnap] = await Promise.all([
+  const [menuSnap, hiddenFromVantix] = await Promise.all([
     get(ref(db(), `BusinessMenus/${businessId}`)),
-    get(ref(db(), `Businesses/${businessId}`)),
+    isBusinessHiddenFromVantix(businessId),
   ])
 
-  if (bizSnap.exists()) {
-    const biz = bizSnap.val()
-    if (biz?.isBlocked === true || biz?.hidden_from_vantix === true) {
-      return null
-    }
-  }
+  if (hiddenFromVantix) return null
 
   if (!menuSnap.exists()) return null
 
@@ -425,17 +215,26 @@ export function subscribeToCourierOnDelivery(
 }
 
 export async function getBusinessLocation(businessId: string): Promise<BusinessLocationInfo | null> {
-  const snap = await get(ref(db(), `Businesses/${businessId}`))
-  if (!snap.exists()) return null
-  const data = snap.val() as Record<string, unknown>
+  const fields = [
+    'business_name',
+    'business_address',
+    'business_street',
+    'business_building_number',
+    'business_city',
+    'business_coordinates',
+    'location',
+  ] as const
+  const values = await Promise.all(fields.map((f) => getBusinessField(businessId, f)))
+  const data = Object.fromEntries(fields.map((f, i) => [f, values[i]])) as Record<string, unknown>
+  if (values.every((v) => v == null)) return null
   const streetLine = [data.business_street, data.business_building_number].filter(Boolean).join(' ')
   const address =
     (typeof data.business_address === 'string' && data.business_address) ||
     [streetLine, data.business_city].filter(Boolean).join(', ') ||
     ''
   const coords =
-    (data.business_coordinates as { lat?: number; lng?: number } | undefined) ||
-    (data.location as { lat?: number; lng?: number } | undefined)
+    (data.business_coordinates as { lat?: number; lng?: number } | null) ||
+    (data.location as { lat?: number; lng?: number } | null)
   return {
     name: String(data.business_name || ''),
     address,

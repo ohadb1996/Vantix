@@ -1,6 +1,5 @@
 import { resolveMinDeliveryTotal } from '../constants/deliveryPricing'
-import { getFirebaseAuth, getRealtimeDb } from '../lib/firebase'
-import { ref, get } from 'firebase/database'
+import { getFirebaseAuth } from '../lib/firebase'
 import type { BusinessWithMenu } from './orderService'
 import { isBusinessOpenNow, normalizeBusinessHours } from '../utils/businessHours'
 import type { BusinessHours } from '../types/businessHours'
@@ -113,23 +112,8 @@ export async function discoverRestaurantsNearDestination(
 
   console.log('[Discovery] Business types:', mapped.map((b) => ({ name: b.businessName, type: b.businessType })))
 
-  // חגורת בטיחות מול CF ישן / stub באינדקס: מסננים עסקים מוסתרים/חסומים מה-RTDB
-  let businesses = mapped
-  try {
-    const bizSnap = await get(ref(getRealtimeDb(), 'Businesses'))
-    if (bizSnap.exists()) {
-      const byId = bizSnap.val() as Record<
-        string,
-        { isBlocked?: boolean; hidden_from_vantix?: boolean } | undefined
-      >
-      businesses = mapped.filter((b) => {
-        const biz = byId[b.businessId]
-        return !(biz?.isBlocked === true || biz?.hidden_from_vantix === true)
-      })
-    }
-  } catch {
-    // אם אין הרשאה לקרוא Businesses — משאירים את תוצאת ה-CF כמו שהיא
-  }
+  // הסינון של חסומים/מוסתרים מתבצע בשרת (discoverVantixRestaurants) – בלי להוריד את כל Businesses
+  const businesses = mapped
 
   return {
     max_delivery_km: data.max_delivery_km,
