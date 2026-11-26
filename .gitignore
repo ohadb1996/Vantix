@@ -54,3 +54,6 @@ android/captures/
 android/.externalNativeBuild/
 android/.cxx/
 android/local.properties
+
+# Android signing config (never commit)
+android/keystore.properties
