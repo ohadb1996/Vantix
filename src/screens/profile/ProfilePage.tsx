@@ -10,6 +10,7 @@ import {
   PaymentsSection,
 } from '../../components/profile/SavedProfileSections'
 import { WalletHistorySection } from '../../components/wallet/WalletHistorySection'
+import { AccountDeletionSection } from '../../components/profile/AccountDeletionSection'
 
 export const ProfilePage = () => {
   const { user, logout } = useAuth()
@@ -111,6 +112,8 @@ export const ProfilePage = () => {
         </div>
         <ChevronLeft className="h-5 w-5 rotate-180 text-vantix-fg-subtle transition group-hover:text-vantix-cyan" />
       </a>
+
+      <AccountDeletionSection />
 
       <button
         type="button"
